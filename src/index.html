@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockWeb-login</title>
+    <!-- 引入我們自訂的 CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="login-page">
+
+    <!-- 用於置中的全螢幕容器 -->
+    <div class="login-container">
+        
+        <!-- 登入卡片本體 (對應 Pencil S1 設計) -->
+        <main class="login-card">
+            
+            <!-- 品牌圖示與標題 -->
+            <div class="brand">
+                <!-- 這裡未來放圖示，暫用文字代替 -->
+                <div class="icon-placeholder"></div>
+                <h1>StockWeb</h1>
+            </div>
+
+            <!-- 登入表單 -->
+            <form id="login-form">
+                <!-- 帳號輸入框 -->
+                <div class="input-group">
+                    <label for="username">使用者帳號</label>
+                    <!-- autocomplete="off" 避免公共電腦快取 -->
+                    <input type="text" id="username" name="username" placeholder="請輸入使用者名稱" required autocomplete="off">
+                </div>
+
+                <!-- 密碼輸入框 -->
+                <div class="input-group">
+                    <label for="password">密碼</label>
+                    <input type="password" id="password" name="password" placeholder="請輸入密碼" required>
+                </div>
+
+                <!-- 登入按鈕 -->
+                <button type="submit" class="btn-login">登入系統</button>
+            </form>
+
+            <!-- ISO 27000 資安聲明警語 (符合規劃) -->
+            <footer class="security-notice">
+                <p>受 ISO 27000 規範保護之存取控制系統，請勿於未授權裝置操作。</p>
+                <p>© 2024 StockWeb Project</p>
+            </footer>
+        </main>
+
+    </div>
+
+    <!-- 引入我們的 JavaScript (放在 body 底部以加快讀取) -->
+    <script src="js/main.js"></script>
+</body>
+</html>
