@@ -1,0 +1,155 @@
+/* =========================================
+   1. 全域重設與變數
+   ========================================= */
+:root {
+    /* 深色調主題變數 (對應設計稿) */
+    --bg-color: #0f172a;        /* 整頁背景色 (極深藍) */
+    --card-bg-color: #1e293b;   /* 卡片背景色 (深藍) */
+    --text-primary: #f1f5f9;     /* 主文字色 */
+    --text-secondary: #94a3b8;   /* 次要文字色 (警語、Placeholder) */
+    --primary-color: #3b82f6;    /* 按鈕主色 (藍色) */
+    --border-color: #334155;     /* 輸入框邊框 */
+    
+    /* 字體與圓角 */
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --border-radius: 10px;       /* 設計稿的圓角 */
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* =========================================
+   2. 登入頁佈局 (居中核心)
+   ========================================= */
+.login-page {
+    height: 100vh; /* 全螢幕高度 */
+    overflow: hidden; /* 避免捲動條 */
+}
+
+.login-container {
+    display: flex;
+    justify-content: center; /* 水平居中 */
+    align-items: center;     /* 垂直居中 */
+    height: 100%;
+    padding: 20px;
+}
+
+/* =========================================
+   3. 登入卡片
+   ========================================= */
+.login-card {
+    background-color: var(--card-bg-color);
+    width: 100%;
+    max-width: 420px; /* 設計稿約 420px */
+    padding: 40px;
+    border-radius: var(--border-radius);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3); /* 深色陰影增加層次 */
+    text-align: center;
+}
+
+/* 品牌識別 */
+.brand {
+    margin-bottom: 35px;
+}
+
+.icon-placeholder {
+    width: 60px;
+    height: 60px;
+    background-color: var(--primary-color); /* 暫用按鈕色代替圖示 */
+    border-radius: 12px;
+    margin: 0 auto 15px;
+    /* 這裡未來可以用 background-image 放 logo */
+}
+
+.brand h1 {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+/* =========================================
+   4. 表單與輸入框
+   ========================================= */
+.input-group {
+    margin-bottom: 20px;
+    text-align: left; /* 輸入框標籤左對齊 */
+}
+
+.input-group label {
+    display: block;
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 16px;
+    background-color: rgba(255, 255, 255, 0.05); /* 微透明背景 */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+.input-group input::placeholder {
+    color: #475569; /* Placeholder 顏色 */
+}
+
+/* 輸入框 Focus 狀態 */
+.input-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* =========================================
+   5. 按鈕
+   ========================================= */
+.btn-login {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+    background-color: var(--primary-color);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.btn-login:hover {
+    background-color: #2563eb; /* 懸停時稍微深一點的藍色 */
+}
+
+.btn-login:active {
+    transform: translateY(1px); /* 點擊時下沉視覺效果 */
+}
+
+/* =========================================
+   6. 資安警語 (ISO 27000)
+   ========================================= */
+.security-notice {
+    margin-top: 35px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.security-notice p {
+    margin-bottom: 4px;
+}
