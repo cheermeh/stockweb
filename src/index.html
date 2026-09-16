@@ -3,27 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StockWeb-login</title>
-    <link rel="stylesheet" href="/src/css/style.css">
+    <title>StockWeb 股票交易記錄系統 - 登入</title>
+    <link rel="stylesheet" href="css/auth.css">
 </head>
 <body class="login-page">
 
     <div class="login-container">
         <main class="login-card">
             
-            <!-- 品牌圖示與標題 (對應 Pencil S1 Logo) -->
             <div class="brand">
                 <div class="brand-icon">
-                    <!-- 手寫乾淨的折線圖 SVG 圖示 -->
                     <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
                         <polyline points="16 7 22 7 22 13"></polyline>
                     </svg>
                 </div>
-                <h1>StockWeb TradingRecord</h1>
+                <h1>StockWeb 交易記錄</h1>
             </div>
 
-            <!-- 登入表單 -->
             <form id="login-form">
                 <div class="input-group">
                     <label for="username">使用者帳號</label>
@@ -49,10 +46,30 @@
                     >
                 </div>
 
-                <button type="submit" class="btn-login">登入系統</button>
+                <!-- 市場別選擇切換按鈕組 -->
+                <div class="input-group">
+                    <label>管理市場環境</label>
+                    <div class="market-toggle-group">
+                        <label class="market-option">
+                            <input type="radio" name="market" value="TW" checked>
+                            <span class="market-card">
+                                <strong>TW</strong>
+                                <small>NTD</small>
+                            </span>
+                        </label>
+                        <label class="market-option">
+                            <input type="radio" name="market" value="US">
+                            <span class="market-card">
+                                <strong>US</strong>
+                                <small>USD</small>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-login">進入管理系統</button>
             </form>
 
-            <!-- ISO 27000 資安聲明警語 -->
             <footer class="security-notice">
                 <p>受 ISO 27000 規範保護之存取控制系統，請勿於未授權裝置操作。</p>
                 <p class="copyright">© 2026 StockWeb Project</p>
@@ -60,6 +77,6 @@
         </main>
     </div>
 
-    <script src="/src/js/main.js"></script>
+    <script src="js/auth.js"></script>
 </body>
 </html>
