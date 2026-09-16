@@ -191,3 +191,54 @@ body.login-page {
         font-size: 22px;
     }
 }
+
+/* =========================================
+   市場環境選擇卡片樣式
+   ========================================= */
+.market-toggle-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.market-option {
+    cursor: pointer;
+}
+
+.market-option input[type="radio"] {
+    display: none;
+}
+
+.market-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 12px;
+    background-color: var(--input-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-input);
+    transition: all 0.2s ease;
+}
+
+.market-card strong {
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.market-card small {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+/* 選取態高亮 */
+.market-option input[type="radio"]:checked + .market-card {
+    border-color: var(--primary-blue);
+    background-color: rgba(37, 99, 235, 0.15);
+    box-shadow: 0 0 0 1px var(--primary-blue);
+}
+
+.market-option input[type="radio"]:checked + .market-card strong {
+    color: #60a5fa;
+}
