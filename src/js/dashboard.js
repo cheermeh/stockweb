@@ -128,4 +128,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isMasked) renderTable();
         });
     }
+    
+    // 在 src/js/dashboard.js 內加入
+const btnGotoTradinglog = document.getElementById('btn-goto-tradinglog');
+if (btnGotoTradinglog) {
+    btnGotoTradinglog.addEventListener('click', () => {
+        // 依照登入時選擇的市場別，自動決定預設載入的標的
+        const defaultSymbol = sessionMarket === 'US' ? 'NVDA' : '2330';
+        
+        // 透過 JS 進行頁面導航，不使用 <a> 超連結
+        window.location.href = `tradinglog.html?symbol=${defaultSymbol}`;
+    });
+}
 });

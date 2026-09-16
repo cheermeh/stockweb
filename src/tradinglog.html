@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockWeb 個股交易記錄 - TradingLog</title>
+    <link rel="stylesheet" href="css/tradinglog.css">
+</head>
+<body class="trading-body">
+
+    <!-- 頂部功能列 -->
+    <header class="trading-header">
+        <div class="header-left">
+            <a href="dashboard.html" class="btn-back">← 返回總管</a>
+            <div class="stock-selector-wrap">
+                <label for="stock-select">目前標的：</label>
+                <select id="stock-select" class="stock-dropdown"></select>
+                <button type="button" id="btn-open-add-stock" class="btn-sm-action">＋新增標的</button>
+            </div>
+            <span class="market-pill" id="market-badge">載入中...</span>
+        </div>
+        <div class="header-actions">
+            <button type="button" id="btn-mask-toggle" class="btn-icon" title="隱藏/顯示金額">👁️</button>
+            <button type="button" id="btn-logout" class="btn-secondary">登出</button>
+        </div>
+    </header>
+
+    <main class="trading-content">
+        <!-- 區塊一：個股持倉概況 -->
+        <section class="stock-kpi-grid">
+            <div class="kpi-card">
+                <span class="kpi-label">當前持股</span>
+                <span class="kpi-value" id="kpi-shares">0 股</span>
+                <span class="kpi-sub" id="kpi-avg-price">均價 0</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">投入本金</span>
+                <span class="kpi-value" id="kpi-cost" data-raw="0">0</span>
+                <span class="kpi-sub">累計買進本金</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">已實現損益</span>
+                <span class="kpi-value" id="kpi-realized" data-raw="0">0</span>
+                <span class="kpi-sub">歷史結算淨額</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">當前活躍回合</span>
+                <span class="kpi-value" id="kpi-current-round">-</span>
+                <span class="kpi-sub">進行中的交易波段</span>
+            </div>
+        </section>
+
+        <!-- 區塊二：交易錄入表單 -->
+        <section class="trade-form-section">
+            <h2>新增交易 / 出金 / 配息紀錄</h2>
+            <form id="trade-form">
+                <div class="trade-form-grid">
+                    <div class="form-group">
+                        <label for="trade-date">交易日期</label>
+                        <input type="date" id="trade-date" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="round-select">所屬回合</label>
+                        <select id="round-select" required></select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="trade-type">動作類型</label>
+                        <select id="trade-type" required>
+                            <option value="買進">買進 (Buy)</option>
+                            <option value="賣出">賣出 (Sell)</option>
+                            <option value="股利">股利/配息 (Dividend)</option>
+                            <option value="出金">出金提領 (Cash Out)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="group-price">
+                        <label for="trade-price">成交單價</label>
+                        <input type="number" id="trade-price" step="0.01" min="0" placeholder="0" required>
+                    </div>
+
+                    <div class="form-group" id="group-shares">
+                        <label for="trade-shares" id="label-shares">股數 / 單位</label>
+                        <input type="number" id="trade-shares" step="1" min="1" placeholder="0" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="trade-fee">手續費</label>
+                        <input type="number" id="trade-fee" step="1" min="0" value="0">
+                    </div>
+
+                    <div class="form-group" id="group-tax">
+                        <label for="trade-tax">交易稅</label>
+                        <input type="number" id="trade-tax" step="1" min="0" value="0">
+                    </div>
+
+                    <div class="form-group col-span-2">
+                        <label for="trade-note">交易備註</label>
+                        <input type="text" id="trade-note" placeholder="例如：分批加碼、純提領交割款...">
+                    </div>
+
+                    <div class="form-group form-actions">
+                        <button type="submit" class="btn-primary">確認存入記錄</button>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <!-- 區塊三：交易明細 / 回合總覽 分頁切換 (模式 A) -->
+        <section class="ledger-section">
+            <div class="ledger-header">
+                <div class="tab-group">
+                    <button type="button" class="tab-btn active" id="tab-btn-detail">交易明細帳</button>
+                    <button type="button" class="tab-btn" id="tab-btn-summary">回合總覽表</button>
+                </div>
+                <div class="ledger-filter-row">
+                    <div id="filter-wrap" class="filter-wrap">
+                        <label for="detail-round-filter">篩選回合：</label>
+                        <select id="detail-round-filter" class="filter-select">
+                            <option value="ALL">全部回合</option>
+                        </select>
+                    </div>
+                    <span class="ledger-tip" id="ledger-tip">依時序紀錄之交易流水</span>
+                </div>
+            </div>
+
+            <!-- Tab 1: 交易明細帳 -->
+            <div id="tab-panel-detail" class="table-container">
+                <table class="ledger-table">
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>回合</th>
+                            <th>動作</th>
+                            <th class="text-right">成交單價</th>
+                            <th class="text-right">股數</th>
+                            <th class="text-right">手續費</th>
+                            <th class="text-right">交易稅</th>
+                            <th class="text-right">淨收付金額</th>
+                            <th>備註</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trade-ledger-body"></tbody>
+                </table>
+            </div>
+
+            <!-- Tab 2: 回合總覽表 -->
+            <div id="tab-panel-summary" class="table-container hidden">
+                <table class="ledger-table">
+                    <thead>
+                        <tr>
+                            <th>回合編號</th>
+                            <th>交易區間</th>
+                            <th class="text-right">投入總本金</th>
+                            <th class="text-right">回收總金額</th>
+                            <th class="text-right">已實現淨損益</th>
+                            <th class="text-right">投資報酬率</th>
+                            <th>波段狀態</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="round-summary-body"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- 新增股票彈窗 (對齊 StockComp Schema) -->
+    <div id="modal-add-stock" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>新增追蹤標的 (StockComp)</h3>
+                <button type="button" id="btn-close-stock-modal" class="btn-close">×</button>
+            </div>
+            <form id="form-add-stock">
+                <div class="form-group">
+                    <label>所屬市場 (Type)</label>
+                    <input type="text" id="new-stock-type" readonly class="input-readonly">
+                </div>
+                <div class="form-group">
+                    <label for="new-stock-id">股票代號 (Id)</label>
+                    <input type="text" id="new-stock-id" placeholder="例如：2454 或 TSLA" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="new-stock-name">股票名稱 (Name)</label>
+                    <input type="text" id="new-stock-name" placeholder="例如：聯發科 或 特斯拉" required autocomplete="off">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="btn-cancel-stock" class="btn-secondary">取消</button>
+                    <button type="submit" class="btn-primary">確認新增</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/tradinglog.js"></script>
+</body>
+</html>
