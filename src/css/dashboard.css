@@ -239,3 +239,24 @@ body.dashboard-body {
     color: #fbbf24;
     border: 1px solid rgba(245, 158, 11, 0.3);
 }
+
+/* S2 前往 S3 的主要操作按鈕 */
+.btn-primary-action {
+    background-color: #2563eb;
+    color: #ffffff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.btn-primary-action:hover {
+    background-color: #1d4ed8;
+}
+
+.btn-primary-action:active {
+    transform: translateY(1px);
+}
