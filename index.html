@@ -26,7 +26,7 @@
                     <label for="username">使用者帳號</label>
                     <input 
                         type="text" 
-                        id="username" 
+                        id="input-username"
                         name="username" 
                         placeholder="請輸入使用者名稱" 
                         required 
@@ -39,7 +39,7 @@
                     <label for="password">密碼</label>
                     <input 
                         type="password" 
-                        id="password" 
+                        id="input-password"
                         name="password" 
                         placeholder="請輸入密碼" 
                         required
@@ -67,7 +67,8 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn-login">進入管理系統</button>
+                <!-- 找到「進入管理系統」按鈕，改為明確的 type="button" -->
+                <button type="button" id="btn-login" class="btn-login">進入管理系統</button>
             </form>
 
             <footer class="security-notice">
@@ -75,8 +76,10 @@
                 <p class="copyright">© 2026 StockWeb Project</p>
             </footer>
         </main>
-    </div>
+    </div>    <!-- index.html </body> 標籤前 -->
 
-    <script src="src/js/auth.js"></script>
+        <script src="./src/js/client-auth.js"></script>
+        <script src="./src/js/client-login.js"></script>
+        
 </body>
 </html>

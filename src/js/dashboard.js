@@ -1,143 +1,242 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const sessionUser = sessionStorage.getItem('stockweb_session_user');
-    const sessionMarket = sessionStorage.getItem('stockweb_session_market') || 'TW';
+// src/js/dashboard.js
 
-    // 1. Session 權限守衛
-    if (!sessionUser) {
-        alert('未授權存取或登入已過期，請重新登入！');
+document.addEventListener('DOMContentLoaded', async () => {
+  // 1. 前端路由守衛：透過 client-auth.js 驗證基礎登入狀態
+  if (window.ClientAuth && !window.ClientAuth.requireAuth()) {
+    return;
+  }
+
+  // 取得使用者帳號與市場設定
+  const sessionInfo = window.ClientAuth 
+    ? window.ClientAuth.getSessionInfo() 
+    : {
+        username: sessionStorage.getItem('stockweb_session_user') || '訪客',
+        market: sessionStorage.getItem('stockweb_session_market') || 'TW'
+      };
+
+  const { username, market } = sessionInfo;
+
+  // 2. 市場顯示與樣式配置 (台股紅漲綠跌 / 美股綠漲紅跌)
+  const marketConfig = {
+    TW: {
+      titleSuffix: '台股帳戶',
+      currency: 'NT$ ',
+      profitClass: 'text-profit', // 紅漲
+      lossClass: 'text-loss'      // 綠跌
+    },
+    US: {
+      titleSuffix: '美股帳戶',
+      currency: '$ ',
+      profitClass: 'text-loss',   // 美股綠漲
+      lossClass: 'text-profit'    // 美股紅跌
+    }
+  };
+
+  const currentConfig = marketConfig[market] || marketConfig.TW;
+
+  // 3. 渲染 Header 使用者資訊與市場別
+  const userBadge = document.getElementById('current-user-badge');
+  if (userBadge) {
+    const maskedName = username.length > 3 ? `${username.slice(0, 3)}***` : username;
+    userBadge.textContent = `${maskedName} (${currentConfig.titleSuffix})`;
+  }
+
+  // 4. 登出按鈕事件綁定
+  const btnLogout = document.getElementById('btn-logout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+      if (window.ClientAuth) {
+        window.ClientAuth.logout();
+      } else {
+        sessionStorage.clear();
         window.location.replace('index.html');
-        return;
-    }
-
-    // 2. 市場設定與獨立 Mock 數據
-    const marketConfig = {
-        TW: {
-            titleSuffix: '台股帳戶',
-            currency: 'NT$ ',
-            profitClass: 'text-profit', // 紅漲
-            lossClass: 'text-loss',     // 綠跌
-            kpi: [1200000, 384500, 16500000, 3220300, 1862700, 2247200],
-            rates: ['+15.52%', '+18.72%'],
-            ledger: [
-                { date: '2026-03-12', stock: '2330 台積電', type: '買進', income: 0, expense: 98000, note: '第10次分批買進' },
-                { date: '2026-03-10', stock: '2330 台積電', type: '股利', income: 4500, expense: 0, note: 'Q4 現金股利' },
-                { date: '2026-03-05', stock: '2454 聯發科', type: '賣出', income: 142000, expense: 0, note: '波段回合#1結算' },
-                { date: '2026-02-28', stock: '交割帳戶', type: '入金', income: 200000, expense: 0, note: '定期存入' }
-            ]
-        },
-        US: {
-            titleSuffix: '美股帳戶',
-            currency: '$ ',
-            profitClass: 'text-loss',   // 美股綠漲 (採用 loss 綠色變數)
-            lossClass: 'text-profit',   // 美股紅跌 (採用 profit 紅色變數)
-            kpi: [40000, 1200, 500000, 12400, 8200, 9400],
-            rates: ['+20.50%', '+23.50%'],
-            ledger: [
-                { date: '2026-03-11', stock: 'NVDA 輝達', type: '買進', income: 0, expense: 3200, note: '分批加碼 25 股' },
-                { date: '2026-03-01', stock: 'AAPL 蘋果', type: '股利', income: 120, expense: 0, note: '已扣 30% 預扣稅' },
-                { date: '2026-02-20', stock: 'TSLA 特斯拉', type: '賣出', income: 5400, expense: 0, note: '波段回合#1結算' }
-            ]
-        }
-    };
-
-    const currentConfig = marketConfig[sessionMarket];
-
-    // 3. 渲染 Header 使用者資訊
-    const userBadge = document.getElementById('current-user-badge');
-    if (userBadge) {
-        userBadge.textContent = `${sessionUser.slice(0, 3)}*** (${currentConfig.titleSuffix})`;
-    }
-
-    // 4. 登出
-    const btnLogout = document.getElementById('btn-logout');
-    if (btnLogout) {
-        btnLogout.addEventListener('click', () => {
-            sessionStorage.clear();
-            window.location.replace('index.html');
-        });
-    }
-
-    // 5. 渲染 KPI 卡片
-    const kpiElements = document.querySelectorAll('.kpi-value');
-    kpiElements.forEach((el, i) => {
-        const val = currentConfig.kpi[i];
-        el.dataset.raw = val;
-
-        const isPnL = i >= 4;
-        const sign = isPnL && val > 0 ? '+' : '';
-        el.textContent = `${sign}${currentConfig.currency}${val.toLocaleString()}`;
-
-        if (isPnL) {
-            el.classList.add(val >= 0 ? currentConfig.profitClass : currentConfig.lossClass);
-        }
+      }
     });
+  }
 
-    document.getElementById('sub-pnl-noint').textContent = currentConfig.rates[0];
-    document.getElementById('sub-pnl-noint').classList.add(currentConfig.profitClass);
-    document.getElementById('sub-pnl-int').textContent = currentConfig.rates[1];
-    document.getElementById('sub-pnl-int').classList.add(currentConfig.profitClass);
-
-    // 6. 渲染流水帳表格
-    const ledgerBody = document.getElementById('ledger-body');
-    function renderTable() {
-        if (!ledgerBody) return;
-        ledgerBody.innerHTML = '';
-        currentConfig.ledger.forEach(item => {
-            const tr = document.createElement('tr');
-            let badgeClass = 'badge-deposit';
-            if (item.type === '買進') badgeClass = 'badge-buy';
-            if (item.type === '賣出') badgeClass = 'badge-sell';
-            if (item.type === '股利') badgeClass = 'badge-dividend';
-
-            const incomeText = item.income > 0 ? `${currentConfig.currency}${item.income.toLocaleString()}` : '-';
-            const expenseText = item.expense > 0 ? `${currentConfig.currency}${item.expense.toLocaleString()}` : '-';
-
-            tr.innerHTML = `
-                <td>${item.date}</td>
-                <td>${item.stock}</td>
-                <td><span class="badge ${badgeClass}">${item.type}</span></td>
-                <td class="text-right ${item.income > 0 ? currentConfig.profitClass : ''}" data-type="amount">${incomeText}</td>
-                <td class="text-right ${item.expense > 0 ? currentConfig.lossClass : ''}" data-type="amount">${expenseText}</td>
-                <td>${item.note}</td>
-            `;
-            ledgerBody.appendChild(tr);
-        });
-    }
-    renderTable();
-
-    // 7. 一鍵金額遮罩 (ISO 27000)
-    let isMasked = false;
-    const btnMaskToggle = document.getElementById('btn-mask-toggle');
-    if (btnMaskToggle) {
-        btnMaskToggle.addEventListener('click', () => {
-            isMasked = !isMasked;
-
-            kpiElements.forEach((el, idx) => {
-                const raw = Number(el.dataset.raw);
-                const isPnL = idx >= 4;
-                const sign = isPnL && raw > 0 ? '+' : '';
-                el.textContent = isMasked ? '******' : `${sign}${currentConfig.currency}${raw.toLocaleString()}`;
-            });
-
-            document.querySelectorAll('[data-type="amount"]').forEach(el => {
-                if (el.textContent !== '-') {
-                    el.textContent = isMasked ? '******' : el.textContent;
-                }
-            });
-
-            if (!isMasked) renderTable();
-        });
-    }
-    
-    // 在 src/js/dashboard.js 內加入
-const btnGotoTradinglog = document.getElementById('btn-goto-tradinglog');
-if (btnGotoTradinglog) {
+  // 5. 導航至個股記錄頁面 (依照當前市場切換預設代碼)
+  const btnGotoTradinglog = document.getElementById('btn-goto-tradinglog');
+  if (btnGotoTradinglog) {
     btnGotoTradinglog.addEventListener('click', () => {
-        // 依照登入時選擇的市場別，自動決定預設載入的標的
-        const defaultSymbol = sessionMarket === 'US' ? 'NVDA' : '2330';
-        
-        // 透過 JS 進行頁面導航，不使用 <a> 超連結
-        window.location.href = `tradinglog.html?symbol=${defaultSymbol}`;
+      const defaultSymbol = market === 'US' ? 'NVDA' : '2330';
+      window.location.href = `tradinglog.html?symbol=${defaultSymbol}`;
     });
-}
+  }
+
+  // 資料庫 ENUM 代碼對應中文與 Badge 樣式
+  const TYPE_CONFIG = {
+    INPUT:    { label: '入金', badgeClass: 'badge-deposit' },
+    OUTPUT:   { label: '出金', badgeClass: 'badge-deposit' },
+    BUY:      { label: '買進', badgeClass: 'badge-buy' },
+    SELL:     { label: '賣出', badgeClass: 'badge-sell' },
+    REVENUE:  { label: '股利', badgeClass: 'badge-dividend' },
+    INTEREST: { label: '利息', badgeClass: 'badge-dividend' }
+  };
+
+  let isMasked = false;
+  let globalRecentLogs = [];
+
+  // 6. 從後端 API 取得真實儀表板數據
+  try {
+    const res = await fetch('/api/dashboard/summary');
+
+    // 鑑權失敗或登入逾時
+    if (res.status === 401) {
+      alert('未授權存取或登入已過期，請重新登入！');
+      if (window.ClientAuth) {
+        window.ClientAuth.logout();
+      } else {
+        sessionStorage.clear();
+        window.location.replace('index.html');
+      }
+      return;
+    }
+
+    const result = await res.json();
+    if (!result.success) {
+      throw new Error(result.message || '取得數據失敗');
+    }
+
+    const { summary, recentLogs } = result.data;
+    globalRecentLogs = recentLogs || [];
+
+    // 7. 渲染 6 大 KPI 卡片
+    // 依序對應卡片 DOM 順序：
+    // [入金合計, 利息合計, 期望回收, 當前現金, 當前損益(不含利息), 當前損益(含利息)]
+    const kpiValues = [
+      Number(summary.totalDeposit || 0),
+      Number(summary.totalInterest || 0),
+      Number(summary.expectedReturn || 0),
+      Number(summary.currentCash || 0),
+      Number(summary.pnlExcludingInterest || 0),
+      Number(summary.pnlIncludingInterest || 0)
+    ];
+
+    const kpiElements = document.querySelectorAll('.kpi-value');
+    kpiElements.forEach((el, idx) => {
+      const val = kpiValues[idx];
+      el.dataset.raw = val;
+
+      const isPnL = idx >= 4;
+      const sign = isPnL && val > 0 ? '+' : '';
+      el.textContent = `${sign}${currentConfig.currency}${val.toLocaleString()}`;
+
+      if (isPnL) {
+        el.classList.remove('text-profit', 'text-loss');
+        el.classList.add(val >= 0 ? currentConfig.profitClass : currentConfig.lossClass);
+      }
+    });
+
+    // 計算並渲染報酬率標籤 (防呆避免除以 0)
+    const subPnlNoInt = document.getElementById('sub-pnl-noint');
+    const subPnlInt = document.getElementById('sub-pnl-int');
+    const totalDep = Number(summary.totalDeposit || 0);
+
+    if (subPnlNoInt) {
+      const pnlNoInt = Number(summary.pnlExcludingInterest || 0);
+      const rateNoInt = totalDep > 0 ? ((pnlNoInt / totalDep) * 100).toFixed(2) : '0.00';
+      const sign = Number(rateNoInt) > 0 ? '+' : '';
+      subPnlNoInt.textContent = `${sign}${rateNoInt}%`;
+      subPnlNoInt.classList.remove('text-profit', 'text-loss');
+      subPnlNoInt.classList.add(Number(rateNoInt) >= 0 ? currentConfig.profitClass : currentConfig.lossClass);
+    }
+
+    if (subPnlInt) {
+      const pnlInt = Number(summary.pnlIncludingInterest || 0);
+      const rateInt = totalDep > 0 ? ((pnlInt / totalDep) * 100).toFixed(2) : '0.00';
+      const sign = Number(rateInt) > 0 ? '+' : '';
+      subPnlInt.textContent = `${sign}${rateInt}%`;
+      subPnlInt.classList.remove('text-profit', 'text-loss');
+      subPnlInt.classList.add(Number(rateInt) >= 0 ? currentConfig.profitClass : currentConfig.lossClass);
+    }
+
+    // 8. 解除右上角「連線中...」文字指示
+    const statusIndicators = document.querySelectorAll('header span, header div');
+    statusIndicators.forEach(node => {
+      if (node.textContent.includes('連線中...')) {
+        node.textContent = '正常連線';
+      }
+    });
+
+    // 9. 渲染近期進出流水帳表格
+    renderLedgerTable(globalRecentLogs);
+
+  } catch (err) {
+    console.error('[Dashboard Error]:', err);
+  }
+
+  // 流水帳表格渲染函式
+  function renderLedgerTable(logs) {
+    const ledgerBody = document.getElementById('ledger-body');
+    if (!ledgerBody) return;
+    ledgerBody.innerHTML = '';
+
+    if (!logs || logs.length === 0) {
+      ledgerBody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 24px; color: #888;">
+            尚無任何交易流水記錄
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    logs.forEach(item => {
+      const tr = document.createElement('tr');
+      const typeConf = TYPE_CONFIG[item.trade_type] || { 
+        label: item.trade_type || '其他', 
+        badgeClass: 'badge-deposit' 
+      };
+
+      // 判斷金額流向：入金、賣出、股利、利息為收入 (+)；出金、買進為支出 (-)
+      const isIncome = ['INPUT', 'SELL', 'REVENUE', 'INTEREST'].includes(item.trade_type);
+      const netAmount = Number(item.net_total || 0);
+
+      const incomeText = isIncome ? `${currentConfig.currency}${netAmount.toLocaleString()}` : '-';
+      const expenseText = !isIncome ? `${currentConfig.currency}${netAmount.toLocaleString()}` : '-';
+
+      const displayDate = item.trade_date ? item.trade_date.slice(0, 10) : '-';
+      const displayStock = item.stock_id || (['INPUT', 'OUTPUT'].includes(item.trade_type) ? '交割帳戶' : '-');
+
+      tr.innerHTML = `
+        <td>${displayDate}</td>
+        <td>${displayStock}</td>
+        <td><span class="badge ${typeConf.badgeClass}">${typeConf.label}</span></td>
+        <td class="text-right ${isIncome ? currentConfig.profitClass : ''}" data-type="amount">${incomeText}</td>
+        <td class="text-right ${!isIncome ? currentConfig.lossClass : ''}" data-type="amount">${expenseText}</td>
+        <td>${item.note || ''}</td>
+      `;
+      ledgerBody.appendChild(tr);
+    });
+  }
+
+  // 10. 一鍵金額遮罩功能 (ISO 27000 資安隱私保護)
+  const btnMaskToggle = document.getElementById('btn-mask-toggle');
+  if (btnMaskToggle) {
+    btnMaskToggle.addEventListener('click', () => {
+      isMasked = !isMasked;
+
+      // 遮罩 / 還原 KPI 卡片
+      const kpiElements = document.querySelectorAll('.kpi-value');
+      kpiElements.forEach((el, idx) => {
+        const raw = Number(el.dataset.raw || 0);
+        const isPnL = idx >= 4;
+        const sign = isPnL && raw > 0 ? '+' : '';
+        el.textContent = isMasked ? '******' : `${sign}${currentConfig.currency}${raw.toLocaleString()}`;
+      });
+
+      // 遮罩 / 還原 流水帳金額
+      document.querySelectorAll('[data-type="amount"]').forEach(el => {
+        if (el.textContent.trim() !== '-') {
+          el.textContent = isMasked ? '******' : el.textContent;
+        }
+      });
+
+      // 若取消遮罩，重新渲染整張表格恢復正確金額字串
+      if (!isMasked) {
+        renderLedgerTable(globalRecentLogs);
+      }
+    });
+  }
 });

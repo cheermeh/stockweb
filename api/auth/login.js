@@ -1,66 +1,60 @@
 // api/auth/login.js
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs'); // 若安裝的是 bcrypt 則改為 require('bcrypt')
 const { query } = require('../lib/db');
+const { USER_QUERIES } = require('../lib/queries');
+const { generateSessionCookie } = require('../lib/server-auth');
 
 module.exports = async function handler(req, res) {
-    if (req.method !== 'POST') {
-        res.setHeader('Allow', ['POST']);
-        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', ['POST']);
+    return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+  }
+
+  try {
+    const { username, password, market = 'TW' } = req.body || {};
+
+    if (!username || !password) {
+      return res.status(400).json({ success: false, message: '請輸入使用者名稱與密碼' });
     }
 
-    try {
-        const { username, password, market } = req.body || {};
+    // 1. 查詢使用者
+    const result = await query(USER_QUERIES.FIND_USER_BY_USERNAME, [username]);
 
-        if (!username || !password) {
-            return res.status(400).json({ 
-                success: false, 
-                message: '請輸入帳號與密碼' 
-            });
-        }
-
-        // 參數化查詢防止 SQL Injection
-        const userResult = await query(
-            'SELECT user_id, username, password_hash, default_market FROM users WHERE username = $1 LIMIT 1',
-            [username.trim()]
-        );
-
-        // 避免帳號探測，統一回傳泛化錯誤訊息
-        if (userResult.rows.length === 0) {
-            return res.status(401).json({ 
-                success: false, 
-                message: '帳號或密碼錯誤' 
-            });
-        }
-
-        const user = userResult.rows[0];
-
-
-        // 比對 bcrypt 密碼雜湊
-        const isPasswordMatch = await bcrypt.compare(password, user.password_hash);
-        if (!isPasswordMatch) {
-            return res.status(401).json({ 
-                success: false, 
-                message: '帳號或密碼錯誤' 
-            });
-        }
-
-        const selectedMarket = (market === 'TW' || market === 'US') ? market : user.default_market;
-
-        return res.status(200).json({
-            success: true,
-            message: '登入成功',
-            data: {
-                userId: user.user_id,
-                username: user.username,
-                market: selectedMarket
-            }
-        });
-
-    } catch (error) {
-        console.error('[Auth Error]:', error);
-        return res.status(500).json({ 
-            success: false, 
-            message: '系統服務異常，請稍後再試' 
-        });
+    if (result.rows.length === 0) {
+      return res.status(401).json({ success: false, message: '帳號或密碼錯誤' });
     }
+
+    const user = result.rows[0];
+
+    // 2. 驗證雜湊密碼
+    // bcrypt.compare 會自動比對明文密碼與資料庫中的 password_hash
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ success: false, message: '帳號或密碼錯誤' });
+    }
+
+    // 3. 驗證成功，簽發 Session Cookie
+    const cookieHeader = generateSessionCookie({
+      userId: user.user_id,
+      username: user.username,
+      market: market
+    });
+
+    res.setHeader('Set-Cookie', cookieHeader);
+
+    return res.status(200).json({
+      success: true,
+      message: '登入成功',
+      data: {
+        userId: user.user_id,
+        username: user.username,
+        market: market
+      }
+    });
+
+  } catch (error) {
+    console.error('[Login API Error]:', error);
+    return res.status(500).json({ success: false, message: '伺服器內部錯誤，無法完成登入' });
+  }
 };
