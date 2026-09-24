@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const kpiValues = [
       Number(summary.totalDeposit || 0),
       Number(summary.totalInterest || 0),
-      Number(summary.expectedReturn || 0),
+      Number(summary.expectedReturnWithInterest || 0),
       Number(summary.currentCash || 0),
       Number(summary.pnlExcludingInterest || 0),
       Number(summary.pnlIncludingInterest || 0)
