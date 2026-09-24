@@ -1,470 +1,220 @@
-:root {
-    --bg-color: #0b1120;
-    --card-bg-color: #172236;
-    --input-bg-color: #1e293b;
-    --border-color: #2e3c54;
-    --border-focus: #3b82f6;
+/* ==========================================================================
+   Trading Log Stylesheet (SaaS Business / Dark Dashboard Style)
+   ========================================================================== */
 
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-
-    --profit-color: #ef4444;
-    --loss-color: #10b981;
-    --primary-blue: #2563eb;
-    --primary-blue-hover: #1d4ed8;
-
-    --radius-card: 14px;
-    --radius-input: 8px;
+/* 全域重設與背景 */
+body {
+  background-color: #0b0f17;
+  color: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+/* 頂部導航與篩選控制列 */
+.header-bar {
+  background-color: #111827;
+  border-bottom: 1px solid #1f2937;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-body.trading-body {
-    min-height: 100vh;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", sans-serif;
-    background-color: var(--bg-color);
-    color: var(--text-primary);
-    -webkit-font-smoothing: antialiased;
+/* 下拉選單與輸入框 */
+select, input, textarea {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  color: #f8fafc;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  outline: none;
 }
 
-/* 頂部導覽列 */
-.trading-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 32px;
-    background-color: var(--card-bg-color);
-    border-bottom: 1px solid var(--border-color);
+select:focus, input:focus, textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
-.header-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
+select:disabled, input:disabled {
+  background-color: #0f172a;
+  color: #64748b;
+  cursor: not-allowed;
+  border-color: #1e293b;
 }
 
-.btn-back {
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-size: 14px;
-    padding: 6px 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    transition: all 0.2s;
+/* KPI 摘要區塊 */
+.stat-card, .kpi-card {
+  background-color: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
 }
 
-.btn-back:hover {
-    color: var(--text-primary);
-    border-color: var(--border-focus);
+.stat-title, .kpi-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
 }
 
-.stock-selector-wrap {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    color: var(--text-secondary);
+.stat-value, .kpi-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.025em;
 }
 
-.stock-dropdown {
-    background-color: var(--input-bg-color);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 15px;
-    font-weight: 600;
-    outline: none;
+/* ==========================================================================
+   交易徽章與狀態配色 (專案進度風格)
+   ========================================================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.25rem;
+  line-height: 1;
 }
 
-.btn-sm-action {
-    background-color: var(--input-bg-color);
-    border: 1px solid var(--border-color);
-    color: #60a5fa;
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 13px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s;
+/* 買進 (進場)：石板灰藍 */
+.badge-buy {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  color: #93c5fd !important;
+  border: 1px solid rgba(59, 130, 246, 0.35) !important;
 }
 
-.btn-sm-action:hover {
-    background-color: rgba(59, 130, 246, 0.15);
-    border-color: var(--border-focus);
+/* 賣出 (出場)：低彩度鼠尾草青綠 */
+.badge-sell {
+  background-color: rgba(20, 184, 166, 0.15) !important;
+  color: #5eead4 !important;
+  border: 1px solid rgba(20, 184, 166, 0.35) !important;
 }
 
-.market-pill {
-    font-size: 12px;
-    background-color: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    padding: 3px 8px;
-    border-radius: 12px;
+/* 配息 / 利息：琥珀灰金 */
+.badge-dividend {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: #fcd34d !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
 }
 
-.header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+/* ==========================================================================
+   收付淨額文字色彩 (多層選擇器強制覆蓋，徹底去股票化)
+   ========================================================================== */
+
+/* 收入 / 收益 (+)：柔和青綠色，乾淨清爽不刺眼 */
+.kpi-value.text-profit,
+.stat-value.text-profit,
+td.text-profit,
+.text-profit {
+  color: #5eead4 !important;
+  font-weight: 600 !important;
 }
 
-.btn-icon {
-    background: var(--input-bg-color);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    padding: 6px 10px;
-    border-radius: 6px;
-    cursor: pointer;
+/* 支出 / 投入 (-)：冷調石板灰，像一般的日常支出，無股票大紅感 */
+.kpi-value.text-loss,
+.stat-value.text-loss,
+td.text-loss,
+.text-loss {
+  color: #94a3b8 !important;
+  font-weight: 500 !important;
 }
 
-.btn-secondary {
-    background: transparent;
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-    padding: 6px 14px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13px;
+/* ==========================================================================
+   歷史交易流水帳表格
+   ========================================================================== */
+
+.trade-table-container, .table-container {
+  background-color: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
 }
 
-.btn-secondary:hover {
-    color: var(--text-primary);
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
 }
 
-/* 內容排版 */
-.trading-content {
-    padding: 32px;
-    max-width: 1440px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
+thead th {
+  background-color: #161f30;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #1f2937;
 }
 
-/* KPI 區塊 */
-.stock-kpi-grid {
-    display: grid;
-    gap: 16px;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+tbody tr {
+  border-bottom: 1px solid #1e293b;
+  transition: background-color 0.15s ease;
 }
 
-.kpi-card {
-    background-color: var(--card-bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-card);
-    padding: 18px 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+tbody tr:last-child {
+  border-bottom: none;
 }
 
-.kpi-label {
-    font-size: 13px;
-    color: var(--text-secondary);
+tbody tr:hover {
+  background-color: #1e293b;
 }
 
-.kpi-value {
-    font-size: 22px;
-    font-weight: 700;
+tbody td {
+  padding: 0.75rem 1rem;
+  color: #cbd5e1;
 }
 
-.kpi-sub {
-    font-size: 12px;
-    color: var(--text-muted);
+.text-right {
+  text-align: right;
 }
 
-.text-profit { color: var(--profit-color); }
-.text-loss { color: var(--loss-color); }
-
-/* 表單區塊 */
-.trade-form-section {
-    background-color: var(--card-bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-card);
-    padding: 24px;
+.text-center {
+  text-align: center;
 }
 
-.trade-form-section h2 {
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 16px;
-}
-
-.trade-form-grid {
-    display: grid;
-    gap: 16px;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    align-items: end;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.form-group label {
-    font-size: 13px;
-    color: var(--text-secondary);
-}
-
-.form-group input,
-.form-group select {
-    background-color: var(--input-bg-color);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    padding: 10px 12px;
-    border-radius: var(--radius-input);
-    outline: none;
-    font-size: 14px;
-}
-
-.form-group input:focus,
-.form-group select:focus {
-    border-color: var(--border-focus);
-}
-
-.col-span-2 {
-    grid-column: span 2;
-}
-
-@media (max-width: 768px) {
-    .col-span-2 { grid-column: span 1; }
-}
-
+/* 操作按鈕與彈窗 */
 .btn-primary {
-    background-color: var(--primary-blue);
-    border: none;
-    color: #ffffff;
-    padding: 11px 16px;
-    border-radius: var(--radius-input);
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s;
+  background-color: #2563eb;
+  color: #ffffff;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
 }
 
 .btn-primary:hover {
-    background-color: var(--primary-blue-hover);
+  background-color: #1d4ed8;
 }
 
-/* Tab 分頁與表格 */
-.ledger-section {
-    background-color: var(--card-bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-card);
-    padding: 24px;
-}
-
-.ledger-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-    gap: 12px;
-}
-
-.tab-group {
-    display: flex;
-    gap: 6px;
-    background-color: var(--input-bg-color);
-    padding: 4px;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-}
-
-.tab-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    padding: 6px 16px;
-    font-size: 13px;
-    font-weight: 600;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.tab-btn:hover { color: var(--text-primary); }
-.tab-btn.active {
-    background-color: var(--primary-blue);
-    color: #ffffff;
-}
-
-.ledger-filter-row {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-.filter-wrap {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    color: var(--text-secondary);
-}
-
-.filter-select {
-    background-color: var(--input-bg-color);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-size: 13px;
-    outline: none;
-}
-
-.ledger-tip {
-    font-size: 12px;
-    color: var(--text-muted);
-}
-
-.table-container {
-    overflow-x: auto;
-}
-
-.ledger-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-}
-
-.ledger-table th {
-    padding: 12px 14px;
-    color: var(--text-secondary);
-    border-bottom: 1px solid var(--border-color);
-    text-align: left;
-    white-space: nowrap;
-}
-
-.ledger-table td {
-    padding: 13px 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    white-space: nowrap;
-}
-
-.text-right { text-align: right; }
-.hidden { display: none !important; }
-
-/* 動作 Badge */
-.badge-buy {
-    background-color: rgba(239, 68, 68, 0.15);
-    color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-}
-
-.badge-sell {
-    background-color: rgba(16, 185, 129, 0.15);
-    color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-}
-
-.badge-dividend {
-    background-color: rgba(245, 158, 11, 0.15);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-}
-
-.badge-withdraw {
-    background-color: rgba(148, 163, 184, 0.15);
-    color: #cbd5e1;
-    border: 1px solid rgba(148, 163, 184, 0.3);
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-}
-
-.badge-status-active {
-    background-color: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-}
-
-.badge-status-closed {
-    background-color: rgba(148, 163, 184, 0.15);
-    color: #94a3b8;
-    border: 1px solid rgba(148, 163, 184, 0.3);
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-}
-
-.btn-text-action {
-    background: transparent;
-    border: none;
-    color: #60a5fa;
-    cursor: pointer;
-    font-size: 13px;
-    text-decoration: underline;
-    padding: 2px 4px;
-}
-
-/* 彈窗樣式 */
 .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.75);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 999;
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
 }
 
-.modal-card {
-    background-color: var(--card-bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-card);
-    width: 100%;
-    max-width: 400px;
-    padding: 24px;
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.btn-close {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    font-size: 20px;
-    cursor: pointer;
-}
-
-.input-readonly {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-.modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 24px;
+.modal-content {
+  background-color: #111827;
+  border: 1px solid #374151;
+  border-radius: 0.5rem;
+  width: 100%;
+  max-width: 32rem;
+  padding: 1.5rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
 }

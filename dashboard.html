@@ -1,106 +1,126 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StockWeb 交易總管 - Dashboard</title>
-    <link rel="stylesheet" href="src/css/dashboard.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StockWeb - 投資管理儀表板</title>
+  <!-- 補上 Tailwind CSS CDN，恢復全站排版網格與顏色 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 載入專屬 CSS -->
+  <link rel="stylesheet" href="./src/css/dashboard.css">
+  <style>
+    /* 基礎配色補強 */
+    .text-profit { color: #ef4444 !important; } /* 台股紅漲 */
+    .text-loss { color: #22c55e !important; }   /* 台股綠跌 */
+    .badge { padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+    .badge-deposit { background: #334155; color: #94a3b8; }
+    .badge-buy { background: #451a1a; color: #f87171; }
+    .badge-sell { background: #14532d; color: #4ade80; }
+    .badge-dividend { background: #3b2a1a; color: #fbbf24; }
+  </style>
 </head>
-<body class="dashboard-body">
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+  <!-- 頂部導航列 -->
+  <header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur px-6 py-4 flex justify-between items-center">
+    <div class="flex items-center gap-4">
+      <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+        <span class="text-blue-500">StockWeb</span> 儀表板
+      </h1>
+      <span id="current-user-badge" class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900/60 text-blue-300 border border-blue-700/50">
+        載入中...
+      </span>
+      <span id="server-status" class="px-2 py-0.5 rounded text-xs bg-gray-800 text-gray-400">
+        連線中...
+      </span>
+    </div>
 
-    <!-- 頂部功能列 -->
-    <header class="dashboard-header">
-        <div class="header-brand">StockWeb 交易總管</div>
-        <div class="header-actions">
-            <span class="user-badge" id="current-user-badge">連線中...</span>
-            <!-- 新增：前往 S3 個股明細的按鈕 -->
-            <button type="button" id="btn-goto-tradinglog" class="btn-primary-action">進入個股記錄</button>
-            <button type="button" id="btn-mask-toggle" class="btn-icon" title="隱藏/顯示金額">👁️</button>
-            <button type="button" id="btn-logout" class="btn-secondary">登出</button>
+    <div class="flex items-center gap-3">
+      <button id="btn-goto-tradinglog" type="button" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium transition">
+        個股交易紀錄
+      </button>
+      <button id="btn-mask-toggle" type="button" class="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-medium transition">
+        隱藏金額
+      </button>
+      <button id="btn-logout" type="button" class="px-3 py-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-800/50 text-sm transition">
+        登出
+      </button>
+    </div>
+  </header>
+
+  <!-- 主內容區 -->
+  <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+    <!-- 六大 KPI 指標卡片區 -->
+    <section>
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4">帳戶財務指標彙總</h2>
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <!-- 卡片 1: 入金合計 -->
+        <div class="p-4 rounded-xl bg-gray-800/50 border border-gray-700/50">
+          <div class="text-xs text-gray-400">入金合計</div>
+          <div class="kpi-value text-xl font-bold mt-1 text-white">--</div>
         </div>
-    </header>
+        <!-- 卡片 2: 利息合計 -->
+        <div class="p-4 rounded-xl bg-gray-800/50 border border-gray-700/50">
+          <div class="text-xs text-gray-400">利息合計</div>
+          <div class="kpi-value text-xl font-bold mt-1 text-white">--</div>
+        </div>
+        <!-- 卡片 3: 期望回收 -->
+        <div class="p-4 rounded-xl bg-gray-800/50 border border-gray-700/50">
+          <div class="text-xs text-gray-400">期望回收</div>
+          <div class="kpi-value text-xl font-bold mt-1 text-white">--</div>
+        </div>
+        <!-- 卡片 4: 當前現金 -->
+        <div class="p-4 rounded-xl bg-gray-800/50 border border-gray-700/50">
+          <div class="text-xs text-gray-400">當前現金餘額</div>
+          <div class="kpi-value text-xl font-bold mt-1 text-white">--</div>
+        </div>
+        <!-- 卡片 5: 當前損益 (不含利息) -->
+        <div class="p-4 rounded-xl bg-gray-800/50 border border-gray-700/50">
+          <div class="text-xs text-gray-400">波段損益 (不含息)</div>
+          <div class="kpi-value text-xl font-bold mt-1">--</div>
+          <div id="sub-pnl-noint" class="text-xs mt-1 text-gray-400">--%</div>
+        </div>
+        <!-- 卡片 6: 當前損益 (含利息) -->
+        <div class="p-4 rounded-xl bg-gray-800/50 border border-gray-700/50">
+          <div class="text-xs text-gray-400">總體損益 (含息)</div>
+          <div class="kpi-value text-xl font-bold mt-1">--</div>
+          <div id="sub-pnl-int" class="text-xs mt-1 text-gray-400">--%</div>
+        </div>
+      </div>
+    </section>
 
-    <!-- S2 主內容：上下雙區塊 -->
-    <main class="dashboard-content">
-        
-        <!-- 上方區塊：6 大財務統計指標卡片 (Grid 排版) -->
-        <section class="kpi-grid">
-            <!-- 1. 入金合計 -->
-            <div class="kpi-card">
-                <span class="kpi-label">入金合計</span>
-                <span class="kpi-value" data-index="0">-</span>
-                <span class="kpi-sub">累計存入本金</span>
-            </div>
+    <!-- 近期交易流水帳表格 -->
+    <section class="bg-gray-800/40 border border-gray-700/50 rounded-xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-700/50 flex justify-between items-center">
+        <h2 class="font-semibold text-white">最近 10 筆收支流水明細</h2>
+        <span class="text-xs text-gray-400">系統即時同步</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-gray-300">
+          <thead class="bg-gray-800/60 text-xs uppercase text-gray-400 border-b border-gray-700/50">
+            <tr>
+              <th class="px-6 py-3">交易日期</th>
+              <th class="px-6 py-3">標的代碼</th>
+              <th class="px-6 py-3">交易類別</th>
+              <th class="px-6 py-3 text-right">進款 (Net+)</th>
+              <th class="px-6 py-3 text-right">出款 (Net-)</th>
+              <th class="px-6 py-3">備註說明</th>
+            </tr>
+          </thead>
+          <tbody id="ledger-body" class="divide-y divide-gray-800">
+            <!-- 假資料全數移除，由 dashboard.js 從 DB 動態渲染 -->
+            <tr>
+              <td colspan="6" class="text-center py-8 text-gray-500">
+                載入資料庫紀錄中...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
 
-            <!-- 2. 利息合計 -->
-            <div class="kpi-card">
-                <span class="kpi-label">利息合計</span>
-                <span class="kpi-value" data-index="1">-</span>
-                <span class="kpi-sub">累計股利/配息</span>
-            </div>
-
-            <!-- 3. 期望回收 -->
-            <div class="kpi-card">
-                <span class="kpi-label">期望回收</span>
-                <span class="kpi-value" data-index="2">-</span>
-                <span class="kpi-sub">本金 + 目標利得</span>
-            </div>
-
-            <!-- 4. 當前現金 -->
-            <div class="kpi-card">
-                <span class="kpi-label">當前現金</span>
-                <span class="kpi-value" data-index="3">-</span>
-                <span class="kpi-sub">可用交割款餘額</span>
-            </div>
-
-            <!-- 5. 當前損益 (不含利息) -->
-            <div class="kpi-card">
-                <span class="kpi-label">當前損益 (不含利息)</span>
-                <span class="kpi-value" data-index="4">-</span>
-                <span class="kpi-sub" id="sub-pnl-noint">-</span>
-            </div>
-
-            <!-- 6. 當前損益 (含利息) -->
-            <div class="kpi-card">
-                <span class="kpi-label">當前損益 (含利息)</span>
-                <span class="kpi-value" data-index="5">-</span>
-                <span class="kpi-sub" id="sub-pnl-int">-</span>
-            </div>
-        </section>
-
-        <!-- 下方區塊：近期進出流水帳 (唯讀匯總) -->
-        <section class="ledger-section">
-            <div class="ledger-header">
-                <div>
-                    <h2>近期進出流水帳</h2>
-                    <p class="ledger-tip">由各股明細自動聚合，僅供查閱</p>
-                </div>
-            </div>
-
-            <div class="table-container">
-                <table class="ledger-table">
-                    <thead>
-                        <tr>
-                            <th>日期</th>
-                            <th>標的</th>
-                            <th>類型</th>
-                            <th class="text-right">收入</th>
-                            <th class="text-right">支出</th>
-                            <th>備註</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ledger-body">
-                        <!-- 由 JS 動態注入 -->
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-    </main>
-    <!-- 先引入客戶端認證輔助，再載入儀表板主要邏輯 -->
-    <script src="./src/js/client-auth.js"></script>
-    <script src="./src/js/dashboard.js"></script>
+  <!-- 依序載入認證與資料渲染腳本 -->
+  <script src="./src/js/client-auth.js"></script>
+  <script src="./src/js/dashboard.js"></script>
 </body>
-
-
 </html>

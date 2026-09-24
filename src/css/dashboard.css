@@ -1,262 +1,208 @@
-:root {
-    --bg-color: #0b1120;
-    --card-bg-color: #172236;
-    --input-bg-color: #1e293b;
-    --border-color: #2e3c54;
-    
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
+/* ==========================================================================
+   Dashboard Stylesheet (Corporate SaaS / Business Dark Style)
+   ========================================================================== */
 
-    --profit-red: #ef4444;   /* 台股紅漲 */
-    --loss-green: #10b981;   /* 台股綠跌 */
-    
-    --radius-card: 14px;
+/* 全域重設與背景 */
+body {
+  background-color: #0b0f17;
+  color: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+/* 標題與分區容器 */
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-bottom: 1rem;
 }
 
-body.dashboard-body {
-    min-height: 100vh;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", sans-serif;
-    background-color: var(--bg-color);
-    color: var(--text-primary);
-    -webkit-font-smoothing: antialiased;
+/* ==========================================================================
+   上方 KPI 卡片指標 (徹底鎖定權重，移除亮紅亮綠)
+   ========================================================================== */
+
+.stat-grid, .kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
 }
 
-/* 頂部功能列 */
-.dashboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 32px;
-    background-color: var(--card-bg-color);
-    border-bottom: 1px solid var(--border-color);
+.stat-card, .kpi-card {
+  background-color: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.25);
 }
 
-.header-brand {
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
+.stat-label, .kpi-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
 }
 
-.header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+.stat-value, .kpi-value {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.025em;
 }
 
-.user-badge {
-    font-size: 13px;
-    color: var(--text-secondary);
-    background-color: var(--input-bg-color);
-    border: 1px solid var(--border-color);
-    padding: 6px 12px;
-    border-radius: 6px;
+.stat-sub, .kpi-sub {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.25rem;
 }
 
-.btn-icon {
-    background: var(--input-bg-color);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    padding: 6px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-}
-
-.btn-icon:hover {
-    background-color: #26354a;
-}
-
-.btn-secondary {
-    background: transparent;
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-    padding: 6px 14px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13px;
-}
-
-.btn-secondary:hover {
-    color: var(--text-primary);
-    border-color: #475569;
-}
-
-/* 內容排版容器 */
-.dashboard-content {
-    padding: 32px;
-    max-width: 1440px;
-    width: 100%;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
-}
-
-/* 上方 6 大 KPI 網格 */
-.kpi-grid {
-    display: grid;
-    gap: 16px;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-}
-
-@media (min-width: 1024px) {
-    .kpi-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
-@media (max-width: 640px) {
-    .kpi-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-.kpi-card {
-    background-color: var(--card-bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-card);
-    padding: 22px 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.kpi-label {
-    font-size: 13px;
-    color: var(--text-secondary);
-}
-
-.kpi-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: 0.5px;
-}
-
-.kpi-sub {
-    font-size: 12px;
-    color: var(--text-muted);
-}
-
-/* 漲跌樣式 */
+/* 損益數值標準 class */
+.kpi-value.text-profit,
+.stat-value.text-profit,
 .text-profit {
-    color: var(--profit-red);
+  color: #5eead4 !important; /* 柔和青綠 */
 }
 
+.kpi-value.text-loss,
+.stat-value.text-loss,
 .text-loss {
-    color: var(--loss-green);
+  color: #94a3b8 !important; /* 冷調石板灰 */
 }
 
-/* 下方流水帳清單 */
-.ledger-section {
-    background-color: var(--card-bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-card);
-    padding: 24px;
+/* ==========================================================================
+   百分比與 Tailwind 類別強制攔截 (解決 0.00% 寫死 text-red 的問題)
+   ========================================================================== */
+
+/* 1. 攔截卡片內所有包含 text-red 的標籤 (如 text-red-400, text-red-500) */
+.stat-card [class*="text-red"],
+.kpi-card [class*="text-red"],
+[class*="kpi"] [class*="text-red"] {
+  color: #94a3b8 !important; /* 轉為冷調石板灰，不帶股市刺眼紅感 */
 }
 
-.ledger-header h2 {
-    font-size: 18px;
-    font-weight: 600;
+/* 2. 攔截卡片內所有包含 text-green 或 text-emerald 的標籤 */
+.stat-card [class*="text-green"],
+.stat-card [class*="text-emerald"],
+.kpi-card [class*="text-green"],
+.kpi-card [class*="text-emerald"],
+[class*="kpi"] [class*="text-green"],
+[class*="kpi"] [class*="text-emerald"] {
+  color: #5eead4 !important; /* 轉為柔和青綠 */
 }
 
-.ledger-tip {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-top: 4px;
+/* 3. 百分比專屬樣式 (若值為 0.00% 時呈現低調中性灰) */
+.kpi-sub,
+.stat-sub {
+  color: #94a3b8 !important;
 }
+
+/* ==========================================================================
+   交易類別徽章 (Badge) - 對齊 Jira / ClickUp 專案工作狀態
+   ========================================================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.25rem;
+  line-height: 1;
+}
+
+/* 買進：石板灰藍 (類似進行中任務) */
+.badge-buy {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  color: #93c5fd !important;
+  border: 1px solid rgba(59, 130, 246, 0.35) !important;
+}
+
+/* 賣出：低彩度鼠尾草青綠 (類似完成任務 Done) */
+.badge-sell {
+  background-color: rgba(20, 184, 166, 0.15) !important;
+  color: #5eead4 !important;
+  border: 1px solid rgba(20, 184, 166, 0.35) !important;
+}
+
+/* 配息/利息：琥珀灰金 */
+.badge-dividend {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: #fcd34d !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+}
+
+/* ==========================================================================
+   流水帳表格 (進款 NET+ 與 出款 NET-)
+   ========================================================================== */
 
 .table-container {
-    width: 100%;
-    overflow-x: auto;
-    margin-top: 16px;
+  background-color: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
 }
 
-.ledger-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
 }
 
-.ledger-table th {
-    padding: 12px 16px;
-    color: var(--text-secondary);
-    border-bottom: 1px solid var(--border-color);
-    text-align: left;
-    white-space: nowrap;
+thead th {
+  background-color: #161f30;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #1f2937;
 }
 
-.ledger-table td {
-    padding: 14px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    white-space: nowrap;
+tbody tr {
+  border-bottom: 1px solid #1e293b;
+  transition: background-color 0.15s ease;
 }
 
-.ledger-table tr:hover td {
-    background-color: rgba(255, 255, 255, 0.02);
+tbody tr:last-child {
+  border-bottom: none;
+}
+
+tbody tr:hover {
+  background-color: #1e293b;
+}
+
+tbody td {
+  padding: 0.85rem 1rem;
+  color: #cbd5e1;
+}
+
+/* 進款 (NET+)：乾淨亮白偏微青，像正式入帳 */
+.net-income,
+td.text-income,
+tbody td:nth-child(4) {
+  color: #f1f5f9 !important;
+  font-weight: 600;
+}
+
+/* 出款 (NET-)：冷調灰藍，像一般經常性成本支出 */
+.net-expense,
+td.text-expense,
+tbody td:nth-child(5) {
+  color: #94a3b8 !important;
+  font-weight: 500;
 }
 
 .text-right {
-    text-align: right;
+  text-align: right;
 }
 
-/* 交易別 Badge */
-.badge {
-    display: inline-block;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 500;
-}
-
-.badge-deposit {
-    background-color: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
-    border: 1px solid rgba(59, 130, 246, 0.3);
-}
-
-.badge-buy {
-    background-color: rgba(239, 68, 68, 0.15);
-    color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.badge-sell {
-    background-color: rgba(16, 185, 129, 0.15);
-    color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.badge-dividend {
-    background-color: rgba(245, 158, 11, 0.15);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-/* S2 前往 S3 的主要操作按鈕 */
-.btn-primary-action {
-    background-color: #2563eb;
-    color: #ffffff;
-    border: none;
-    padding: 6px 14px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s, transform 0.1s;
-}
-
-.btn-primary-action:hover {
-    background-color: #1d4ed8;
-}
-
-.btn-primary-action:active {
-    transform: translateY(1px);
+.text-center {
+  text-align: center;
 }
