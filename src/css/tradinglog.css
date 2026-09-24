@@ -1,8 +1,9 @@
 /* ==========================================================================
-   Trading Log Stylesheet (SaaS Business / Dark Dashboard Style)
+   Trading Log Stylesheet (Enterprise SaaS Business / Dark Ops Dashboard)
+   設計目標：去除傳統證券看盤刺眼配色，偽裝成內部專案成本/帳務系統
    ========================================================================== */
 
-/* 全域重設與背景 */
+/* 全域重設與背景：商務暗色系主體 */
 body {
   background-color: #0b0f17;
   color: #f1f5f9;
@@ -12,7 +13,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 頂部導航與篩選控制列 */
+/* 頂部導航與篩選控制列 (工單系統風格) */
 .header-bar {
   background-color: #111827;
   border-bottom: 1px solid #1f2937;
@@ -22,7 +23,7 @@ body {
   justify-content: space-between;
 }
 
-/* 下拉選單與輸入框 */
+/* 下拉選單與輸入框：扁平商務控制項 */
 select, input, textarea {
   background-color: #1e293b;
   border: 1px solid #334155;
@@ -46,7 +47,7 @@ select:disabled, input:disabled {
   border-color: #1e293b;
 }
 
-/* KPI 摘要區塊 */
+/* KPI 摘要區塊 (5 大指標卡片) */
 .stat-card, .kpi-card {
   background-color: #111827;
   border: 1px solid #1f2937;
@@ -70,7 +71,7 @@ select:disabled, input:disabled {
 }
 
 /* ==========================================================================
-   交易徽章與狀態配色 (專案進度風格)
+   交易徽章與狀態配色 (專案進度工單風格，非證券下單樣式)
    ========================================================================== */
 
 .badge {
@@ -83,21 +84,21 @@ select:disabled, input:disabled {
   line-height: 1;
 }
 
-/* 買進 (進場)：石板灰藍 */
+/* 買進 (BUY)：進場/資產購入，使用沉穩藍灰 (如 Jira "In Progress") */
 .badge-buy {
   background-color: rgba(59, 130, 246, 0.15) !important;
   color: #93c5fd !important;
   border: 1px solid rgba(59, 130, 246, 0.35) !important;
 }
 
-/* 賣出 (出場)：低彩度鼠尾草青綠 */
+/* 賣出 (SELL)：結案/資產驗收，使用微青灰 (如 Jira "Done") */
 .badge-sell {
   background-color: rgba(20, 184, 166, 0.15) !important;
   color: #5eead4 !important;
   border: 1px solid rgba(20, 184, 166, 0.35) !important;
 }
 
-/* 配息 / 利息：琥珀灰金 */
+/* 配息 / 利息：週期結算，使用低調商務琥珀金 */
 .badge-dividend {
   background-color: rgba(245, 158, 11, 0.15) !important;
   color: #fcd34d !important;
@@ -105,29 +106,31 @@ select:disabled, input:disabled {
 }
 
 /* ==========================================================================
-   收付淨額文字色彩 (多層選擇器強制覆蓋，徹底去股票化)
+   收付淨額與損益合計文字色彩 (徹底去股票紅綠化，回歸工作表報表調性)
    ========================================================================== */
 
-/* 收入 / 收益 (+)：柔和青綠色，乾淨清爽不刺眼 */
+/* 收入 / 收益 (+)：溫和青色，像專案結餘，無股市刺眼大紅大綠感 */
 .kpi-value.text-profit,
 .stat-value.text-profit,
+#stat-pnl.text-profit,
 td.text-profit,
 .text-profit {
-  color: #5eead4 !important;
+  color: #2dd4bf !important; /* Tailwind Teal-400 */
   font-weight: 600 !important;
 }
 
-/* 支出 / 投入 (-)：冷調石板灰，像一般的日常支出，無股票大紅感 */
+/* 支出 / 投入 (-)：低彩度石板灰白，就像一般成本扣減，不具恐慌跌價感 */
 .kpi-value.text-loss,
 .stat-value.text-loss,
+#stat-pnl.text-loss,
 td.text-loss,
 .text-loss {
-  color: #94a3b8 !important;
+  color: #94a3b8 !important; /* Tailwind Slate-400 */
   font-weight: 500 !important;
 }
 
 /* ==========================================================================
-   歷史交易流水帳表格
+   歷史交易流水帳表格 (如 AWS CloudWatch / Azure 審計日誌排版)
    ========================================================================== */
 
 .trade-table-container, .table-container {
@@ -182,7 +185,10 @@ tbody td {
   text-align: center;
 }
 
-/* 操作按鈕與彈窗 */
+/* ==========================================================================
+   操作按鈕與彈窗 (Enterprise 控制項)
+   ========================================================================== */
+
 .btn-primary {
   background-color: #2563eb;
   color: #ffffff;
