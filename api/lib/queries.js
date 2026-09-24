@@ -188,7 +188,33 @@ const TRADING_QUERIES = {
       user_id, stock_id, round, trade_date, trade_type, price, shares, fee, tax, net_total, note
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     RETURNING *;
+  `,
+
+  // 8.更新交易明細 (依據 trade_id 與 user_id)
+  UPDATE_TRADE_LOG: `
+    UPDATE public.trade_store
+    SET 
+      stock_id = $1,
+      round = $2,
+      trade_date = $3,
+      trade_type = $4,
+      price = $5,
+      shares = $6,
+      fee = $7,
+      tax = $8,
+      net_total = $9,
+      note = $10
+    WHERE trade_id = $11 AND user_id = $12
+    RETURNING *;
+  `,
+
+  // 9.刪除單筆交易明細
+  DELETE_TRADE_LOG: `
+    DELETE FROM public.trade_store
+    WHERE trade_id = $1 AND user_id = $2
+    RETURNING trade_id;
   `
+
 };
 
 module.exports = {
