@@ -13,19 +13,48 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentRound = (urlParams.get('round') || '').toUpperCase();
 
   // 暫存系統自動推算的建議回合 (供新增交易時預設使用)
-  let currentSuggestedRound = '1';
+  let currentSuggestedRound = '0';
 
-  // DOM 元素快取
+  // DOM 元素快取：明細與交易相關
   const selectStock = document.getElementById('select-stock');
   const selectRound = document.getElementById('select-round');
+  const modal = document.getElementById('modal-add-trade');
+  const modalTitle = document.getElementById('modal-title');
+  const btnSubmitTradeText = document.getElementById('btn-submit-trade-text');
+  const inputTradeId = document.getElementById('input-trade-id');
   const inputStockId = document.getElementById('input-stock-id');
   const inputRound = document.getElementById('input-round');
   const inputTradeDate = document.getElementById('input-trade-date');
+  const inputTradeType = document.getElementById('input-trade-type');
+  const inputPrice = document.getElementById('input-price');
+  const inputShares = document.getElementById('input-shares');
+  const inputFee = document.getElementById('input-fee');
+  const inputTax = document.getElementById('input-tax');
+  const inputNote = document.getElementById('input-note');
+
+  // DOM 元素快取：標的維護 (關注名單管理) 相關
+  const modalStock = document.getElementById('modal-stock-comp');
+  const btnOpenStockModal = document.getElementById('btn-open-stock-modal');
+  const btnCloseStockModal = document.getElementById('btn-close-stock-modal');
+  const btnSubmitStockComp = document.getElementById('btn-submit-stock-comp');
+  const inputNewStockId = document.getElementById('input-new-stock-id');
+  const inputNewStockName = document.getElementById('input-new-stock-name');
 
   // 初始化新增彈窗預設值防呆
   if (inputTradeDate) inputTradeDate.value = new Date().toISOString().slice(0, 10);
-  if (inputStockId) inputStockId.value = currentStock;
-  if (inputRound) inputRound.value = currentRound || '1';
+  if (inputStockId) {
+    inputStockId.value = currentStock;
+    // 預先鎖定標的欄位為唯讀
+    inputStockId.readOnly = true;
+  }
+  if (inputRound) inputRound.value = currentRound || '0';
+
+  // 【防呆】：回合輸入框即時過濾非數字字元 (禁止輸入小數點、負號或英文字母)
+  if (inputRound) {
+    inputRound.addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/\D/g, '');
+    });
+  }
 
   // 2. 登出按鈕事件綁定
   const btnLogout = document.getElementById('btn-logout');
@@ -45,8 +74,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function loadTradingData(stockId, round) {
     try {
       // 依據是否有 stockId 組裝 API 請求路徑
+      const roundParam = (round !== undefined && round !== null && String(round).trim() !== '') ? encodeURIComponent(round) : '';
       const url = stockId
-        ? `/api/trading/detail?stock_id=${encodeURIComponent(stockId)}&round=${encodeURIComponent(round || '')}`
+        ? `/api/trading/detail?stock_id=${encodeURIComponent(stockId)}&round=${roundParam}`
         : `/api/trading/detail`;
 
       const res = await fetch(url);
@@ -67,21 +97,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         suggestedRound
       } = result.data || {};
 
-      // 儲存後端推算的建議回合
-      currentSuggestedRound = suggestedRound || '1';
+      // 儲存後端推算的建議回合 (若無建議則預設為 0)
+      currentSuggestedRound = suggestedRound !== undefined && suggestedRound !== null ? String(suggestedRound) : '0';
 
-      // (1) 渲染標的下拉選單
+      // (1) 渲染標的下拉選單 (呈現格式：STOCK_ID-STOCK_NAME)
       if (selectStock) {
         selectStock.innerHTML = '<option value="">-- 請選擇標的 --</option>';
         availableStocks.forEach(s => {
           const opt = document.createElement('option');
-
-          // 相容物件格式 { stock_id, stock_name } 與舊有的純字串格式
           const sId = typeof s === 'object' ? s.stock_id : s;
           const sName = typeof s === 'object' ? s.stock_name : '';
 
           opt.value = sId;
-          // 依需求組合為 STOCK_ID-STOCK_NAME
           opt.textContent = sName ? `${sId}-${sName}` : sId;
 
           if (sId === stockId) opt.selected = true;
@@ -96,7 +123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           selectRound.disabled = true;
         } else {
           selectRound.disabled = false;
-          // 標的已選，預設第一項為空值（代表全部歷史）
+          // 預設第一項為空值（代表全部歷史模式）
           selectRound.innerHTML = '<option value="">-- 全部歷史 (未選回合) --</option>';
           if (availableRounds && availableRounds.length > 0) {
             availableRounds.forEach(r => {
@@ -111,6 +138,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 opt.textContent = `第 ${roundVal} 回合`;
               }
 
+              // 準確比對字串，避免 roundVal 為 0 時因型別判斷失準
               if (String(roundVal) === String(round)) opt.selected = true;
               selectRound.appendChild(opt);
             });
@@ -126,7 +154,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const elPnl = document.getElementById('stat-pnl');
 
       if (!stockId) {
-        // 未選擇標的：數值全數重設為佔位符
+        // 未選擇標的：全數重設為佔位符
         if (elShares) elShares.textContent = '-- 股';
         if (elAvgCost) elAvgCost.textContent = '--';
         if (elBuyCost) elBuyCost.textContent = '--';
@@ -157,14 +185,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           elRevenue.textContent = `${currencySymbol}${totalRev.toLocaleString()}`;
         }
 
-        // 5. 損益合計：SUM(SELL + REVENUE + INTEREST) - SUM(BUY)
+        // 5. 損益合計：未選回合為全部歷史累計，選定回合為該單一回合波段損益
         if (elPnl) {
           const totalPnl = Number(summary.totalPnl ?? 0);
           const isProfit = totalPnl >= 0;
           const sign = isProfit ? '+' : '-';
 
           elPnl.textContent = `${sign}${currencySymbol}${Math.abs(totalPnl).toLocaleString()}`;
-          // 套用紅漲綠跌 CSS 樣式
           elPnl.className = `text-xl font-bold mt-1 ${isProfit ? 'text-profit' : 'text-loss'}`;
         }
       }
@@ -176,12 +203,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('[TradingLog Load Error]:', err);
       const tbody = document.getElementById('trade-log-body');
       if (tbody) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-red-400">載入失敗: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-red-400">載入失敗: ${err.message}</td></tr>`;
       }
     }
   }
 
-  // 4. 表格渲染函式
+  // 4. 表格渲染函式 (擴充操作按鈕與事件綁定)
   function renderTable(logs, stockId, round) {
     const tbody = document.getElementById('trade-log-body');
     const countBadge = document.getElementById('log-count');
@@ -190,21 +217,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 狀態 A：尚未選擇標的
     if (!stockId) {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td></tr>';
       if (countBadge) countBadge.textContent = '共 0 筆';
       return;
     }
 
-    // 狀態 B：已選標的但未選特定回合 (回合為空，依規定不顯示流水帳明細)
-    if (!round || String(round).trim() === '') {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">請選擇特定回合以檢視該回合交易流水帳明細</td></tr>';
+    // 狀態 B：已選標的但未選特定回合 (明確檢查空值與 undefined，允許回合為 0)
+    const hasSelectedRound = round !== undefined && round !== null && String(round).trim() !== '';
+    if (!hasSelectedRound) {
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-gray-500">請選擇特定回合以檢視該回合交易流水帳明細</td></tr>';
       if (countBadge) countBadge.textContent = '共 0 筆';
       return;
     }
 
     // 狀態 C：已選回合但該回合無明細資料
     if (!logs || logs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">該回合尚無任何交易流水記錄</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-gray-500">該回合尚無任何交易流水記錄</td></tr>';
       if (countBadge) countBadge.textContent = '共 0 筆';
       return;
     }
@@ -236,12 +264,77 @@ document.addEventListener('DOMContentLoaded', async () => {
           ${isIncome ? '+' : '-'}${currencySymbol}${Math.abs(Number(log.net_total || 0)).toLocaleString()}
         </td>
         <td class="px-4 py-3 text-gray-400">${log.note || ''}</td>
+        <td class="px-4 py-3 text-center">
+          <button type="button" class="btn-edit text-blue-400 hover:text-blue-300 mr-2.5 text-xs font-medium" data-id="${log.trade_id}">編輯</button>
+          <button type="button" class="btn-delete text-gray-500 hover:text-red-400 text-xs font-medium" data-id="${log.trade_id}">刪除</button>
+        </td>
       `;
       tbody.appendChild(tr);
     });
+
+    // 綁定編輯與刪除行為
+    bindTableActions(logs);
   }
 
-  // 5. 標的下拉選單變更事件
+  // 5. 綁定表格內各列的編輯與刪除按鈕事件
+  function bindTableActions(logs) {
+    // 編輯明細：讀取當前資料並填入 Modal
+    document.querySelectorAll('.btn-edit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const tradeId = e.currentTarget.dataset.id;
+        const targetLog = logs.find(item => String(item.trade_id) === String(tradeId));
+        if (!targetLog) return;
+
+        // 切換 Modal 為編輯狀態
+        if (inputTradeId) inputTradeId.value = targetLog.trade_id;
+        if (modalTitle) modalTitle.textContent = '編輯交易明細';
+        if (btnSubmitTradeText) btnSubmitTradeText.textContent = '儲存修改';
+
+        // 資料回填並鎖定標的欄位
+        if (inputStockId) {
+          inputStockId.value = targetLog.stock_id || currentStock;
+          inputStockId.readOnly = true;
+        }
+        if (inputRound) inputRound.value = targetLog.round !== undefined ? targetLog.round : '0';
+        if (inputTradeDate) inputTradeDate.value = targetLog.trade_date ? targetLog.trade_date.slice(0, 10) : '';
+        if (inputTradeType) inputTradeType.value = targetLog.trade_type || 'BUY';
+        if (inputPrice) inputPrice.value = targetLog.price || 0;
+        if (inputShares) inputShares.value = targetLog.shares || 0;
+        if (inputFee) inputFee.value = targetLog.fee || 0;
+        if (inputTax) inputTax.value = targetLog.tax || 0;
+        if (inputNote) inputNote.value = targetLog.note || '';
+
+        // 開啟彈窗
+        if (modal) {
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+        }
+      });
+    });
+
+    // 刪除明細：呼叫 DELETE API
+    document.querySelectorAll('.btn-delete').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const tradeId = e.currentTarget.dataset.id;
+        if (!confirm('確定要刪除這筆交易記錄嗎？此操作將無法復原。')) return;
+
+        try {
+          const res = await fetch(`/api/trading/detail?trade_id=${encodeURIComponent(tradeId)}`, {
+            method: 'DELETE'
+          });
+          const result = await res.json();
+          if (!result.success) throw new Error(result.message);
+
+          // 刪除完成後重新載入目前畫面
+          loadTradingData(currentStock, currentRound);
+        } catch (err) {
+          alert(`刪除失敗: ${err.message}`);
+        }
+      });
+    });
+  }
+
+  // 6. 標的下拉選單變更事件
   if (selectStock) {
     selectStock.addEventListener('change', (e) => {
       currentStock = e.target.value;
@@ -252,26 +345,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // 6. 回合下拉選單變更事件
+  // 7. 回合下拉選單變更事件
   if (selectRound) {
     selectRound.addEventListener('change', (e) => {
       currentRound = e.target.value;
-      const roundParam = currentRound ? `&round=${currentRound}` : '';
+      const roundParam = currentRound !== '' ? `&round=${encodeURIComponent(currentRound)}` : '';
       const newUrl = currentStock ? `${window.location.pathname}?symbol=${currentStock}${roundParam}` : window.location.pathname;
       window.history.replaceState(null, '', newUrl);
       loadTradingData(currentStock, currentRound);
     });
   }
 
-  // 7. 彈窗控制與自動帶入建議回合數
-  const modal = document.getElementById('modal-add-trade');
+  // =========================================================================
+  // 8. 打開新增明細彈窗 (加入防呆：未選標的禁止開窗、開窗鎖定標的)
+  // =========================================================================
   const btnOpenModal = document.getElementById('btn-open-modal');
   const btnCloseModal = document.getElementById('btn-close-modal');
 
   if (btnOpenModal && modal) {
     btnOpenModal.addEventListener('click', () => {
-      if (inputStockId) inputStockId.value = currentStock || '';
-      if (inputRound) inputRound.value = currentSuggestedRound || '1';
+      // 【防呆 1】：必須先在主畫面選擇標的，否則禁止開啟新增交易彈窗
+      if (!currentStock || currentStock.trim() === '') {
+        alert('請先在上方選單選擇「標的」，再新增交易明細！');
+        if (selectStock) selectStock.focus();
+        return;
+      }
+
+      // 清空 trade_id 代表此為新增模式
+      if (inputTradeId) inputTradeId.value = '';
+      if (modalTitle) modalTitle.textContent = '新增交易明細';
+      if (btnSubmitTradeText) btnSubmitTradeText.textContent = '確認送出儲存';
+
+      // 【防呆 2】：鎖定標的代碼為當前選定的標的，不可編輯更動
+      if (inputStockId) {
+        inputStockId.value = currentStock;
+        inputStockId.readOnly = true;
+      }
+
+      // 初始化表單欄位 (回合預設自動帶入建議回合，若無則為 0)
+      if (inputRound) inputRound.value = currentSuggestedRound !== undefined ? currentSuggestedRound : '0';
+      if (inputTradeDate) inputTradeDate.value = new Date().toISOString().slice(0, 10);
+      if (inputTradeType) inputTradeType.value = 'BUY';
+      if (inputPrice) inputPrice.value = '';
+      if (inputShares) inputShares.value = '';
+      if (inputFee) inputFee.value = '0';
+      if (inputTax) inputTax.value = '0';
+      if (inputNote) inputNote.value = '';
 
       modal.classList.remove('hidden');
       modal.classList.add('flex');
@@ -285,45 +404,158 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // 8. 新增交易表單送出
+  // =========================================================================
+  // 9. 交易表單送出 (加入防呆：日期驗證、回合驗證、自動區分 POST 與 PUT)
+  // =========================================================================
   const btnSubmitTrade = document.getElementById('btn-submit-trade');
   if (btnSubmitTrade) {
     btnSubmitTrade.addEventListener('click', async () => {
-      const stock_id = document.getElementById('input-stock-id')?.value?.trim();
-      const round = document.getElementById('input-round')?.value?.trim();
-      const trade_date = document.getElementById('input-trade-date')?.value;
-      const trade_type = document.getElementById('input-trade-type')?.value;
-      const price = document.getElementById('input-price')?.value;
-      const shares = document.getElementById('input-shares')?.value;
-      const fee = document.getElementById('input-fee')?.value;
-      const tax = document.getElementById('input-tax')?.value;
-      const note = document.getElementById('input-note')?.value?.trim();
+      const trade_id = inputTradeId?.value?.trim();
+      const stock_id = inputStockId?.value?.trim();
+      const roundRaw = inputRound?.value?.trim();
+      const trade_date = inputTradeDate?.value?.trim();
+      const trade_type = inputTradeType?.value;
+      const price = inputPrice?.value;
+      const shares = inputShares?.value;
+      const fee = inputFee?.value;
+      const tax = inputTax?.value;
+      const note = inputNote?.value?.trim();
 
+      // 基本必填防呆
       if (!stock_id || !trade_date || !trade_type) {
         alert('請完整填寫標的代碼、交易日期與交易型態！');
         return;
       }
 
+      // 【防呆 3】：交易日期有效性檢查（轉成 Date 物件，轉不過去或 NaN 就直接擋掉）
+      const dateObj = new Date(trade_date);
+      if (isNaN(dateObj.getTime())) {
+        alert('請填寫正確有效的交易日期！');
+        if (inputTradeDate) inputTradeDate.focus();
+        return;
+      }
+
+      // 【防呆 4】：回合 (Round) 必須為整數且允許大於或等於 0 (如 0, 1, 2...)
+      if (roundRaw === '' || isNaN(roundRaw)) {
+        alert('回合 (Round) 只能填寫數字！');
+        if (inputRound) inputRound.focus();
+        return;
+      }
+
+      const round = parseInt(roundRaw, 10);
+      if (isNaN(round) || round < 0) {
+        alert('回合 (Round) 只能填寫大於或等於 0 的整數！');
+        if (inputRound) inputRound.focus();
+        return;
+      }
+
+      const isEdit = Boolean(trade_id);
+      const method = isEdit ? 'PUT' : 'POST';
+      const payload = {
+        ...(isEdit && { trade_id }),
+        stock_id,
+        round,
+        trade_date,
+        trade_type,
+        price,
+        shares,
+        fee,
+        tax,
+        note
+      };
+
       try {
         const res = await fetch('/api/trading/detail', {
-          method: 'POST',
+          method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ stock_id, round, trade_date, trade_type, price, shares, fee, tax, note })
+          body: JSON.stringify(payload)
         });
         const result = await res.json();
         if (!result.success) throw new Error(result.message);
 
-        alert('交易明細記錄成功！');
+        alert(isEdit ? '交易明細更新成功！' : '交易明細記錄成功！');
+
         if (modal) {
           modal.classList.add('hidden');
           modal.classList.remove('flex');
         }
 
+        // 維持當前選取的標的並重新整理明細
         currentStock = stock_id.toUpperCase();
-        currentRound = ''; // 新增後重整回全歷史檢視
         loadTradingData(currentStock, currentRound);
       } catch (err) {
-        alert(`新增失敗: ${err.message}`);
+        alert(`${isEdit ? '更新' : '新增'}失敗: ${err.message}`);
+      }
+    });
+  }
+
+  // =========================================================================
+  // 10. 標的代碼維護 (新增標的) 彈窗控制與送出
+  // =========================================================================
+
+  // (1) 開啟「標的維護」彈窗
+  if (btnOpenStockModal && modalStock) {
+    btnOpenStockModal.addEventListener('click', () => {
+      if (inputNewStockId) inputNewStockId.value = '';
+      if (inputNewStockName) inputNewStockName.value = '';
+
+      modalStock.classList.remove('hidden');
+      modalStock.classList.add('flex');
+    });
+  }
+
+  // (2) 關閉「標的維護」彈窗
+  if (btnCloseStockModal && modalStock) {
+    btnCloseStockModal.addEventListener('click', () => {
+      modalStock.classList.add('hidden');
+      modalStock.classList.remove('flex');
+    });
+  }
+
+  // (3) 送出新增標的：呼叫 /api/trading/addstock (單純新增，已存在則警告)
+  if (btnSubmitStockComp) {
+    btnSubmitStockComp.addEventListener('click', async () => {
+      const stock_id = inputNewStockId?.value?.trim();
+      const stock_name = inputNewStockName?.value?.trim();
+
+      if (!stock_id || !stock_name) {
+        alert('請完整填寫標的代碼與標的名稱！');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/trading/addstock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stock_id, stock_name })
+        });
+
+        const result = await res.json();
+
+        // 伺服器回傳已存在警告 (HTTP 409) 或其他檢核錯誤：彈出警示並中斷，不做任何異動
+        if (!result.success) {
+          alert(`提示：${result.message}`);
+          return;
+        }
+
+        // 成功建立提示
+        alert(result.message);
+
+        // 關閉標的維護彈窗
+        if (modalStock) {
+          modalStock.classList.add('hidden');
+          modalStock.classList.remove('flex');
+        }
+
+        // 自動將選取狀態切換為剛新增的標的，更新網址並載入最新下拉選單
+        currentStock = stock_id.toUpperCase();
+        currentRound = '';
+        const newUrl = `${window.location.pathname}?symbol=${currentStock}`;
+        window.history.replaceState(null, '', newUrl);
+
+        loadTradingData(currentStock, currentRound);
+      } catch (err) {
+        alert(`連線或新增失敗: ${err.message}`);
       }
     });
   }
