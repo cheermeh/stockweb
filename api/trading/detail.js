@@ -13,13 +13,16 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      // 1. 取得使用者關注標的清單 (下拉選單來源)
+      // 1. 取得使用者標的清單 (下拉選單來源)
       const stockListRes = await query(TRADING_QUERIES.GET_STOCKS_FROM_COMP, [userId]);
-      const availableStocks = stockListRes.rows.map(r => r.stock_id);
+      const availableStocks = stockListRes.rows.map(r => ({
+        stock_id: r.stock_id,
+        stock_name: r.stock_name || ''
+      }));
 
       const rawStockId = req.query.stock_id || req.query.symbol;
 
-      // 若未選擇標的，回傳標的清單與預設空值
+      // 若未選擇任何標的，回傳標的清單與初始空值
       if (!rawStockId) {
         return res.status(200).json({
           success: true,
@@ -30,7 +33,14 @@ module.exports = async function handler(req, res) {
             availableRounds: [],
             suggestedRound: 1,
             isRoundFinished: true,
-            summary: { remainingShares: 0, totalBuyCost: 0, totalSellRevenue: 0, totalDividends: 0, avgCost: 0 },
+            summary: {
+              remainingShares: 0,
+              totalBuyCost: 0,
+              totalSellRevenue: 0,
+              totalDividends: 0,
+              avgCost: 0,
+              totalPnl: 0
+            },
             logs: []
           }
         });
@@ -39,14 +49,14 @@ module.exports = async function handler(req, res) {
       const stockId = String(rawStockId).toUpperCase();
       const rawRound = req.query.round;
 
-      // 2. 取得該標的所有 round 及持股剩餘量 (物件陣列：{ round, remaining_shares })
+      // 2. 取得該標的所有回合清單及持股剩餘量 (供下拉選單顯示)
       const allRoundsRes = await query(TRADING_QUERIES.GET_AVAILABLE_ROUNDS, [userId, stockId]);
       const availableRounds = allRoundsRes.rows.map(r => ({
         round: Number(r.round),
         remaining_shares: Number(r.remaining_shares || 0)
       }));
 
-      // 3. 自動判斷最新回合狀態與建議的下一回合 (round 現為 integer)
+      // 3. 自動判斷最新回合狀態與建議的下一回合 (供彈窗新增交易預設使用)
       let suggestedRound = 1;
       let isRoundFinished = false;
 
@@ -67,39 +77,80 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      // 4. 回合條件篩選
-      let targetRoundsInt = [];
-      let isSingleRound = false;
+      // 4. 判斷是否指定回合：
+      // 若 rawRound 為 undefined、null 或空字串，代表「未選擇回合 (全歷史模式)」
+      const hasRound = rawRound !== undefined && rawRound !== null && String(rawRound).trim() !== '';
 
-      if (rawRound && String(rawRound).trim() !== '') {
-        const parsedRound = parseInt(rawRound, 10);
-        if (!isNaN(parsedRound)) {
-          targetRoundsInt = [parsedRound];
-          isSingleRound = true;
-        }
-      } else {
-        const top10Res = await query(TRADING_QUERIES.GET_LATEST_10_ROUNDS, [userId, stockId]);
-        targetRoundsInt = top10Res.rows.map(r => Number(r.round)).filter(n => !isNaN(n));
+      if (!hasRound) {
+        // ==========================================
+        // 【模式 A：回合為空】
+        // 1. 查詢全標的歷史累計（不分回合）
+        // 2. logs 回傳空陣列（不呈現明細）
+        // ==========================================
+        const allSummaryRes = await query(TRADING_QUERIES.GET_STOCK_ALL_SUMMARY, [userId, stockId]);
+        const position = allSummaryRes.rows[0] || {};
+
+        const remainingShares = Number(position.remaining_shares || 0);
+        const totalBuyCost = Number(position.total_buy_cost || 0);
+        const totalBoughtShares = Number(position.total_bought_shares || 0);
+        const totalSellRevenue = Number(position.total_sell_revenue || 0);
+        const totalDividends = Number(position.total_dividends || 0);
+        const avgCost = totalBoughtShares > 0 ? (totalBuyCost / totalBoughtShares).toFixed(2) : 0;
+        const totalPnl = Number(position.total_pnl || 0);
+
+        return res.status(200).json({
+          success: true,
+          data: {
+            stockId,
+            round: '', // 回合保持空值
+            suggestedRound,
+            isRoundFinished,
+            availableStocks,
+            availableRounds,
+            summary: {
+              remainingShares,
+              totalBuyCost,
+              totalSellRevenue,
+              totalDividends,
+              avgCost: Number(avgCost),
+              totalPnl
+            },
+            logs: [] // 依需求：未選回合時不呈現任何明細流水帳
+          }
+        });
       }
 
-      // 若該標的無任何歷史明細
+      // ==========================================
+      // 【模式 B：有選擇特定回合】
+      // 依指定 round 查詢該回合部位與交易流水帳
+      // ==========================================
+      const parsedRound = parseInt(rawRound, 10);
+      const targetRoundsInt = !isNaN(parsedRound) ? [parsedRound] : [];
+
       if (targetRoundsInt.length === 0) {
         return res.status(200).json({
           success: true,
           data: {
             stockId,
             round: '',
+            suggestedRound,
+            isRoundFinished,
             availableStocks,
-            availableRounds: [],
-            suggestedRound: 1,
-            isRoundFinished: true,
-            summary: { remainingShares: 0, totalBuyCost: 0, totalSellRevenue: 0, totalDividends: 0, avgCost: 0 },
+            availableRounds,
+            summary: {
+              remainingShares: 0,
+              totalBuyCost: 0,
+              totalSellRevenue: 0,
+              totalDividends: 0,
+              avgCost: 0,
+              totalPnl: 0
+            },
             logs: []
           }
         });
       }
 
-      // 5. 查詢部位數據與交易明細 (傳入 int[] 參數)
+      // 查詢該特定回合的部位統計與交易明細清單
       const [positionRes, logsRes] = await Promise.all([
         query(TRADING_QUERIES.GET_POSITION_BY_ROUNDS, [userId, stockId, targetRoundsInt]),
         query(TRADING_QUERIES.GET_TRADE_LOGS_BY_ROUNDS, [userId, stockId, targetRoundsInt])
@@ -109,13 +160,18 @@ module.exports = async function handler(req, res) {
       const remainingShares = Number(position.remaining_shares || 0);
       const totalBuyCost = Number(position.total_buy_cost || 0);
       const totalBoughtShares = Number(position.total_bought_shares || 0);
+      const totalSellRevenue = Number(position.total_sell_revenue || 0);
+      const totalDividends = Number(position.total_dividends || 0);
       const avgCost = totalBoughtShares > 0 ? (totalBuyCost / totalBoughtShares).toFixed(2) : 0;
+      const totalPnl = position.total_pnl !== undefined
+        ? Number(position.total_pnl || 0)
+        : (totalSellRevenue + totalDividends) - totalBuyCost;
 
       return res.status(200).json({
         success: true,
         data: {
           stockId,
-          round: isSingleRound ? targetRoundsInt[0] : '',
+          round: targetRoundsInt[0],
           suggestedRound,
           isRoundFinished,
           availableStocks,
@@ -123,11 +179,12 @@ module.exports = async function handler(req, res) {
           summary: {
             remainingShares,
             totalBuyCost,
-            totalSellRevenue: Number(position.total_sell_revenue || 0),
-            totalDividends: Number(position.total_dividends || 0),
-            avgCost: Number(avgCost)
+            totalSellRevenue,
+            totalDividends,
+            avgCost: Number(avgCost),
+            totalPnl
           },
-          logs: logsRes.rows
+          logs: logsRes.rows // 回傳該回合明細紀錄
         }
       });
 
