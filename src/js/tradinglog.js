@@ -1,18 +1,18 @@
 // src/js/tradinglog.js
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // 1. 權限檢查
+  // 1. 權限檢查：透過 client-auth.js 驗證登入狀態
   if (window.ClientAuth && !window.ClientAuth.requireAuth()) return;
 
   const sessionInfo = window.ClientAuth ? window.ClientAuth.getSessionInfo() : { market: 'TW' };
   const currencySymbol = sessionInfo.market === 'US' ? '$' : 'NT$ ';
 
-  // 取得網址列參數
+  // 取得網址列參數 (不預設任何標的代碼)
   const urlParams = new URLSearchParams(window.location.search);
   let currentStock = (urlParams.get('symbol') || urlParams.get('stock_id') || '').toUpperCase();
   let currentRound = (urlParams.get('round') || '').toUpperCase();
 
-  // 暫存系統自動推算的建議回合
+  // 暫存系統自動推算的建議回合 (供新增交易時預設使用)
   let currentSuggestedRound = '1';
 
   // DOM 元素快取
@@ -22,22 +22,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   const inputRound = document.getElementById('input-round');
   const inputTradeDate = document.getElementById('input-trade-date');
 
-  // 初始化預設值防呆
+  // 初始化新增彈窗預設值防呆
   if (inputTradeDate) inputTradeDate.value = new Date().toISOString().slice(0, 10);
   if (inputStockId) inputStockId.value = currentStock;
   if (inputRound) inputRound.value = currentRound || '1';
 
-  // 2. 登出按鈕
+  // 2. 登出按鈕事件綁定
   const btnLogout = document.getElementById('btn-logout');
   if (btnLogout) {
     btnLogout.addEventListener('click', () => {
-      if (window.ClientAuth) window.ClientAuth.logout();
+      if (window.ClientAuth) {
+        window.ClientAuth.logout();
+      } else {
+        sessionStorage.clear();
+        localStorage.clear();
+        window.location.replace('index.html');
+      }
     });
   }
 
-  // 3. 核心載入資料
+  // 3. 核心資料載入函式
   async function loadTradingData(stockId, round) {
     try {
+      // 依據是否有 stockId 組裝 API 請求路徑
       const url = stockId
         ? `/api/trading/detail?stock_id=${encodeURIComponent(stockId)}&round=${encodeURIComponent(round || '')}`
         : `/api/trading/detail`;
@@ -52,38 +59,51 @@ document.addEventListener('DOMContentLoaded', async () => {
       const result = await res.json();
       if (!result.success) throw new Error(result.message || '查詢失敗');
 
-      const { availableStocks = [], availableRounds = [], summary = {}, logs = [], suggestedRound } = result.data || {};
+      const {
+        availableStocks = [],
+        availableRounds = [],
+        summary = {},
+        logs = [],
+        suggestedRound
+      } = result.data || {};
 
-      // 更新推算回合
+      // 儲存後端推算的建議回合
       currentSuggestedRound = suggestedRound || '1';
 
-      // (1) 渲染標的下拉選單 (已修復：純粹放入股票代號)
+      // (1) 渲染標的下拉選單
       if (selectStock) {
         selectStock.innerHTML = '<option value="">-- 請選擇標的 --</option>';
         availableStocks.forEach(s => {
           const opt = document.createElement('option');
-          opt.value = s;
-          opt.textContent = s;
-          if (s === stockId) opt.selected = true;
+
+          // 相容物件格式 { stock_id, stock_name } 與舊有的純字串格式
+          const sId = typeof s === 'object' ? s.stock_id : s;
+          const sName = typeof s === 'object' ? s.stock_name : '';
+
+          opt.value = sId;
+          // 依需求組合為 STOCK_ID-STOCK_NAME
+          opt.textContent = sName ? `${sId}-${sName}` : sId;
+
+          if (sId === stockId) opt.selected = true;
           selectStock.appendChild(opt);
         });
       }
 
-      // (2) 渲染回合選單 (已修復：支援字串或帶狀態的物件結構)
+      // (2) 渲染回合下拉選單
       if (selectRound) {
         if (!stockId) {
-          selectRound.innerHTML = '<option value="">-- 前10回合 --</option>';
+          selectRound.innerHTML = '<option value="">-- 請先選擇標的 --</option>';
           selectRound.disabled = true;
         } else {
           selectRound.disabled = false;
-          selectRound.innerHTML = '<option value="">前 10 回合 (預設)</option>';
+          // 標的已選，預設第一項為空值（代表全部歷史）
+          selectRound.innerHTML = '<option value="">-- 全部歷史 (未選回合) --</option>';
           if (availableRounds && availableRounds.length > 0) {
             availableRounds.forEach(r => {
               const opt = document.createElement('option');
               const roundVal = (typeof r === 'object' && r !== null) ? r.round : r;
               opt.value = roundVal;
 
-              // 若後端有帶回 remaining_shares 則附上狀態，否則顯示純文字
               if (typeof r === 'object' && r.remaining_shares !== undefined) {
                 const statusText = Number(r.remaining_shares) === 0 ? '已結束' : '進行中';
                 opt.textContent = `第 ${roundVal} 回合 (${statusText})`;
@@ -98,26 +118,59 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
 
-      // (3) 渲染 KPI 數值
+      // (3) 渲染 5 大 KPI 指標卡片
       const elShares = document.getElementById('stat-shares');
       const elAvgCost = document.getElementById('stat-avg-cost');
       const elBuyCost = document.getElementById('stat-buy-cost');
       const elRevenue = document.getElementById('stat-revenue');
+      const elPnl = document.getElementById('stat-pnl');
 
       if (!stockId) {
+        // 未選擇標的：數值全數重設為佔位符
         if (elShares) elShares.textContent = '-- 股';
         if (elAvgCost) elAvgCost.textContent = '--';
         if (elBuyCost) elBuyCost.textContent = '--';
         if (elRevenue) elRevenue.textContent = '--';
+        if (elPnl) {
+          elPnl.textContent = '--';
+          elPnl.className = 'text-xl font-bold mt-1 text-gray-400';
+        }
       } else {
-        if (elShares) elShares.textContent = `${Number(summary.remainingShares || 0).toLocaleString()} 股`;
-        if (elAvgCost) elAvgCost.textContent = `${currencySymbol}${Number(summary.avgCost || 0).toLocaleString()}`;
-        if (elBuyCost) elBuyCost.textContent = `${currencySymbol}${Number(summary.totalBuyCost || 0).toLocaleString()}`;
-        if (elRevenue) elRevenue.textContent = `${currencySymbol}${(Number(summary.totalSellRevenue || 0) + Number(summary.totalDividends || 0)).toLocaleString()}`;
+        // 1. 目前持股餘額
+        if (elShares) {
+          elShares.textContent = `${Number(summary.remainingShares || 0).toLocaleString()} 股`;
+        }
+
+        // 2. 平均持有成本
+        if (elAvgCost) {
+          elAvgCost.textContent = `${currencySymbol}${Number(summary.avgCost || 0).toLocaleString()}`;
+        }
+
+        // 3. 累計投入本金 (買進)
+        if (elBuyCost) {
+          elBuyCost.textContent = `${currencySymbol}${Number(summary.totalBuyCost || 0).toLocaleString()}`;
+        }
+
+        // 4. 已實現收入 (賣出 + 配息/利息)
+        if (elRevenue) {
+          const totalRev = Number(summary.totalSellRevenue || 0) + Number(summary.totalDividends || 0);
+          elRevenue.textContent = `${currencySymbol}${totalRev.toLocaleString()}`;
+        }
+
+        // 5. 損益合計：SUM(SELL + REVENUE + INTEREST) - SUM(BUY)
+        if (elPnl) {
+          const totalPnl = Number(summary.totalPnl ?? 0);
+          const isProfit = totalPnl >= 0;
+          const sign = isProfit ? '+' : '-';
+
+          elPnl.textContent = `${sign}${currencySymbol}${Math.abs(totalPnl).toLocaleString()}`;
+          // 套用紅漲綠跌 CSS 樣式
+          elPnl.className = `text-xl font-bold mt-1 ${isProfit ? 'text-profit' : 'text-loss'}`;
+        }
       }
 
-      // (4) 渲染明細清單
-      renderTable(logs, stockId);
+      // (4) 渲染歷史交易流水帳明細
+      renderTable(logs, stockId, round);
 
     } catch (err) {
       console.error('[TradingLog Load Error]:', err);
@@ -128,25 +181,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // 4. 表格渲染
-  function renderTable(logs, stockId) {
+  // 4. 表格渲染函式
+  function renderTable(logs, stockId, round) {
     const tbody = document.getElementById('trade-log-body');
     const countBadge = document.getElementById('log-count');
     if (!tbody) return;
     tbody.innerHTML = '';
 
+    // 狀態 A：尚未選擇標的
     if (!stockId) {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">請由上方選單選擇標的代碼以檢視紀錄</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td></tr>';
       if (countBadge) countBadge.textContent = '共 0 筆';
       return;
     }
 
+    // 狀態 B：已選標的但未選特定回合 (回合為空，依規定不顯示流水帳明細)
+    if (!round || String(round).trim() === '') {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">請選擇特定回合以檢視該回合交易流水帳明細</td></tr>';
+      if (countBadge) countBadge.textContent = '共 0 筆';
+      return;
+    }
+
+    // 狀態 C：已選回合但該回合無明細資料
     if (!logs || logs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">所選條件下尚無交易明細</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">該回合尚無任何交易流水記錄</td></tr>';
       if (countBadge) countBadge.textContent = '共 0 筆';
       return;
     }
 
+    // 狀態 D：正常渲染該回合流水帳列表
     if (countBadge) countBadge.textContent = `共 ${logs.length} 筆`;
 
     const TYPE_MAP = {
@@ -170,7 +233,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td class="px-4 py-3 text-right text-gray-400">${Number(log.fee || 0).toLocaleString()}</td>
         <td class="px-4 py-3 text-right text-gray-400">${Number(log.tax || 0).toLocaleString()}</td>
         <td class="px-4 py-3 text-right font-medium ${isIncome ? 'text-profit' : 'text-loss'}">
-            ${isIncome ? '+' : '-'}${currencySymbol}${Math.abs(Number(log.net_total || 0)).toLocaleString()}
+          ${isIncome ? '+' : '-'}${currencySymbol}${Math.abs(Number(log.net_total || 0)).toLocaleString()}
         </td>
         <td class="px-4 py-3 text-gray-400">${log.note || ''}</td>
       `;
@@ -178,23 +241,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // 5. 標的切換監聽
+  // 5. 標的下拉選單變更事件
   if (selectStock) {
     selectStock.addEventListener('change', (e) => {
       currentStock = e.target.value;
-      currentRound = '';
+      currentRound = ''; // 切換標的時，回合自動重設為空
       const newUrl = currentStock ? `${window.location.pathname}?symbol=${currentStock}` : window.location.pathname;
       window.history.replaceState(null, '', newUrl);
       loadTradingData(currentStock, currentRound);
     });
   }
 
-  // 6. 回合切換監聽
+  // 6. 回合下拉選單變更事件
   if (selectRound) {
     selectRound.addEventListener('change', (e) => {
       currentRound = e.target.value;
       const roundParam = currentRound ? `&round=${currentRound}` : '';
-      const newUrl = `${window.location.pathname}?symbol=${currentStock}${roundParam}`;
+      const newUrl = currentStock ? `${window.location.pathname}?symbol=${currentStock}${roundParam}` : window.location.pathname;
       window.history.replaceState(null, '', newUrl);
       loadTradingData(currentStock, currentRound);
     });
@@ -257,7 +320,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         currentStock = stock_id.toUpperCase();
-        currentRound = ''; // 重新載入近 10 回合
+        currentRound = ''; // 新增後重整回全歷史檢視
         loadTradingData(currentStock, currentRound);
       } catch (err) {
         alert(`新增失敗: ${err.message}`);
