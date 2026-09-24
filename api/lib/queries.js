@@ -13,9 +13,20 @@ const USER_QUERIES = {
 const DASHBOARD_QUERIES = {
   // 儀表板 KPI 指標彙總
   GET_SUMMARY_METRICS: `
+    --入金合計
     SELECT 
-      COALESCE(SUM(CASE WHEN trade_type = 'INPUT' THEN net_total ELSE 0 END), 0) AS total_deposit,
+      COALESCE(SUM(
+      CASE 
+        WHEN trade_type = 'INPUT' THEN net_total 
+        WHEN trade_type = 'OUTPUT' THEN -net_total 
+        ELSE 0 
+      END
+      ), 0) AS total_deposit,
+
+      --利息合計
       COALESCE(SUM(CASE WHEN trade_type IN ('REVENUE', 'INTEREST') THEN net_total ELSE 0 END), 0) AS total_interest,
+      
+      --目前現金餘額
       COALESCE(SUM(
         CASE 
           WHEN trade_type IN ('INPUT', 'SELL', 'REVENUE', 'INTEREST') THEN net_total
@@ -23,6 +34,8 @@ const DASHBOARD_QUERIES = {
           ELSE 0 
         END
       ), 0) AS current_cash,
+      
+      --交易損益
       COALESCE(SUM(
         CASE 
           WHEN trade_type = 'SELL' THEN net_total 
