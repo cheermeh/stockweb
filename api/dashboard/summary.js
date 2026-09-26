@@ -21,10 +21,13 @@ module.exports = async function handler(req, res) {
 
     const userId = sessionUser.userId;
 
-    // 2. 平行發起安全參數化查詢
+    // 自動判斷目前市場，預設為 TW
+    const marketType = (sessionUser.market || sessionUser.market_type || 'TW').toUpperCase();
+
+    // 2. 平行發起安全參數化查詢(使用UID及MARKET_TYPE)，避免 SQL Injection
     const [summaryResult, logsResult] = await Promise.all([
-      query(DASHBOARD_QUERIES.GET_SUMMARY_METRICS, [userId]),
-      query(DASHBOARD_QUERIES.GET_RECENT_LOGS, [userId])
+      query(DASHBOARD_QUERIES.GET_SUMMARY_METRICS, [userId, marketType]),
+      query(DASHBOARD_QUERIES.GET_RECENT_LOGS, [userId, marketType])
     ]);
 
     const stats = summaryResult.rows[0] || {};
@@ -33,10 +36,10 @@ module.exports = async function handler(req, res) {
     const currentCash = Number(stats.current_cash || 0);
     const tradeNetPnl = Number(stats.trade_net_pnl || 0);
     const expectedReturnWithInterest = totalDeposit + totalInterest; // 本金 + 利息
-    
+
     // 3. 業務指標推導
     const pnlIncludingInterest = tradeNetPnl + totalInterest;
-    const pnlExcludingInterest = tradeNetPnl ;
+    const pnlExcludingInterest = tradeNetPnl;
     // 期望回收指標
 
 

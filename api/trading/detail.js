@@ -11,6 +11,8 @@ module.exports = async function handler(req, res) {
   }
 
   const userId = sessionUser.userId || sessionUser.id;
+  // 取得登入者所屬市場別 (TW 或 US)
+  const marketType = (sessionUser.market || sessionUser.market_type || 'TW').toUpperCase();
 
   // =========================================================================
   // 1. GET：查詢標的清單、回合狀態、部位統計與交易明細
@@ -18,7 +20,8 @@ module.exports = async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       // 取得使用者關注或持有的標的清單 (下拉選單來源)
-      const stockListRes = await query(TRADING_QUERIES.GET_STOCKS_FROM_COMP, [userId]);
+      // 20260926加上 marketType 參數，避免跨市場查詢
+      const stockListRes = await query(TRADING_QUERIES.GET_STOCKS_FROM_COMP, [userId, marketType]);
       const availableStocks = stockListRes.rows.map(r => ({
         stock_id: r.stock_id,
         stock_name: r.stock_name || ''
