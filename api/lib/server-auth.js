@@ -25,7 +25,7 @@ function getAuthenticatedUser(req) {
     const payloadJson = Buffer.from(sessionToken, 'base64').toString('utf8');
     const userPayload = JSON.parse(payloadJson);
     if (!userPayload || !userPayload.userId) return null;
-    return userPayload;
+      return userPayload;
   } catch (err) {
     return null;
   }
