@@ -1,5 +1,15 @@
 // src/js/client-auth.js
 
+// 在 client-auth.js 最上方加入
+(function injectFavicon() {
+  if (document.querySelector('link[rel="icon"]')) return;
+  const link = document.createElement('link');
+  link.rel = 'icon';
+  link.type = 'image/svg+xml';
+  link.href = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='22 7 13.5 15.5 8.5 10.5 2 17'%3E%3C/polyline%3E%3Cpolyline points='16 7 22 7 22 13'%3E%3C/polyline%3E%3C/svg%3E";
+  document.head.appendChild(link);
+})();
+
 const CLIENT_AUTH_KEYS = {
   USER: 'stockweb_session_user',
   MARKET: 'stockweb_session_market'
@@ -20,8 +30,8 @@ const ClientAuth = {
   // 取得使用者資訊
   getSessionInfo() {
     return {
-      username: sessionStorage.getItem(CLIENT_AUTH_KEYS.USER) || '訪客',
-      market: sessionStorage.getItem(CLIENT_AUTH_KEYS.MARKET) || 'TW'
+      username: sessionStorage.getItem(CLIENT_AUTH_KEYS.USER),
+      market: sessionStorage.getItem(CLIENT_AUTH_KEYS.MARKET)
     };
   },
 
