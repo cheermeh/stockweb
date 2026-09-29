@@ -11,3 +11,5 @@ dist/
 .env*
 .env.local
 .env*.local
+.sql
+.db
