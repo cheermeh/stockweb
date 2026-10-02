@@ -1,27 +1,32 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
-
 <head>
-    <!-- 基礎編碼與檢視區設定 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StockWeb</title>
 
-    <!-- 1. 樣式表載入 -->
+    <!-- 加入瀏覽器頁籤的圖示 (Favicon) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233B82F6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='22 7 13.5 15.5 8.5 10.5 2 17'/><polyline points='16 7 22 7 22 13'/></svg>">
+
+    <!-- 載入登入頁樣式表 -->
     <link rel="stylesheet" href="src/css/auth.css">
 
+    <!-- 載入 Clerk 前端 SDK -->
+    <script defer crossorigin="anonymous"
+        data-clerk-publishable-key="pk_test_YWN0aXZlLW9jdG9wdXMtMjgzNi5jbGVyay5hY2NvdW50cy5kZXYk"
+        src="https://active-octopus-2836.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js">
+    </script>
 </head>
 
 <body class="login-page">
-
     <div class="login-container">
         <main class="login-card">
 
-            <!-- 系統識別 Header 區塊 -->
+            <!-- 系統品牌識別區塊 -->
             <header class="brand">
                 <div class="brand-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5"
-                        stroke-linecap="round" stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="none"
+                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
                         <polyline points="16 7 22 7 22 13"></polyline>
                     </svg>
@@ -29,27 +34,24 @@
                 <h1>StockWeb</h1>
             </header>
 
-            <!-- 登入表單：由 client-login.js 監聽並攔截發送 fetch API -->
-            <form id="login-form" novalidate>
-                <!-- 使用者帳號輸入 -->
+            <!-- 登入表單 -->
+            <form id="login-form">
                 <div class="input-group">
-                    <label for="input-username">使用者帳號</label>
-                    <input type="text" id="input-username" name="username" placeholder="請輸入使用者名稱" required
-                        autocomplete="username" autocapitalize="off" spellcheck="false">
+                    <label for="input-username">使用者帳號 / Email</label>
+                    <input type="text" id="input-username" name="username" placeholder="請輸入使用者帳號或 Email" required
+                        autocomplete="username" spellcheck="false">
                 </div>
 
-                <!-- 使用者密碼輸入 -->
                 <div class="input-group">
                     <label for="input-password">密碼</label>
                     <input type="password" id="input-password" name="password" placeholder="請輸入密碼" required
                         autocomplete="current-password">
                 </div>
 
-                <!-- 市場別單選切換組 (對齊 client-login.js 的 input[name="market"] 取值機制) -->
+                <!-- 市場切換 -->
                 <div class="input-group">
                     <label id="market-group-label">管理市場環境</label>
                     <div class="market-toggle-group" role="radiogroup" aria-labelledby="market-group-label">
-                        <!-- 台股市場選項 (預設選取) -->
                         <label class="market-option">
                             <input type="radio" name="market" value="TW" checked>
                             <span class="market-card">
@@ -57,8 +59,6 @@
                                 <small>NTD</small>
                             </span>
                         </label>
-
-                        <!-- 美股市場選項 -->
                         <label class="market-option">
                             <input type="radio" name="market" value="US">
                             <span class="market-card">
@@ -69,21 +69,19 @@
                     </div>
                 </div>
 
-                <!-- 登入確認按鈕：使用 type="button" 杜絕原生表單重整問題 -->
-                <button type="button" id="btn-login" class="btn-login">進入管理系統</button>
+                <button type="submit" id="btn-login" class="btn-login">進入管理系統</button>
             </form>
 
-            <!-- 安全警語與版權資訊 -->
+            <!-- 頁腳資訊 -->
             <footer class="security-notice">
                 <p>受 ISO 27000 規範保護之存取控制系統，請勿於未授權裝置操作。</p>
                 <p class="copyright">© 2026 StockWeb Project</p>
             </footer>
+
         </main>
     </div>
 
-    <!-- 前端身分驗證與登入處理腳本 -->
-    <script src="./src/js/client-auth.js"></script>
-    <script src="./src/js/client-login.js"></script>
-
+    <!-- 登入邏輯控制腳本 -->
+    <script src="src/js/client-login.js"></script>
 </body>
 </html>

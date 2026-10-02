@@ -1,137 +1,153 @@
 // src/js/client-login.js
 
-document.addEventListener('DOMContentLoaded', () => {
-  const loginForm = document.getElementById('login-form');
-  const btnLogin = document.getElementById('btn-login') || document.querySelector('button[type="button"]');
-  
-  // 取得所有市場相關元素 (相容 radio 單選框、帶有 data-market 的標籤或自訂按鈕)
-  const marketRadios = document.querySelectorAll('input[name="market"]');
-  const marketBtns = document.querySelectorAll('.market-btn, [data-market]');
-  
-  // 預設選取市場
-  let selectedMarket = 'TW';
+let isAuthenticating = false;
 
-  // =========================================================================
-  // 1. 市場切換監聽 (支援 Radio 單選框 與 自訂 Button 兩種 UI 模式)
-  // =========================================================================
+// 超時中斷器：若 Clerk 伺服器卡死無回應，時間到自動強制拋出錯誤
+function withTimeout(promise, ms, errorMsg) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(errorMsg)), ms))
+  ]);
+}
 
-  // (1) 若畫面使用標準單選框 (<input type="radio" name="market">)
-  if (marketRadios.length > 0) {
-    marketRadios.forEach(radio => {
-      radio.addEventListener('change', (e) => {
-        if (e.target.checked) {
-          selectedMarket = e.target.value.trim().toUpperCase();
-          console.log('[Client Auth] Radio 切換市場為:', selectedMarket);
-        }
-      });
+// 換發後端 Cookie 並導向
+async function exchangeAndRedirect(selectedMarket) {
+  try {
+    const clerkToken = await withTimeout(window.Clerk.session.getToken(), 5000, '取得安全憑證超時，請重試');
+    
+    const userId = window.Clerk.user?.id || '';
+    const username = window.Clerk.user?.username || 
+                     window.Clerk.user?.primaryEmailAddress?.emailAddress || 
+                     'Admin';
+
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clerkToken, userId, username, market: selectedMarket })
     });
+
+    const result = await response.json();
+    
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || '伺服器身分驗證失敗！');
+    }
+
+    const finalMarket = result.data?.market || selectedMarket;
+    const finalUsername = result.data?.username || username;
+
+    if (window.ClientAuth) {
+      window.ClientAuth.setSessionInfo(finalUsername, finalMarket);
+    } else {
+      sessionStorage.setItem('stockweb_session_user', finalUsername);
+      sessionStorage.setItem('stockweb_session_market', finalMarket);
+    }
+
+    window.location.replace('dashboard.html');
+  } catch (err) {
+    throw err; 
+  }
+}
+
+// 核心登入處理邏輯
+async function handleLoginSubmit(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
   }
 
-  // (2) 若畫面使用按鈕切換 UI (.market-btn 或 [data-market])
-  if (marketBtns.length > 0) {
-    marketBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        marketBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        
-        // 優先從 data-market 取值，其次判斷文字是否包含 US
-        selectedMarket = (btn.dataset.market || (btn.textContent.includes('US') ? 'US' : 'TW')).toUpperCase();
-        console.log('[Client Auth] 按鈕切換市場為:', selectedMarket);
-      });
-    });
+  // 阻擋狂點按鈕
+  if (isAuthenticating) return;
+
+  // 若 Clerk JS 完全沒下載成功 (網路問題或擋廣告外掛)
+  if (!window.Clerk) {
+    alert('安全模組尚未載入，請確認網路連線或關閉擋廣告外掛後重整網頁！');
+    return;
   }
 
-  // =========================================================================
-  // 2. 登入執行邏輯
-  // =========================================================================
-  async function performLogin(e) {
-    // 嚴格阻斷 HTML 表單預設送出行為，避免帳密出現於網址列
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+  const identifier = document.getElementById('input-username')?.value.trim();
+  const password = document.getElementById('input-password')?.value.trim();
 
-    const usernameInput = document.getElementById('input-username');
-    const passwordInput = document.getElementById('input-password');
-
-    const username = usernameInput ? usernameInput.value.trim() : '';
-    const password = passwordInput ? passwordInput.value.trim() : '';
-
-    // 【關鍵修復】：在點擊登入的當下，即時動態查詢目前被勾選的 Radio
-    // 避免使用者直接點選單選框後，未觸發監聽或變數未同步的問題
-    const checkedRadio = document.querySelector('input[name="market"]:checked');
-    if (checkedRadio) {
-      selectedMarket = checkedRadio.value.trim().toUpperCase();
-    }
-
-    // 防呆驗證
-    if (!username || !password) {
-      alert('請輸入使用者名稱與密碼！');
-      return;
-    }
-
-    if (!selectedMarket) {
-      alert('請選擇登入市場 (TW / US)！');
-      return;
-    }
-
-    console.log('[Client Auth] 準備送出登入，目標市場:', selectedMarket);
-
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          username,
-          password,
-          market: selectedMarket // 確保送出的是當前勾選的市場代碼 ('TW' 或 'US')
-        })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        alert(result.message || '帳號或密碼錯誤！');
-        return;
-      }
-
-      // 3. 登入成功：使用 ClientAuth 記錄會話狀態 (若後端有回傳以回傳值為主)
-      const finalMarket = result.data?.market || selectedMarket;
-      const finalUsername = result.data?.username || username;
-
-      if (window.ClientAuth) {
-        window.ClientAuth.setSessionInfo(finalUsername, finalMarket);
-      } else {
-        sessionStorage.setItem('stockweb_session_user', finalUsername);
-        sessionStorage.setItem('stockweb_session_market', finalMarket);
-      }
-
-      // 4. 轉跳至儀表板主頁
-      window.location.replace('dashboard.html');
-
-    } catch (err) {
-      console.error('[Login Client Error]:', err);
-      alert('連線伺服器失敗，請確認開發環境已啟動！');
-    }
+  if (!identifier || !password) {
+    alert('請輸入帳號與密碼！');
+    return;
   }
 
-  // =========================================================================
-  // 3. 事件綁定：支援按鈕點擊、表單 Submit 與 Enter 鍵送出
-  // =========================================================================
+  const checkedRadio = document.querySelector('input[name="market"]:checked');
+  const selectedMarket = checkedRadio ? checkedRadio.value.trim().toUpperCase() : 'TW';
+
+  const btnLogin = document.getElementById('btn-login');
   if (btnLogin) {
-    btnLogin.addEventListener('click', performLogin);
+    btnLogin.disabled = true;
+    btnLogin.textContent = '元件載入與驗證中...';
   }
 
-  if (loginForm) {
-    loginForm.addEventListener('submit', performLogin);
-  } else {
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        performLogin(e);
-      }
-    });
+  isAuthenticating = true;
+
+  try {
+    // 【關鍵修復】如果元件還沒載入完，自動幫它 await 載入，而不是直接彈錯誤把你擋掉
+    if (!window.Clerk.loaded) {
+      await window.Clerk.load();
+    }
+
+    // 防呆清理：如果瀏覽器殘存著上一筆未清乾淨的會話，先強制登出 (最高等待 3 秒)
+    if (window.Clerk.session) {
+      await withTimeout(window.Clerk.signOut(), 3000, '清理前次登入狀態超時');
+    }
+
+    // 發起帳密驗證 (最高等待 8 秒)
+    const signInAttempt = await withTimeout(
+      window.Clerk.client.signIn.create({ identifier, password }),
+      8000,
+      '驗證伺服器無回應，請檢查網路連線'
+    );
+
+    if (signInAttempt.status !== 'complete') {
+      throw new Error(`登入未完成，狀態: ${signInAttempt.status}`);
+    }
+
+    // 啟用 Session (最高等待 5 秒)
+    await withTimeout(
+      window.Clerk.setActive({ session: signInAttempt.createdSessionId }),
+      5000,
+      '啟用會話超時'
+    );
+
+    // 進行後端驗證與跳轉
+    await exchangeAndRedirect(selectedMarket);
+
+  } catch (err) {
+    // 嚴格資安防護：帳密錯誤或網路斷線，必定跳進這裡阻斷
+    const errorMsg = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || '帳號或密碼錯誤！';
+    alert(errorMsg);
+  } finally {
+    // 恢復按鈕狀態
+    isAuthenticating = false;
+    if (btnLogin) {
+      btnLogin.disabled = false;
+      btnLogin.textContent = '進入管理系統';
+    }
   }
+}
+
+// 頁面載入完成綁定事件與背景預熱
+document.addEventListener('DOMContentLoaded', () => {
+  const btnLogin = document.getElementById('btn-login');
+  const loginForm = document.getElementById('login-form');
+
+  if (btnLogin) btnLogin.addEventListener('click', handleLoginSubmit);
+  if (loginForm) loginForm.addEventListener('submit', handleLoginSubmit);
+
+  // 網頁開啟時，背景靜默載入 Clerk，加速後續登入速度
+  setTimeout(async () => {
+    if (window.Clerk && !window.Clerk.loaded) {
+      try {
+        await window.Clerk.load();
+        if (window.Clerk.session) {
+          await window.Clerk.signOut();
+        }
+      } catch (e) {
+        console.warn('背景預熱載入異常', e);
+      }
+    }
+  }, 100);
 });

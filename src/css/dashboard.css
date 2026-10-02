@@ -21,7 +21,16 @@ body {
 }
 
 /* ==========================================================================
-   上方 KPI 卡片指標 (徹底鎖定權重，移除亮紅亮綠)
+   頂部導覽列雙膠囊元件 (市場別 / 連線狀態)
+   ========================================================================== */
+#badge-market,
+#server-status {
+  letter-spacing: 0.025em;
+  user-select: none;
+}
+
+/* ==========================================================================
+   上方 KPI 卡片指標 (鎖定權重，移除亮紅亮綠)
    ========================================================================== */
 
 .stat-grid, .kpi-grid {
@@ -76,11 +85,11 @@ body {
    百分比與 Tailwind 類別強制攔截 (解決 0.00% 寫死 text-red 的問題)
    ========================================================================== */
 
-/* 1. 攔截卡片內所有包含 text-red 的標籤 (如 text-red-400, text-red-500) */
+/* 1. 攔截卡片內所有包含 text-red 的標籤 */
 .stat-card [class*="text-red"],
 .kpi-card [class*="text-red"],
 [class*="kpi"] [class*="text-red"] {
-  color: #94a3b8 !important; /* 轉為冷調石板灰，不帶股市刺眼紅感 */
+  color: #94a3b8 !important; /* 冷調石板灰 */
 }
 
 /* 2. 攔截卡片內所有包含 text-green 或 text-emerald 的標籤 */
@@ -90,7 +99,7 @@ body {
 .kpi-card [class*="text-emerald"],
 [class*="kpi"] [class*="text-green"],
 [class*="kpi"] [class*="text-emerald"] {
-  color: #5eead4 !important; /* 轉為柔和青綠 */
+  color: #5eead4 !important; /* 柔和青綠 */
 }
 
 /* 3. 百分比專屬樣式 (若值為 0.00% 時呈現低調中性灰) */
@@ -112,6 +121,13 @@ body {
   font-weight: 600;
   border-radius: 0.25rem;
   line-height: 1;
+}
+
+/* 入金 / 出金：深沉石板灰 (中性轉帳) */
+.badge-deposit {
+  background-color: rgba(51, 65, 85, 0.4) !important;
+  color: #94a3b8 !important;
+  border: 1px solid rgba(71, 85, 105, 0.4) !important;
 }
 
 /* 買進：石板灰藍 (類似進行中任務) */
@@ -197,6 +213,12 @@ td.text-expense,
 tbody td:nth-child(5) {
   color: #94a3b8 !important;
   font-weight: 500;
+}
+
+/* 避免表格中的空值連字號 "-" 過度顯眼 */
+tbody td:nth-child(4):empty,
+tbody td:nth-child(5):empty {
+  color: #64748b !important;
 }
 
 .text-right {
