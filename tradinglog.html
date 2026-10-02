@@ -9,7 +9,7 @@
   <!-- 瀏覽器頁籤圖示 (Favicon) -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233B82F6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='22 7 13.5 15.5 8.5 10.5 2 17'/><polyline points='16 7 22 7 22 13'/></svg>">
 
-  <!-- Tailwind CSS 核心樣式庫 (主要排版依賴) -->
+  <!-- Tailwind CSS 核心樣式庫 -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- 專屬業務配色與 Badge 樣式表 -->
@@ -112,7 +112,9 @@
     </div>
   </main>
 
+  <!-- ========================================================================= -->
   <!-- 彈窗 1：新增 / 編輯交易明細彈窗 -->
+  <!-- ========================================================================= -->
   <div id="modal-add-trade" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div class="bg-gray-800 border border-gray-700 rounded-xl w-full max-w-md p-6 space-y-4">
       <div class="flex justify-between items-center border-b border-gray-700 pb-3">
@@ -121,16 +123,19 @@
       </div>
 
       <form id="form-trade" class="space-y-3">
+        <!-- 隱藏欄位：儲存欲編輯的 trade_id -->
         <input type="hidden" id="input-trade-id" value="">
 
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-gray-400">標的代碼</label>
+            <!-- 嚴格保留：從外面代入，禁止手動輸入 -->
             <input type="text" id="input-stock-id" required readonly class="w-full mt-1 bg-gray-950 border border-gray-700/60 rounded px-3 py-1.5 text-gray-300 uppercase text-sm cursor-not-allowed opacity-75 focus:outline-none">
           </div>
           <div>
             <label class="text-xs text-gray-400">回合 (Round)</label>
-            <input type="number" id="input-round" min="0" step="1" value="0" required class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm focus:outline-none focus:border-blue-500">
+            <input type="number" id="input-round" min="0" step="1" placeholder="0" required onfocus="this.select()"
+              class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm focus:outline-none focus:border-blue-500">
           </div>
         </div>
 
@@ -153,28 +158,41 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-gray-400">單價</label>
-            <input type="number" step="0.0001" id="input-price" placeholder="0.00" class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm">
+            <input type="number" step="0.0001" id="input-price" placeholder="0.00" onfocus="this.select()"
+              class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm">
           </div>
           <div>
             <label class="text-xs text-gray-400">股數</label>
-            <input type="number" id="input-shares" placeholder="0" class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm">
+            <input type="number" id="input-shares" placeholder="0" onfocus="this.select()"
+              class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm">
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-gray-400">手續費</label>
-            <input type="number" id="input-fee" value="0" class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm">
+            <input type="number" id="input-fee" placeholder="0" onfocus="this.select()"
+              class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm">
           </div>
           <div>
             <label class="text-xs text-gray-400">證券交易稅</label>
-            <input type="number" id="input-tax" value="0" class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm">
+            <input type="number" id="input-tax" placeholder="0" onfocus="this.select()"
+              class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm">
           </div>
         </div>
 
+        <!-- 備註說明 -->
         <div>
           <label class="text-xs text-gray-400">備註說明</label>
-          <input type="text" id="input-note" placeholder="選填" class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm">
+          <input type="text" id="input-note" placeholder="選填"
+            class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm">
+        </div>
+
+        <!-- 開窗最後加上收付淨額 (net_total)，預設隱藏，僅股利/利息時顯示 -->
+        <div id="wrap-net-total" class="hidden">
+          <label class="text-xs text-emerald-400 font-medium">實收入帳金額 (收付淨額)</label>
+          <input type="number" step="0.01" id="input-net-total" placeholder="0" onfocus="this.select()"
+            class="w-full mt-1 bg-gray-900 border border-emerald-500 rounded px-3 py-1.5 text-white font-bold text-sm focus:outline-none">
         </div>
 
         <div class="pt-2">
@@ -186,7 +204,9 @@
     </div>
   </div>
 
+  <!-- ========================================================================= -->
   <!-- 彈窗 2：標的代碼維護彈窗 -->
+  <!-- ========================================================================= -->
   <div id="modal-stock-comp" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div class="bg-gray-800 border border-gray-700 rounded-xl w-full max-w-sm p-6 space-y-4">
       <div class="flex justify-between items-center border-b border-gray-700 pb-3">
