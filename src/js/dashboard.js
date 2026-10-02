@@ -1,68 +1,46 @@
 // src/js/dashboard.js
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // 1. 前端路由守衛：透過 client-auth.js 驗證基礎登入狀態
+  // 1. 登入狀態檢查：未通過驗證則中斷
   if (window.ClientAuth && !window.ClientAuth.requireAuth()) {
     return;
   }
 
-  // 取得真實使用者帳號與市場設定 (由 ClientAuth 解析 Token 或 Session)
-  const sessionInfo = window.ClientAuth 
-    ? window.ClientAuth.getSessionInfo() 
-    : { username: '', market: 'TW' };
+  // 取得使用者資訊與市場環境
+  const { username = '', market = 'TW' } = window.ClientAuth ? window.ClientAuth.getSessionInfo() : {};
+  const isUS = market.toUpperCase() === 'US';
+  const currencySymbol = isUS ? '$' : 'NT$ ';
 
-  const { username = '', market = 'TW' } = sessionInfo;
-
-  // 2. 市場顯示與樣式配置 (台股紅漲綠跌 / 美股綠漲紅跌)
-  const marketConfig = {
-    TW: {
-      titleSuffix: '台股帳戶',
-      currency: 'NT$ ',
-      profitClass: 'text-profit', // 紅漲
-      lossClass: 'text-loss'      // 綠跌
-    },
-    US: {
-      titleSuffix: '美股帳戶',
-      currency: '$ ',
-      profitClass: 'text-loss',   // 美股綠漲
-      lossClass: 'text-profit'    // 美股紅跌
-    }
-  };
-
-  const currentConfig = marketConfig[market] || marketConfig.TW;
-
-  // 3. 渲染 Header 使用者資訊與市場別 (真實使用者名稱遮罩)
-  const userBadge = document.getElementById('current-user-badge');
-  if (userBadge && username) {
-    const maskedName = username.length > 3 ? `${username.slice(0, 3)}***` : username;
-    userBadge.textContent = `${maskedName} (${currentConfig.titleSuffix})`;
+  // 2. 渲染市場徽章
+  const badgeMarket = document.getElementById('badge-market');
+  if (badgeMarket) {
+    const maskedUser = username ? ` (${username.length > 3 ? username.slice(0, 3) + '***' : username})` : '';
+    badgeMarket.textContent = `${isUS ? 'US' : 'TW'}${maskedUser}`;
   }
 
-  // 4. 登出按鈕事件綁定
+  // 3. 頁面導航至個股明細
+  const btnGotoTradinglog = document.getElementById('btn-goto-tradinglog');
+  if (btnGotoTradinglog) {
+    btnGotoTradinglog.onclick = () => {
+      window.location.href = 'tradinglog.html';
+    };
+  }
+
+  // 4. 登出按鈕：直接清空並跳轉，具備降級防呆
   const btnLogout = document.getElementById('btn-logout');
   if (btnLogout) {
-    btnLogout.addEventListener('click', () => {
-      if (window.ClientAuth) {
+    btnLogout.onclick = () => {
+      if (window.ClientAuth && typeof window.ClientAuth.logout === 'function') {
         window.ClientAuth.logout();
       } else {
         sessionStorage.clear();
         localStorage.clear();
         window.location.replace('index.html');
       }
-    });
+    };
   }
 
-  // 5. 導航至個股明細頁面 (已移除寫死的 2330 / NVDA，直接導航至空白標的頁)
-  const btnGotoTradinglog = document.getElementById('btn-goto-tradinglog');
-  if (btnGotoTradinglog) {
-    btnGotoTradinglog.addEventListener('click', (e) => {
-      e.preventDefault();
-      // 跳轉至純淨的 tradinglog.html，由使用者於下拉選單選擇標的
-      window.location.href = 'tradinglog.html';
-    });
-  }
-
-  // 資料庫 ENUM 代碼對應中文標籤與 Badge 樣式
+  // 交易類別標籤與樣式映射
   const TYPE_CONFIG = {
     INPUT:    { label: '入金', badgeClass: 'badge-deposit' },
     OUTPUT:   { label: '出金', badgeClass: 'badge-deposit' },
@@ -75,181 +53,127 @@ document.addEventListener('DOMContentLoaded', async () => {
   let isMasked = false;
   let globalRecentLogs = [];
 
-  // 6. 從後端 API 取得真實儀表板數據
+  // 金額字串格式化工具
+  const formatAmount = (val, isPnL = false) => {
+    if (isMasked) return '******';
+    const sign = isPnL && val > 0 ? '+' : '';
+    return `${sign}${currencySymbol}${val.toLocaleString()}`;
+  };
+
+  // 5. 請求後端儀表板數據
   try {
     const res = await fetch('/api/dashboard/summary');
 
-    // 鑑權失敗或登入逾時防呆
+    // 401 鑑權過期處理
     if (res.status === 401) {
-      alert('未授權存取或登入已過期，請重新登入！');
-      if (window.ClientAuth) {
-        window.ClientAuth.logout();
-      } else {
-        sessionStorage.clear();
-        localStorage.clear();
-        window.location.replace('index.html');
-      }
+      if (window.ClientAuth) window.ClientAuth.logout();
       return;
     }
 
     const result = await res.json();
-    if (!result.success) {
-      throw new Error(result.message || '取得數據失敗');
-    }
+    if (!result.success) throw new Error(result.message || '取得數據失敗');
+
+    // 更新連線狀態文字
+    const serverStatus = document.getElementById('server-status');
+    if (serverStatus) serverStatus.textContent = '連線正常';
 
     const { summary = {}, recentLogs = [] } = result.data || {};
     globalRecentLogs = recentLogs;
 
-    // 7. 渲染 6 大 KPI 卡片 (依序對應卡片 DOM 順序)
-    // [入金合計, 利息合計, 期望回收(本金+利息), 當前現金, 波段損益(不含息), 當前損益(含息)]
+    // 6. 渲染 KPI 卡片
     const kpiValues = [
       Number(summary.totalDeposit || 0),
       Number(summary.totalInterest || 0),
-      Number(summary.expectedReturnWithInterest || 0), // 本金 + 利息
+      Number(summary.expectedReturnWithInterest || 0),
       Number(summary.currentCash || 0),
       Number(summary.pnlExcludingInterest || 0),
       Number(summary.pnlIncludingInterest || 0)
     ];
 
-    const kpiElements = document.querySelectorAll('.kpi-value');
-    kpiElements.forEach((el, idx) => {
+    document.querySelectorAll('.kpi-value').forEach((el, idx) => {
       const val = kpiValues[idx];
       el.dataset.raw = val;
-
-      const isPnL = idx >= 4; // 第 5、6 張卡片為損益類
-      const sign = isPnL && val > 0 ? '+' : '';
-      el.textContent = `${sign}${currentConfig.currency}${val.toLocaleString()}`;
-
+      const isPnL = idx >= 4;
+      el.textContent = formatAmount(val, isPnL);
       if (isPnL) {
-        el.classList.remove('text-profit', 'text-loss');
-        el.classList.add(val >= 0 ? currentConfig.profitClass : currentConfig.lossClass);
+        el.className = `kpi-value text-xl font-bold mt-1 ${val >= 0 ? 'text-profit' : 'text-loss'}`;
       }
     });
 
-    // 計算並渲染報酬率百分比 (以淨入金 totalDeposit 作為基準)
-    const subPnlNoInt = document.getElementById('sub-pnl-noint');
-    const subPnlInt = document.getElementById('sub-pnl-int');
+    // 渲染報酬率百分比
     const totalDep = Number(summary.totalDeposit || 0);
+    const renderRate = (elemId, pnlValue) => {
+      const el = document.getElementById(elemId);
+      if (!el) return;
+      const rate = totalDep > 0 ? ((pnlValue / totalDep) * 100).toFixed(2) : '0.00';
+      const sign = Number(rate) > 0 ? '+' : '';
+      el.dataset.rawRate = `${sign}${rate}%`;
+      el.textContent = `${sign}${rate}%`;
+      el.className = `text-xs mt-1 ${Number(rate) >= 0 ? 'text-profit' : 'text-loss'}`;
+    };
 
-    // (1) 波段損益率 (不含息)
-    if (subPnlNoInt) {
-      const pnlNoInt = Number(summary.pnlExcludingInterest || 0);
-      const rateNoInt = totalDep > 0 ? ((pnlNoInt / totalDep) * 100).toFixed(2) : '0.00';
-      const sign = Number(rateNoInt) > 0 ? '+' : '';
-      subPnlNoInt.dataset.rawRate = `${sign}${rateNoInt}%`;
-      subPnlNoInt.textContent = `${sign}${rateNoInt}%`;
-      subPnlNoInt.classList.remove('text-profit', 'text-loss');
-      subPnlNoInt.classList.add(Number(rateNoInt) >= 0 ? currentConfig.profitClass : currentConfig.lossClass);
-    }
+    renderRate('sub-pnl-noint', Number(summary.pnlExcludingInterest || 0));
+    renderRate('sub-pnl-int', Number(summary.pnlIncludingInterest || 0));
 
-    // (2) 當前損益率 (含利息)
-    if (subPnlInt) {
-      const pnlInt = Number(summary.pnlIncludingInterest || 0);
-      const rateInt = totalDep > 0 ? ((pnlInt / totalDep) * 100).toFixed(2) : '0.00';
-      const sign = Number(rateInt) > 0 ? '+' : '';
-      subPnlInt.dataset.rawRate = `${sign}${rateInt}%`;
-      subPnlInt.textContent = `${sign}${rateInt}%`;
-      subPnlInt.classList.remove('text-profit', 'text-loss');
-      subPnlInt.classList.add(Number(rateInt) >= 0 ? currentConfig.profitClass : currentConfig.lossClass);
-    }
-
-    // 8. 狀態更新：移除連線中提示
-    const statusIndicators = document.querySelectorAll('header span, header div');
-    statusIndicators.forEach(node => {
-      if (node.textContent.includes('連線中...')) {
-        node.textContent = '正常連線';
-      }
-    });
-
-    // 9. 渲染近期進出流水帳真實表格
+    // 7. 渲染交易流水明細表
     renderLedgerTable(globalRecentLogs);
 
   } catch (err) {
     console.error('[Dashboard Error]:', err);
+    const serverStatus = document.getElementById('server-status');
+    if (serverStatus) serverStatus.textContent = '連線異常';
   }
 
-  // 流水帳表格渲染函式
+  // 表格渲染函式
   function renderLedgerTable(logs) {
     const ledgerBody = document.getElementById('ledger-body');
     if (!ledgerBody) return;
-    ledgerBody.innerHTML = '';
 
     if (!logs || logs.length === 0) {
-      ledgerBody.innerHTML = `
-        <tr>
-          <td colspan="6" style="text-align: center; padding: 24px; color: #888;">
-            尚無任何交易流水記錄
-          </td>
-        </tr>
-      `;
+      ledgerBody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500">尚無任何交易流水記錄</td></tr>';
       return;
     }
 
-    logs.forEach(item => {
-      const tr = document.createElement('tr');
-      const typeConf = TYPE_CONFIG[item.trade_type] || { 
-        label: item.trade_type || '其他', 
-        badgeClass: 'badge-deposit' 
-      };
-
-      // 判斷金流方向：入金、賣出、股利、利息為收入 (+)；出金、買進為支出 (-)
+    ledgerBody.innerHTML = logs.map(item => {
+      const typeConf = TYPE_CONFIG[item.trade_type] || { label: item.trade_type || '其他', badgeClass: 'badge-deposit' };
       const isIncome = ['INPUT', 'SELL', 'REVENUE', 'INTEREST'].includes(item.trade_type);
       const netAmount = Number(item.net_total || 0);
-
-      const incomeText = isIncome ? `${currentConfig.currency}${netAmount.toLocaleString()}` : '-';
-      const expenseText = !isIncome ? `${currentConfig.currency}${netAmount.toLocaleString()}` : '-';
-
       const displayDate = item.trade_date ? item.trade_date.slice(0, 10) : '-';
       const displayStock = item.stock_id || (['INPUT', 'OUTPUT'].includes(item.trade_type) ? '交割帳戶' : '-');
 
-      tr.innerHTML = `
-        <td>${displayDate}</td>
-        <td>${displayStock}</td>
-        <td><span class="badge ${typeConf.badgeClass}">${typeConf.label}</span></td>
-        <td class="text-right ${isIncome ? currentConfig.profitClass : ''}" data-type="amount">${incomeText}</td>
-        <td class="text-right ${!isIncome ? currentConfig.lossClass : ''}" data-type="amount">${expenseText}</td>
-        <td>${item.note || ''}</td>
+      return `
+        <tr class="hover:bg-gray-800/30 transition-colors">
+          <td class="px-6 py-4">${displayDate}</td>
+          <td class="px-6 py-4 font-mono font-medium text-white">${displayStock}</td>
+          <td class="px-6 py-4"><span class="badge ${typeConf.badgeClass}">${typeConf.label}</span></td>
+          <td class="px-6 py-4 text-right">${isIncome ? formatAmount(netAmount) : '-'}</td>
+          <td class="px-6 py-4 text-right">${!isIncome ? formatAmount(netAmount) : '-'}</td>
+          <td class="px-6 py-4 text-gray-400">${item.note || ''}</td>
+        </tr>
       `;
-      ledgerBody.appendChild(tr);
-    });
+    }).join('');
   }
 
-  // 10. 一鍵金額遮罩切換功能 (資安隱私保護)
+  // 8. 遮罩切換事件
   const btnMaskToggle = document.getElementById('btn-mask-toggle');
   if (btnMaskToggle) {
-    btnMaskToggle.addEventListener('click', () => {
+    btnMaskToggle.onclick = () => {
       isMasked = !isMasked;
+      btnMaskToggle.textContent = isMasked ? '顯示金額' : '隱藏金額';
 
-      // 遮罩 / 還原 KPI 卡片金額
-      const kpiElements = document.querySelectorAll('.kpi-value');
-      kpiElements.forEach((el, idx) => {
-        const raw = Number(el.dataset.raw || 0);
-        const isPnL = idx >= 4;
-        const sign = isPnL && raw > 0 ? '+' : '';
-        el.textContent = isMasked ? '******' : `${sign}${currentConfig.currency}${raw.toLocaleString()}`;
+      // 遮罩卡片
+      document.querySelectorAll('.kpi-value').forEach((el, idx) => {
+        el.textContent = formatAmount(Number(el.dataset.raw || 0), idx >= 4);
       });
 
-      // 遮罩 / 還原 報酬率百分比
-      const subPnlNoInt = document.getElementById('sub-pnl-noint');
-      const subPnlInt = document.getElementById('sub-pnl-int');
-      if (subPnlNoInt) {
-        subPnlNoInt.textContent = isMasked ? '***%' : (subPnlNoInt.dataset.rawRate || '--%');
-      }
-      if (subPnlInt) {
-        subPnlInt.textContent = isMasked ? '***%' : (subPnlInt.dataset.rawRate || '--%');
-      }
-
-      // 遮罩 / 還原 流水帳金額欄位
-      document.querySelectorAll('[data-type="amount"]').forEach(el => {
-        if (el.textContent.trim() !== '-') {
-          el.textContent = isMasked ? '******' : el.textContent;
-        }
+      // 遮罩百分比
+      ['sub-pnl-noint', 'sub-pnl-int'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = isMasked ? '***%' : (el.dataset.rawRate || '--%');
       });
 
-      // 若取消遮罩，重新渲染表格恢復原始金額格式
-      if (!isMasked) {
-        renderLedgerTable(globalRecentLogs);
-      }
-    });
+      // 重繪表格
+      renderLedgerTable(globalRecentLogs);
+    };
   }
 });
