@@ -19,8 +19,6 @@ module.exports = async function handler(req, res) {
   // =========================================================================
   if (req.method === 'GET') {
     try {
-      // 取得使用者關注或持有的標的清單 (下拉選單來源)
-      // 20260926加上 marketType 參數，避免跨市場查詢
       const stockListRes = await query(TRADING_QUERIES.GET_STOCKS_FROM_COMP, [userId, marketType]);
       const availableStocks = stockListRes.rows.map(r => ({
         stock_id: r.stock_id,
@@ -29,7 +27,6 @@ module.exports = async function handler(req, res) {
 
       const rawStockId = req.query.stock_id || req.query.symbol;
 
-      // 若未選擇任何標的，回傳標的清單與初始空值
       if (!rawStockId) {
         return res.status(200).json({
           success: true,
@@ -56,14 +53,12 @@ module.exports = async function handler(req, res) {
       const stockId = String(rawStockId).toUpperCase();
       const rawRound = req.query.round;
 
-      // 取得該標的所有回合清單及持股剩餘量 (供回合選單呈現狀態)
       const allRoundsRes = await query(TRADING_QUERIES.GET_AVAILABLE_ROUNDS, [userId, stockId]);
       const availableRounds = allRoundsRes.rows.map(r => ({
         round: Number(r.round),
         remaining_shares: Number(r.remaining_shares || 0)
       }));
 
-      // 自動判斷最新回合狀態與建議的下一回合 (供新增交易預設帶入)
       let suggestedRound = 1;
       let isRoundFinished = false;
 
@@ -74,23 +69,17 @@ module.exports = async function handler(req, res) {
         const latestRemaining = Number(latestInfo.remaining_shares || 0);
 
         if (latestRemaining === 0) {
-          // 持股餘額為 0：波段已結束，自動建議開啟下一回合 (+1)
           suggestedRound = latestRoundNum + 1;
           isRoundFinished = true;
         } else {
-          // 仍在目前回合中
           suggestedRound = latestRoundNum;
           isRoundFinished = false;
         }
       }
 
-      // 判斷是否指定回合：空字串、null 或 undefined 代表全歷史模式
       const hasRound = rawRound !== undefined && rawRound !== null && String(rawRound).trim() !== '';
 
       if (!hasRound) {
-        // 【模式 A：未指定回合 (全歷史模式)】
-        // 1. 查詢該標的全歷史累計 KPI
-        // 2. 依業務規則：未指定回合時不回傳明細 logs
         const allSummaryRes = await query(TRADING_QUERIES.GET_STOCK_ALL_SUMMARY, [userId, stockId]);
         const position = allSummaryRes.rows[0] || {};
 
@@ -124,7 +113,6 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      // 【模式 B：有選擇特定回合】
       const parsedRound = parseInt(rawRound, 10);
       const targetRoundsInt = !isNaN(parsedRound) ? [parsedRound] : [];
 
@@ -151,7 +139,6 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      // 查詢該特定回合的部位統計與交易流水帳明細
       const [positionRes, logsRes] = await Promise.all([
         query(TRADING_QUERIES.GET_POSITION_BY_ROUNDS, [userId, stockId, targetRoundsInt]),
         query(TRADING_QUERIES.GET_TRADE_LOGS_BY_ROUNDS, [userId, stockId, targetRoundsInt])
@@ -217,22 +204,39 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ success: false, message: '標的代碼、交易日期與交易類別為必填項！' });
       }
 
-      const numPrice = Number(price);
-      const numShares = Number(shares);
-      const numFee = Math.round(Number(fee));
-      const numTax = Math.round(Number(tax));
-      const numRound = parseInt(String(round).replace(/\D/g, ''), 10) || 1;
+      // 判斷是否為「股利」或「利息」收益型態
+      const isIncomeType = (trade_type === 'REVENUE' || trade_type === 'INTEREST');
 
-      // 自動推算收付淨額 (net_total) 防呆
+      let numPrice = Number(price);
+      let numShares = Number(shares);
+      let numFee = Math.round(Number(fee));
+      let numTax = Math.round(Number(tax));
+      let numRound = parseInt(String(round).replace(/\D/g, ''), 10) || 1;
       let computedNetTotal = Number(net_total);
-      if (isNaN(computedNetTotal) || computedNetTotal === 0) {
-        const subtotal = numPrice * numShares;
-        if (trade_type === 'BUY') {
-          computedNetTotal = subtotal + numFee;
-        } else if (trade_type === 'SELL') {
-          computedNetTotal = subtotal - numFee - numTax;
-        } else {
-          computedNetTotal = subtotal || 0;
+
+      if (isIncomeType) {
+        // 【業務規則：股息/利息】
+        // 1. 固定歸屬第 0 回合
+        numRound = 0;
+        // 2. 單價、股數、手續費、稅金強制歸 0，避免影響庫存股數與成本
+        numPrice = 0;
+        numShares = 0;
+        numFee = 0;
+        numTax = 0;
+        // 3. 收付淨額直接取傳入的實收金額 (若為空則保底為 0)
+        computedNetTotal = isNaN(computedNetTotal) ? 0 : computedNetTotal;
+      } else {
+        // 【業務規則：一般買賣】
+        // 若未提供 net_total，自動依單價、股數、手續費、交易稅推算
+        if (isNaN(computedNetTotal) || computedNetTotal === 0) {
+          const subtotal = numPrice * numShares;
+          if (trade_type === 'BUY') {
+            computedNetTotal = subtotal + numFee;
+          } else if (trade_type === 'SELL') {
+            computedNetTotal = subtotal - numFee - numTax;
+          } else {
+            computedNetTotal = subtotal || 0;
+          }
         }
       }
 
@@ -286,26 +290,41 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ success: false, message: '缺少交易ID、標的代碼、日期或交易型態等必填欄位！' });
       }
 
-      const numPrice = Number(price);
-      const numShares = Number(shares);
-      const numFee = Math.round(Number(fee));
-      const numTax = Math.round(Number(tax));
-      const numRound = parseInt(String(round).replace(/\D/g, ''), 10) || 1;
+      // 判斷是否為「股利」或「利息」收益型態
+      const isIncomeType = (trade_type === 'REVENUE' || trade_type === 'INTEREST');
 
-      // 自動推算收付淨額
+      let numPrice = Number(price);
+      let numShares = Number(shares);
+      let numFee = Math.round(Number(fee));
+      let numTax = Math.round(Number(tax));
+      let numRound = parseInt(String(round).replace(/\D/g, ''), 10) || 1;
       let computedNetTotal = Number(net_total);
-      if (isNaN(computedNetTotal) || computedNetTotal === 0) {
-        const subtotal = numPrice * numShares;
-        if (trade_type === 'BUY') {
-          computedNetTotal = subtotal + numFee;
-        } else if (trade_type === 'SELL') {
-          computedNetTotal = subtotal - numFee - numTax;
-        } else {
-          computedNetTotal = subtotal || 0;
+
+      if (isIncomeType) {
+        // 【業務規則：股息/利息】
+        // 1. 固定歸屬第 0 回合
+        numRound = 0;
+        // 2. 單價、股數、手續費、稅金強制歸 0，避免影響庫存股數與成本
+        numPrice = 0;
+        numShares = 0;
+        numFee = 0;
+        numTax = 0;
+        // 3. 收付淨額直接取傳入的實收金額 (若為空則保底為 0)
+        computedNetTotal = isNaN(computedNetTotal) ? 0 : computedNetTotal;
+      } else {
+        // 【業務規則：一般買賣】
+        if (isNaN(computedNetTotal) || computedNetTotal === 0) {
+          const subtotal = numPrice * numShares;
+          if (trade_type === 'BUY') {
+            computedNetTotal = subtotal + numFee;
+          } else if (trade_type === 'SELL') {
+            computedNetTotal = subtotal - numFee - numTax;
+          } else {
+            computedNetTotal = subtotal || 0;
+          }
         }
       }
 
-      // 執行資料庫更新語句 (綁定 user_id 防護)
       const updateResult = await query(TRADING_QUERIES.UPDATE_TRADE_LOG, [
         stock_id.toUpperCase(),
         numRound,
@@ -347,7 +366,6 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ success: false, message: '請提供欲刪除的交易記錄編號 (trade_id)！' });
       }
 
-      // 執行資料庫刪除語句 (限制只能刪除所屬使用者的紀錄)
       const deleteResult = await query(TRADING_QUERIES.DELETE_TRADE_LOG, [tradeId, userId]);
 
       if (deleteResult.rowCount === 0) {
@@ -365,7 +383,6 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // 不支援的 HTTP 方法
   res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
   return res.status(405).json({ success: false, message: 'Method Not Allowed' });
 };
