@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StockWeb</title>
 
     <!-- 加入瀏覽器頁籤的圖示 (Favicon) -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233B82F6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='22 7 13.5 15.5 8.5 10.5 2 17'/><polyline points='16 7 22 7 22 13'/></svg>">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233B82F6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='22 7 13.5 15.5 8.5 10.5 2 17'/><polyline points='16 7 22 7 22 13'/></svg>">
 
     <!-- 載入登入頁樣式表 -->
     <link rel="stylesheet" href="src/css/auth.css">
@@ -15,7 +17,7 @@
     <script defer crossorigin="anonymous"
         data-clerk-publishable-key="pk_test_YWN0aXZlLW9jdG9wdXMtMjgzNi5jbGVyay5hY2NvdW50cy5kZXYk"
         src="https://active-octopus-2836.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js">
-    </script>
+        </script>
 </head>
 
 <body class="login-page">
@@ -37,15 +39,45 @@
             <!-- 登入表單 -->
             <form id="login-form">
                 <div class="input-group">
+                    <!-- account -->
                     <label for="input-username">使用者帳號 / Email</label>
                     <input type="text" id="input-username" name="username" placeholder="請輸入使用者帳號或 Email" required
                         autocomplete="username" spellcheck="false">
                 </div>
 
                 <div class="input-group">
+                    <!-- password-->
                     <label for="input-password">密碼</label>
-                    <input type="password" id="input-password" name="password" placeholder="請輸入密碼" required
-                        autocomplete="current-password">
+
+                    <!-- 密碼輸入區塊容器：設定 relative 定位基準點，讓眼睛按鈕能精準定位在輸入框右側內部 -->
+                    <div style="position: relative; width: 100%;">
+
+                         <!-- 密碼輸入框：
+                             1. padding-right: 40px 保留右側安全間距，避免長密碼文字與眼睛圖示重疊遮蔽
+                             2. box-sizing: border-box 確保 padding 不會撐破容器寬度
+                             3. autocomplete="current-password" 符合瀏覽器密碼管理員自動填入之安全標準規範 -->
+                        <input type="password" id="input-password" name="password" placeholder="請輸入密碼" required
+                            autocomplete="current-password"
+                            style="width: 100%; padding-right: 40px; box-sizing: border-box;">
+
+                        <!-- 密碼可視切換按鈕：
+                            1. type="button" 防止在 form 表單內點擊時誤觸發 submit 送出
+                            2. tabindex="-1" 略過 Tab 鍵焦點跳轉，保持使用者鍵盤焦點流暢
+                            3. aria-label 提供無障礙螢幕報讀功能
+                            4. 預設顏色為白色 (color: #ffffff)-->
+                        <button type="button" id="btn-toggle-password" onclick="togglePasswordVisibility()"
+                            tabindex="-1"
+                            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; color: #ffffff;"
+                            aria-label="切換密碼顯示">
+
+                            <!-- 眼睛圖示：使用 currentColor 確保線條顏色完全繼承外層 button 的 color 樣式 -->
+                            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2"
+                                fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- 市場切換 -->
@@ -84,4 +116,5 @@
     <!-- 登入邏輯控制腳本 -->
     <script src="src/js/client-login.js"></script>
 </body>
+
 </html>

@@ -1,21 +1,43 @@
 // src/js/client-auth.js
 
+// ==========================================
+// 全域認證與安全設定 (日後修改時間或路徑只改這裡)
+// ==========================================
+const AUTH_CONFIG = {
+  // 閒置自動登出時間 (單位：分鐘)
+  IDLE_TIMEOUT_MINUTES: 15,
+  
+  // 滑鼠/鍵盤活動節流時間 (毫秒)，避免高頻率觸發重設計時器
+  ACTIVITY_THROTTLE_MS: 1000,
+  
+  // Session 儲存 Key 名稱
+  STORAGE_KEYS: {
+    USER: 'stockweb_session_user',
+    MARKET: 'stockweb_session_market'
+  },
+  
+  // 導向目標頁面
+  PAGES: {
+    HOME: 'index.html'
+  }
+};
+
 function getSessionInfo() {
   return {
-    username: sessionStorage.getItem('stockweb_session_user') || '',
-    market: sessionStorage.getItem('stockweb_session_market') || 'TW'
+    username: sessionStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.USER) || '',
+    market: sessionStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.MARKET) || 'TW'
   };
 }
 
 function setSessionInfo(username, market) {
-  sessionStorage.setItem('stockweb_session_user', username || '');
-  sessionStorage.setItem('stockweb_session_market', market || 'TW');
+  sessionStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.USER, username || '');
+  sessionStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.MARKET, market || 'TW');
 }
 
 // 路由守衛：未登入踢回首頁
 function requireAuth() {
-  if (!sessionStorage.getItem('stockweb_session_user')) {
-    window.location.replace('index.html');
+  if (!sessionStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.USER)) {
+    window.location.replace(AUTH_CONFIG.PAGES.HOME);
     return false;
   }
   return true;
@@ -38,12 +60,104 @@ async function logout() {
       console.warn('[Clerk Logout]:', e);
     }
   }
-  window.location.replace('index.html');
+  window.location.replace(AUTH_CONFIG.PAGES.HOME);
+}
+
+// ==========================================
+// 長時間無操作自動登出功能 (Idle Timer)
+// ==========================================
+
+/**
+ * 閒置計時器 ID (儲存 setTimeout 指標，用於清除舊計時與排程新計時)
+ */
+let idleTimerId = null;
+
+/**
+ * 上次重設計時器的時間戳記 (毫秒，用於節流閥判斷，避免頻繁呼叫浪費效能)
+ */
+let lastActivityTimestamp = 0;
+
+/**
+ * 旗標：標記監聽器是否已完成初始化，防止重複綁定全域事件
+ */
+let isAutoLogoutInitialized = false;
+
+/**
+ * 處理使用者活動：執行節流並重置倒數計時
+ * @param {number} timeoutMs - 閒置逾時長度 (毫秒)
+ * @param {number} throttleMs - 節流區間 (毫秒)
+ */
+function handleUserActivity(timeoutMs, throttleMs) {
+  const currentTimestamp = Date.now();
+
+  // 節流檢查：若在節流間隔內有連續動作，直接忽略重置請求
+  if (currentTimestamp - lastActivityTimestamp < throttleMs) {
+    return;
+  }
+
+  lastActivityTimestamp = currentTimestamp;
+
+  // 清除先前的計時器
+  if (idleTimerId !== null) {
+    clearTimeout(idleTimerId);
+  }
+
+  // 重新啟動倒數計時，時間到直接呼叫既有的 logout 函式
+  idleTimerId = setTimeout(() => {
+    logout();
+  }, timeoutMs);
+}
+
+/**
+ * 初始化閒置自動登出監聽器
+ * @param {number} [idleMinutes=AUTH_CONFIG.IDLE_TIMEOUT_MINUTES] - 允許閒置的分鐘數 (未傳入則預設讀取 AUTH_CONFIG)
+ */
+function initAutoLogout(idleMinutes = AUTH_CONFIG.IDLE_TIMEOUT_MINUTES) {
+  // 防止重複初始化掛載
+  if (isAutoLogoutInitialized) {
+    return;
+  }
+
+  // 未登入時不啟用計時
+  const currentUser = sessionStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.USER);
+  if (!currentUser) {
+    return;
+  }
+
+  isAutoLogoutInitialized = true;
+
+  // 變數宣告與說明：
+  // 1. timeoutMilliseconds: 將分鐘數轉為毫秒數
+  const timeoutMilliseconds = idleMinutes * 60 * 1000;
+
+  // 2. monitoredEvents: 需監聽之使用者有效操作清單
+  const monitoredEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+
+  const onActivity = () => {
+    handleUserActivity(timeoutMilliseconds, AUTH_CONFIG.ACTIVITY_THROTTLE_MS);
+  };
+
+  // 註冊全域事件監聽 (使用 passive: true 維持頁面原生捲動效能)
+  monitoredEvents.forEach((eventName) => {
+    window.addEventListener(eventName, onActivity, { passive: true });
+  });
+
+  // 啟動第一次計時
+  onActivity();
+}
+
+// 頁面載入安全掛載 (不傳參，自動使用 AUTH_CONFIG.IDLE_TIMEOUT_MINUTES)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => initAutoLogout());
+} else {
+  initAutoLogout();
 }
 
 window.ClientAuth = {
+  config: AUTH_CONFIG,
   getSessionInfo,
   setSessionInfo,
   requireAuth,
-  logout
+  logout,
+  initAutoLogout
 };
