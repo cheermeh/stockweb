@@ -151,3 +151,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, 100);
 });
+
+/**
+ * 切換密碼欄位顯示/隱藏
+ */
+function togglePasswordVisibility() {
+  // passwordField: 密碼輸入框元素
+  const passwordField = document.getElementById('input-password');
+  // 切換 type 屬性
+  passwordField.type = (passwordField.type === 'password') ? 'text' : 'password';
+}
