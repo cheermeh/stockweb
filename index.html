@@ -17,7 +17,7 @@
     <script defer crossorigin="anonymous"
         data-clerk-publishable-key="pk_test_YWN0aXZlLW9jdG9wdXMtMjgzNi5jbGVyay5hY2NvdW50cy5kZXYk"
         src="https://active-octopus-2836.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js">
-        </script>
+    </script>
 </head>
 
 <body class="login-page">
@@ -39,38 +39,22 @@
             <!-- 登入表單 -->
             <form id="login-form">
                 <div class="input-group">
-                    <!-- account -->
                     <label for="input-username">使用者帳號 / Email</label>
                     <input type="text" id="input-username" name="username" placeholder="請輸入使用者帳號或 Email" required
                         autocomplete="username" spellcheck="false">
                 </div>
 
                 <div class="input-group">
-                    <!-- password-->
                     <label for="input-password">密碼</label>
-
-                    <!-- 密碼輸入區塊容器：設定 relative 定位基準點，讓眼睛按鈕能精準定位在輸入框右側內部 -->
                     <div style="position: relative; width: 100%;">
-
-                         <!-- 密碼輸入框：
-                             1. padding-right: 40px 保留右側安全間距，避免長密碼文字與眼睛圖示重疊遮蔽
-                             2. box-sizing: border-box 確保 padding 不會撐破容器寬度
-                             3. autocomplete="current-password" 符合瀏覽器密碼管理員自動填入之安全標準規範 -->
                         <input type="password" id="input-password" name="password" placeholder="請輸入密碼" required
                             autocomplete="current-password"
                             style="width: 100%; padding-right: 40px; box-sizing: border-box;">
 
-                        <!-- 密碼可視切換按鈕：
-                            1. type="button" 防止在 form 表單內點擊時誤觸發 submit 送出
-                            2. tabindex="-1" 略過 Tab 鍵焦點跳轉，保持使用者鍵盤焦點流暢
-                            3. aria-label 提供無障礙螢幕報讀功能
-                            4. 預設顏色為白色 (color: #ffffff)-->
                         <button type="button" id="btn-toggle-password" onclick="togglePasswordVisibility()"
                             tabindex="-1"
                             style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; color: #ffffff;"
                             aria-label="切換密碼顯示">
-
-                            <!-- 眼睛圖示：使用 currentColor 確保線條顏色完全繼承外層 button 的 color 樣式 -->
                             <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2"
                                 fill="none" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -104,14 +88,45 @@
                 <button type="submit" id="btn-login" class="btn-login">進入管理系統</button>
             </form>
 
-            <!-- 頁腳資訊 -->
+            <!-- 頁腳資訊與版號顯示區塊 -->
             <footer class="security-notice">
-                <p>受 ISO 27000 規範保護之存取控制系統，請勿於未授權裝置操作。</p>
                 <p class="copyright">© 2026 StockWeb Project</p>
+                <span id="app-version-display" style="display: block; font-size: 11px; opacity: 0.7; margin-top: 4px;">載入版號中...</span>
             </footer>
 
         </main>
     </div>
+
+    <!-- 載入版號資訊腳本 -->
+    <script>
+        // 加入時間戳記避免瀏覽器讀取到快取舊檔案
+        const versionEndpoint = '/version.json?t=' + Date.now();
+
+        // 變數用途：取得頁尾版號顯示的 DOM 節點
+        const versionElement = document.getElementById('app-version-display');
+
+        fetch(versionEndpoint)
+            .then((response) => {
+                // 檢查伺服器回應狀態
+                if (!response.ok) {
+                    throw new Error('無法讀取版號檔案');
+                }
+                return response.json();
+            })
+            .then((data) => {
+                // 將取得的版號字串渲染至畫面
+                if (versionElement && data.version) {
+                    versionElement.textContent = data.version;
+                }
+            })
+            .catch((error) => {
+                // 若載入失敗，清空預設文字並於主控台提示，不影響頁面其他功能
+                console.warn('載入版本資訊失敗:', error);
+                if (versionElement) {
+                    versionElement.textContent = '';
+                }
+            });
+    </script>
 
     <!-- 登入邏輯控制腳本 -->
     <script src="src/js/client-login.js"></script>
