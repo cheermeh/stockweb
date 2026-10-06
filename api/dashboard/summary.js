@@ -21,13 +21,22 @@ module.exports = async function handler(req, res) {
 
     const userId = sessionUser.userId;
 
-    // 自動判斷目前市場，預設為 TW
-    const marketType = (sessionUser.market || sessionUser.market_type || 'TW').toUpperCase();
+    /**
+     * [2026-10-06] 異動說明
+     * 目的：支援前端即時傳入目標市場代碼 (例如 ?market=US) 取得對應市場的財務數據
+     * 實作說明：優先讀取 req.query.market，若未帶入則以 sessionUser 中的 market 或預設 TW 為主
+     */
+    const marketType = (req.query.market || sessionUser.market || sessionUser.market_type || 'TW').toUpperCase();
 
-    // 2. 平行發起安全參數化查詢(使用UID及MARKET_TYPE)，避免 SQL Injection
-    const [summaryResult, logsResult] = await Promise.all([
+    /**
+     * [2026-10-06] 異動說明
+     * 目的：取得當前市場財務數據的同時，一併取得該使用者在 stock_comp 具備的所有市場別
+     * 實作說明：平行發起 3 個安全參數化查詢 (指標彙總、流水明細、不重複市場別)，避免額外的 API 請求負擔
+     */
+    const [summaryResult, logsResult, marketsResult] = await Promise.all([
       query(DASHBOARD_QUERIES.GET_SUMMARY_METRICS, [userId, marketType]),
-      query(DASHBOARD_QUERIES.GET_RECENT_LOGS, [userId, marketType])
+      query(DASHBOARD_QUERIES.GET_RECENT_LOGS, [userId, marketType]),
+      query(DASHBOARD_QUERIES.GET_DISTINCT_MARKETS_BY_STOCK, [userId])
     ]);
 
     const stats = summaryResult.rows[0] || {};
@@ -40,8 +49,13 @@ module.exports = async function handler(req, res) {
     // 3. 業務指標推導
     const pnlIncludingInterest = tradeNetPnl + totalInterest;
     const pnlExcludingInterest = tradeNetPnl;
-    // 期望回收指標
 
+    /**
+     * [2026-10-06] 異動說明
+     * 目的：轉換市場別資料格式
+     * 實作說明：將資料庫回傳的物件陣列提取為乾淨字串陣列 (如 ['TW', 'US'])
+     */
+    const availableMarkets = marketsResult.rows.map(item => item.market_type);
 
     return res.status(200).json({
       success: true,
@@ -54,7 +68,9 @@ module.exports = async function handler(req, res) {
           pnlExcludingInterest,
           pnlIncludingInterest
         },
-        recentLogs: logsResult.rows
+        recentLogs: logsResult.rows,
+        // [2026-10-06] 回傳資料庫所擁有的市場別清單
+        availableMarkets
       }
     });
 

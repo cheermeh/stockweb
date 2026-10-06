@@ -24,12 +24,29 @@
         <span class="text-blue-500">StockWeb</span> 儀表板
       </h1>
 
-      <!-- 1. 市場識別膠囊元件 (維持顯示 TW / US) -->
-      <span id="badge-market" class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900/60 text-blue-300 border border-blue-700/50">
-        載入中...
-      </span>
+      <!-- [2026-10-06] 異動說明
+           目的：改為 Market: [市場下拉選單] 與 User: [帳號明碼] 樣式
+           實作說明：膠囊內分別呈現 Market 選擇器與 User 帳號文字 -->
+      <div id="badge-market-container" class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-900/60 text-blue-300 border border-blue-700/50">
+        <!-- 1. Market: 市場下拉選單 -->
+        <div class="flex items-center gap-1">
+          <span class="text-blue-400 font-semibold">Market:</span>
+          <select id="select-market" class="bg-transparent text-white font-semibold focus:outline-none cursor-pointer">
+            <option value="TW" class="bg-gray-800 text-white">TW</option>
+            <option value="US" class="bg-gray-800 text-white">US</option>
+          </select>
+        </div>
 
-      <!-- 2. 連線狀態膠囊元件 (維持顯示 連線正常 / 離線) -->
+        <span class="text-blue-700/80">|</span>
+
+        <!-- 2. User: 帳號明碼呈現 -->
+        <div class="flex items-center gap-1">
+          <span class="text-blue-400 font-semibold">User:</span>
+          <span id="user-display" class="text-white font-medium"></span>
+        </div>
+      </div>
+
+      <!-- 連線狀態膠囊元件 -->
       <span id="server-status" class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-gray-400">
         連線中...
       </span>
