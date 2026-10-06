@@ -2,28 +2,6 @@
 
 /**
  * =========================================================================
- * 1. 使用者與登入驗證相關查詢 (USER_QUERIES)
- * =========================================================================
- */
-const USER_QUERIES = {
-  /**
-   * 依帳號查詢使用者資料 (登入身分驗證)
-   * 參數：
-   *   $1: username (使用者帳號)
-   */
-  FIND_USER_BY_USERNAME: `
-    SELECT 
-      user_id, 
-      username, 
-      password_hash 
-    FROM public.users 
-    WHERE username = $1 
-    LIMIT 1;
-  `
-};
-
-/**
- * =========================================================================
  * 2. 主儀表板相關查詢 (DASHBOARD_QUERIES)
  *    重點：市場別僅存在於 stock_comp。
  *    所有出入金與股票交易一律透過 INNER JOIN stock_comp 嚴格限定 c.market_type = $2，
@@ -31,6 +9,23 @@ const USER_QUERIES = {
  * =========================================================================
  */
 const DASHBOARD_QUERIES = {
+  /**
+   * [2026-10-06] 異動說明
+   * 目的：查詢使用者在 stock_comp 資料表中存在標的代碼 (stock_id) 的所有不重複市場別
+   * 實作說明：以 stock_id 為條件 (排除空值) 並使用 DISTINCT market_type，提供前端市場下拉選單動態選項
+   * 參數：
+   *   $1: userId (使用者識別碼)
+   */
+  GET_DISTINCT_MARKETS_BY_STOCK: `
+    SELECT DISTINCT 
+      market_type
+    FROM public.stock_comp
+    WHERE user_id = $1 
+      AND stock_id IS NOT NULL 
+      AND TRIM(stock_id) <> ''
+    ORDER BY market_type ASC;
+  `,
+
   /**
    * 儀表板 KPI 指標彙總 (入金合計、利息合計、現金餘額、交易淨損益)
    * 參數：
@@ -338,7 +333,6 @@ const TRADING_QUERIES = {
 };
 
 module.exports = {
-  USER_QUERIES,
   DASHBOARD_QUERIES,
   TRADING_QUERIES
 };

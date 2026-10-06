@@ -34,6 +34,16 @@ function setSessionInfo(username, market) {
   sessionStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.MARKET, market || 'TW');
 }
 
+/**
+ * [2026-10-06] 異動說明
+ * 目的：提供單獨更新市場別的標準函式，供導覽列市場快速切換使用
+ * 實作說明：將目標市場別寫入 sessionStorage 的 stockweb_session_market，確保 tradinglog 頁面讀取一致
+ * @param {string} newMarket - 目標市場代碼 (例如 'TW', 'US')
+ */
+function setMarket(newMarket) {
+  sessionStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.MARKET, newMarket || 'TW');
+}
+
 // 路由守衛：未登入踢回首頁
 function requireAuth() {
   if (!sessionStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.USER)) {
@@ -157,6 +167,7 @@ window.ClientAuth = {
   config: AUTH_CONFIG,
   getSessionInfo,
   setSessionInfo,
+  setMarket, // [2026-10-06] 匯出市場更新函式
   requireAuth,
   logout,
   initAutoLogout
