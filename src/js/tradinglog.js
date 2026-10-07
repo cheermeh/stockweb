@@ -68,37 +68,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.history.replaceState(null, '', newUrl);
   };
 
-  const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10) => {
-    if (!inputElement) return;
-    inputElement.maxLength = maxLen;
+// 2026.10.07 修正：防止 type="number" 輸入小數點時被清空的問題
+const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10) => {
+  if (!inputElement) return;
 
-    inputElement.addEventListener('keydown', (e) => {
-      if (['e', 'E', '+', '-'].includes(e.key)) {
+  inputElement.addEventListener('keydown', (e) => {
+    // 允許 Backspace, Delete, Tab, 方向鍵
+    if (['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    
+    // 阻擋科學記號與正負號
+    if (['e', 'E', '+', '-'].includes(e.key)) {
+      e.preventDefault();
+      return;
+    }
+    
+    // 如果不允許小數點，或是已經有小數點了，阻擋再按小數點
+    if (e.key === '.') {
+      if (!allowDecimal || inputElement.value.includes('.')) {
         e.preventDefault();
       }
-      if (!allowDecimal && e.key === '.') {
-        e.preventDefault();
-      }
-    });
-
-    inputElement.addEventListener('input', (e) => {
-      let val = e.target.value;
-      if (allowDecimal) {
-        val = val.replace(/[^0-9.]/g, '');
-        const parts = val.split('.');
-        if (parts.length > 2) {
-          val = parts[0] + '.' + parts.slice(1).join('');
-        }
-      } else {
-        val = val.replace(/\D/g, '');
-      }
-
-      if (val.length > maxLen) {
-        val = val.slice(0, maxLen);
-      }
-      e.target.value = val;
-    });
-  };
+    }
+  });
+};
 
   bindStrictNumericFilter(inputRound, false, 4);
   bindStrictNumericFilter(inputShares, false, 8);
