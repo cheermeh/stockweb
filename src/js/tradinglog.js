@@ -107,21 +107,41 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindStrictNumericFilter(inputPrice, true, 11);
   bindStrictNumericFilter(inputNetTotal, true, 12);
 
+  /**
+   * [2026-10-07] 異動說明
+   * 目的：切換交易型態時，更新開窗輸入欄位的啟用/停用與顯示狀態
+   * 規則：交易型態為 INPUT (入金) 或 OUTPUT (出金) 時，規則比照 REVENUE / INTEREST 辦理
+   * 變數說明：
+   * 1. currentType: 當前選取的交易型態字串 (如 'BUY', 'SELL', 'REVENUE', 'INTEREST', 'INPUT', 'OUTPUT')
+   * 2. isIncomeType: 布林值，判斷是否屬於純金流/收益類型 (REVENUE, INTEREST, INPUT, OUTPUT)
+   * 3. nonIncomeFields: 陣列，存放一般股票買賣才需填寫的欄位 DOM 元素 (單價、股數、手續費、交易稅)
+   */
   const updateFormFieldsByTradeType = () => {
     if (!inputTradeType) return;
 
+    // 取得當前選取的交易型態
     const currentType = inputTradeType.value;
-    const isIncomeType = (currentType === 'REVENUE' || currentType === 'INTEREST');
+
+    // 2026.10.07 修正：將 INPUT 與 OUTPUT 納入比照 INTEREST 規則辦理
+    const isIncomeType = (
+      currentType === 'REVENUE' ||
+      currentType === 'INTEREST' ||
+      currentType === 'INPUT' ||
+      currentType === 'OUTPUT'
+    );
 
     if (isIncomeType) {
+      // 顯示實收/收付淨額輸入區塊
       if (wrapNetTotal) wrapNetTotal.classList.remove('hidden');
 
+      // 回合欄位強制為 0 並鎖定唯讀
       if (inputRound) {
         inputRound.value = '0';
         inputRound.readOnly = true;
         inputRound.classList.add('cursor-not-allowed', 'opacity-60');
       }
 
+      // 單價、股數、手續費、交易稅清空歸零並鎖定唯讀
       const nonIncomeFields = [inputPrice, inputShares, inputFee, inputTax];
       nonIncomeFields.forEach((field) => {
         if (field) {
@@ -131,14 +151,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       });
 
+      // 自動聚焦至收付淨額欄位便於使用者輸入
       if (inputNetTotal) {
         inputNetTotal.focus();
         inputNetTotal.select();
       }
     } else {
+      // 隱藏收付淨額輸入區塊並清空數值
       if (wrapNetTotal) wrapNetTotal.classList.add('hidden');
       if (inputNetTotal) inputNetTotal.value = '';
 
+      // 解除回合欄位鎖定
       if (inputRound) {
         inputRound.readOnly = false;
         inputRound.classList.remove('cursor-not-allowed', 'opacity-60');
@@ -147,6 +170,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
 
+      // 解除單價、股數、手續費、交易稅欄位鎖定
       const nonIncomeFields = [inputPrice, inputShares, inputFee, inputTax];
       nonIncomeFields.forEach((field) => {
         if (field) {
@@ -309,12 +333,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (countBadge) countBadge.textContent = `共 ${logs.length} 筆`;
-
+    
+    // 2026.10.07 異動說明：將 INTEREST 類別的中文顯示文字由「利息」改為「銀行利息」
     const TYPE_MAP = {
       BUY: { label: '買進', class: 'badge-buy' },
       SELL: { label: '賣出', class: 'badge-sell' },
-      REVENUE: { label: '配息', class: 'badge-dividend' },
-      INTEREST: { label: '利息', class: 'badge-dividend' }
+      REVENUE: { label: '股息', class: 'badge-dividend' },
+      INTEREST: { label: '銀行利息', class: 'badge-dividend' },
+      INPUT:    { label: '入金', class: 'badge-input' },
+      OUTPUT:   { label: '出金', class: 'badge-output' }
     };
 
     tbody.innerHTML = logs.map((log) => {
@@ -359,7 +386,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         updateFormFieldsByTradeType();
 
-        const isIncome = ['REVENUE', 'INTEREST'].includes(targetLog.trade_type);
+        // 2026.10.07 異動說明：編輯帶入資料時，INPUT 與 OUTPUT 比照 REVENUE / INTEREST 設定數值
+        const isIncome = ['REVENUE', 'INTEREST', 'INPUT', 'OUTPUT'].includes(targetLog.trade_type);
         if (isIncome) {
           if (inputRound) inputRound.value = '0';
           if (inputNetTotal) inputNetTotal.value = Math.abs(Number(targetLog.net_total || 0));
@@ -466,7 +494,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
-      const isIncomeType = (trade_type === 'REVENUE' || trade_type === 'INTEREST');
+      /**
+       * [2026-10-07] 異動說明
+       * 目的：驗證送出資料時，INPUT 與 OUTPUT 比照 REVENUE / INTEREST 邏輯
+       * 變數說明：
+       * 1. isIncomeType: 判斷是否為收益/金流型態 (REVENUE, INTEREST, INPUT, OUTPUT)
+       * 2. round: 回合數 (金流型態強制為 0，買賣交易則檢核整數值)
+       * 3. netTotalNum: 收付淨額數值
+       */
+      const isIncomeType = (
+        trade_type === 'REVENUE' ||
+        trade_type === 'INTEREST' ||
+        trade_type === 'INPUT' ||
+        trade_type === 'OUTPUT'
+      );
       let round = 0;
 
       const MAX_ROUND_LIMIT = 9999;

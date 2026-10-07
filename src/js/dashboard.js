@@ -59,13 +59,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // 變數用途說明：TYPE_CONFIG 定義各交易類別在表格上的中文顯示文字與徽章樣式類別
+  // 2026.10.07 異動說明：將 INTEREST 類別的中文顯示文字由「利息」改為「銀行利息」
+  // 2026.10.07 異動說明：出入金改為使用 badge-input 與 badge-output 樣式
   const TYPE_CONFIG = {
-    INPUT:    { label: '入金', badgeClass: 'badge-deposit' },
-    OUTPUT:   { label: '出金', badgeClass: 'badge-deposit' },
+    INPUT:    { label: '入金', badgeClass: 'badge-input' },
+    OUTPUT:   { label: '出金', badgeClass: 'badge-output' },
     BUY:      { label: '買進', badgeClass: 'badge-buy' },
     SELL:     { label: '賣出', badgeClass: 'badge-sell' },
     REVENUE:  { label: '股利', badgeClass: 'badge-dividend' },
-    INTEREST: { label: '利息', badgeClass: 'badge-dividend' }
+    INTEREST: { label: '銀行利息', badgeClass: 'badge-dividend' }
   };
 
   // 變數用途說明：isMasked 布林值，標記當前儀表板金額是否處於隱藏遮罩狀態
