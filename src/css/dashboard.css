@@ -123,11 +123,18 @@ body {
   line-height: 1;
 }
 
-/* 入金 / 出金：深沉石板灰 (中性轉帳) */
-.badge-deposit {
-  background-color: rgba(51, 65, 85, 0.4) !important;
-  color: #94a3b8 !important;
-  border: 1px solid rgba(71, 85, 105, 0.4) !important;
+/* 2026.10.07 入金：冷調青藍 (象徵資金注入、平穩入庫) */
+.badge-input {
+  background-color: rgba(14, 116, 144, 0.2) !important;
+  color: #2cace2 !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+}
+
+/* 2026.10.07 add 出金：半透明深紫 (中性轉帳) */
+.badge-output {
+  background-color: rgba(109, 40, 217, 0.2) !important;
+  color: #c084fc !important;
+  border: 1px solid rgba(192, 132, 252, 0.35) !important;
 }
 
 /* 買進：石板灰藍 (類似進行中任務) */
@@ -147,7 +154,7 @@ body {
 /* 配息/利息：琥珀灰金 */
 .badge-dividend {
   background-color: rgba(245, 158, 11, 0.15) !important;
-  color: #fcd34d !important;
+  color: #f7d050 !important;
   border: 1px solid rgba(245, 158, 11, 0.35) !important;
 }
 

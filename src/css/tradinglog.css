@@ -84,6 +84,20 @@ select:disabled, input:disabled {
   line-height: 1;
 }
 
+/* 2026.10.07 入金：冷調青藍 (象徵資金注入、平穩入庫) */
+.badge-input {
+  background-color: rgba(14, 116, 144, 0.2) !important;
+  color: #2cace2 !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+}
+
+/* 2026.10.07 add 出金：半透明深紫 (中性轉帳) */
+.badge-output {
+  background-color: rgba(109, 40, 217, 0.2) !important;
+  color: #c084fc !important;
+  border: 1px solid rgba(192, 132, 252, 0.35) !important;
+}
+
 /* 買進 (BUY)：進場/資產購入，使用沉穩藍灰 (如 Jira "In Progress") */
 .badge-buy {
   background-color: rgba(59, 130, 246, 0.15) !important;

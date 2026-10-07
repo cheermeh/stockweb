@@ -150,7 +150,10 @@
               <option value="BUY">買進 (BUY)</option>
               <option value="SELL">賣出 (SELL)</option>
               <option value="REVENUE">股息 (REVENUE)</option>
-              <option value="INTEREST">利息 (INTEREST)</option>
+              <option value="INTEREST">銀行利息 (INTEREST)</option>
+              <!-- 2026.10.06 add INPUT and OUTPUT-->
+              <option value="INPUT">入金 (INPUT)</option>
+              <option value="OUTPUT">出金 (OUTPUT)</option>
             </select>
           </div>
         </div>
@@ -188,7 +191,7 @@
             class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm">
         </div>
 
-        <!-- 開窗最後加上收付淨額 (net_total)，預設隱藏，僅股利/利息時顯示 -->
+        <!-- 開窗最後加上收付淨額 (net_total)，預設隱藏，僅股利/利息/入金/出金時顯示 -->
         <div id="wrap-net-total" class="hidden">
           <label class="text-xs text-emerald-400 font-medium">實收入帳金額 (收付淨額)</label>
           <input type="number" step="0.01" id="input-net-total" placeholder="0" onfocus="this.select()"
