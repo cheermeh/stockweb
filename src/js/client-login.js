@@ -12,27 +12,23 @@ function withTimeout(promise, ms, errorMsg) {
 
 // 2026.10.08 feat: 不再換發後端 Cookie，後端 API 改由每次請求帶 Clerk Token 驗證，故只儲存顯示用資訊後導向
 async function exchangeAndRedirect(selectedMarket) {
-  try {
-    // 變數用途說明：username 頁首顯示用的帳號名稱
-    const username = window.Clerk.user?.username || 
-                     window.Clerk.user?.primaryEmailAddress?.emailAddress || 
-                     'Admin';
+  // 變數用途說明：username 頁首顯示用的帳號名稱
+  const username = window.Clerk.user?.username ||
+                   window.Clerk.user?.primaryEmailAddress?.emailAddress ||
+                   'Admin';
 
-    // 變數用途說明：finalMarket / finalUsername 存入 sessionStorage 的顯示用資料
-    const finalMarket = selectedMarket;
-    const finalUsername = username;
+  // 變數用途說明：finalMarket / finalUsername 存入 sessionStorage 的顯示用資料
+  const finalMarket = selectedMarket;
+  const finalUsername = username;
 
-    if (window.ClientAuth) {
-      window.ClientAuth.setSessionInfo(finalUsername, finalMarket);
-    } else {
-      sessionStorage.setItem('stockweb_session_user', finalUsername);
-      sessionStorage.setItem('stockweb_session_market', finalMarket);
-    }
-
-    window.location.replace('dashboard.html');
-  } catch (err) {
-    throw err; 
+  if (window.ClientAuth) {
+    window.ClientAuth.setSessionInfo(finalUsername, finalMarket);
+  } else {
+    sessionStorage.setItem('stockweb_session_user', finalUsername);
+    sessionStorage.setItem('stockweb_session_market', finalMarket);
   }
+
+  window.location.replace('dashboard.html');
 }
 
 // 核心登入處理邏輯

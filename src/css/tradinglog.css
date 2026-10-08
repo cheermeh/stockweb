@@ -13,16 +13,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 頂部導航與篩選控制列 (工單系統風格) */
-.header-bar {
-  background-color: #111827;
-  border-bottom: 1px solid #1f2937;
-  padding: 1rem 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 /* 下拉選單與輸入框：扁平商務控制項 */
 select, input, textarea {
   background-color: #1e293b;
@@ -45,29 +35,6 @@ select:disabled, input:disabled {
   color: #64748b;
   cursor: not-allowed;
   border-color: #1e293b;
-}
-
-/* KPI 摘要區塊 (5 大指標卡片) */
-.stat-card, .kpi-card {
-  background-color: #111827;
-  border: 1px solid #1f2937;
-  border-radius: 0.5rem;
-  padding: 1.25rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
-}
-
-.stat-title, .kpi-label {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: #94a3b8;
-  margin-bottom: 0.5rem;
-}
-
-.stat-value, .kpi-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #f8fafc;
-  letter-spacing: -0.025em;
 }
 
 /* ==========================================================================
@@ -124,8 +91,6 @@ select:disabled, input:disabled {
    ========================================================================== */
 
 /* 收入 / 收益 (+)：溫和青色，像專案結餘，無股市刺眼大紅大綠感 */
-.kpi-value.text-profit,
-.stat-value.text-profit,
 #stat-pnl.text-profit,
 td.text-profit,
 .text-profit {
@@ -134,8 +99,6 @@ td.text-profit,
 }
 
 /* 支出 / 投入 (-)：低彩度石板灰白，就像一般成本扣減，不具恐慌跌價感 */
-.kpi-value.text-loss,
-.stat-value.text-loss,
 #stat-pnl.text-loss,
 td.text-loss,
 .text-loss {
@@ -146,14 +109,6 @@ td.text-loss,
 /* ==========================================================================
    歷史交易流水帳表格 (如 AWS CloudWatch / Azure 審計日誌排版)
    ========================================================================== */
-
-.trade-table-container, .table-container {
-  background-color: #111827;
-  border: 1px solid #1f2937;
-  border-radius: 0.5rem;
-  overflow: hidden;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
-}
 
 table {
   width: 100%;
@@ -191,13 +146,6 @@ tbody td {
   color: #cbd5e1;
 }
 
-.text-right {
-  text-align: right;
-}
-
-.text-center {
-  text-align: center;
-}
 
 /* ==========================================================================
    操作按鈕與彈窗 (Enterprise 控制項)

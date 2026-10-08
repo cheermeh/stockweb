@@ -75,6 +75,5 @@ async function query(text, params) {
 }
 
 module.exports = {
-  getPool,
   query
 };

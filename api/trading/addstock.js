@@ -20,7 +20,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ success: false, message: 'Method Not Allowed' });
   }
 
-  const userId = sessionUser.userId || sessionUser.id;
+  const userId = sessionUser.userId;
   // 2026.10.08 feat: Token 不含市場別，改讀前端傳入的 market_type，缺少時一律視為錯誤
   const marketType = String((req.body || {}).market_type || '').trim().toUpperCase();
   if (!marketType) {

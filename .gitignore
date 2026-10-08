@@ -4,13 +4,8 @@ Thumbs.db
 *.log
 node_modules/
 dist/
-.env
-.env.local
 .vercel/
-.vercel
 .env*
-.env.local
-.env*.local
 .sql
 .db
 .github
