@@ -1,57 +1,35 @@
 // api/lib/server-auth.js
+// 2026.10.08 feat: 改為驗證 Clerk JWT (Authorization: Bearer)，不再讀取自製 Session Cookie
+const { verifyToken } = require('@clerk/backend');
 
 /**
- * 從請求中解析並驗證使用者身分 Cookie
- * @param {import('http').IncomingMessage} req 
- * @returns {{ userId: string, username: string, market: string } | null}
+ * 從 Authorization 標頭取出 Clerk JWT 並驗證簽章與效期
+ * @param {import('http').IncomingMessage} req
+ * @returns {Promise<{ userId: string } | null>}
  */
-function getAuthenticatedUser(req) {
+async function getAuthenticatedUser(req) {
   try {
-    // 1. 取得 Header 中的 Cookie 字串
-    const cookieHeader = req.headers.cookie;
-    if (!cookieHeader) {
+    // 變數用途說明：authHeader 前端送出的 Authorization 標頭字串
+    const authHeader = req.headers.authorization || '';
+    if (!authHeader.startsWith('Bearer ')) {
       return null;
     }
 
-    // 2. 尋找 stockweb_session
-    const cookies = cookieHeader.split(';').reduce((acc, item) => {
-      const [key, val] = item.trim().split('=');
-      if (key && val) {
-        acc[key] = decodeURIComponent(val);
-      }
-      return acc;
-    }, {});
-
-    const sessionCookie = cookies['stockweb_session'];
-    if (!sessionCookie) {
+    // 變數用途說明：token 去除 "Bearer " 前綴後的 Clerk JWT
+    const token = authHeader.slice(7).trim();
+    if (!token) {
       return null;
     }
 
-    // 3. 解碼 Base64 (格式: userId:username:market:timestamp)
-    const decoded = Buffer.from(sessionCookie, 'base64').toString('utf-8');
-    const parts = decoded.split(':');
-
-    // 檢查欄位完整性
-    if (parts.length < 4) {
+    // 變數用途說明：payload 驗證通過後的 JWT 內容，sub 即 Clerk 使用者 ID
+    const payload = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY });
+    if (!payload || !payload.sub) {
       return null;
     }
 
-    const [userId, username, market, timestamp] = parts;
-
-    // 基本防呆：確認 userId 存在
-    if (!userId) {
-      return null;
-    }
-
-    return {
-      userId,
-      username,
-      market: market,
-      timestamp: Number(timestamp)
-    };
-
+    return { userId: payload.sub };
   } catch (error) {
-    console.error('[Server Auth Error]:', error);
+    console.error('[Server Auth Error]:', error.message || error);
     return null;
   }
 }

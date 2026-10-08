@@ -14,6 +14,12 @@
 
   <!-- 載入專屬 CSS -->
   <link rel="stylesheet" href="./src/css/dashboard.css">
+
+  <!-- 2026.10.08 feat: 載入 Clerk 前端 SDK，供 API 請求取得 Token -->
+  <script defer crossorigin="anonymous"
+    data-clerk-publishable-key="pk_test_YWN0aXZlLW9jdG9wdXMtMjgzNi5jbGVyay5hY2NvdW50cy5kZXYk"
+    src="https://active-octopus-2836.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js">
+  </script>
 </head>
 
 <body class="bg-gray-900 text-gray-100 min-h-screen">
@@ -31,10 +37,9 @@
         <!-- 1. Market: 市場下拉選單 -->
         <div class="flex items-center gap-1">
           <span class="text-blue-400 font-semibold">Market:</span>
-          <select id="select-market" class="bg-transparent text-white font-semibold focus:outline-none cursor-pointer">
-            <option value="TW" class="bg-gray-800 text-white">TW</option>
-            <option value="US" class="bg-gray-800 text-white">US</option>
-          </select>
+          <!-- 2026.10.08 feat: 選項由 dashboard.js 依 GET_DISTINCT_MARKETS_BY_STOCK 的查詢結果動態產生 -->
+          <!-- 2026.10.08 fix: color-scheme dark 讓原生下拉面板底色為深色，避免選項右側露出白底 -->
+          <select id="select-market" style="color-scheme: dark;" class="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"></select>
         </div>
 
         <span class="text-blue-700/80">|</span>

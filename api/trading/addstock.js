@@ -4,11 +4,12 @@ const { getAuthenticatedUser } = require('../lib/server-auth');
 
 /**
  * 標的註冊 API (單純新增模式)
- * market_type 自動由系統目前登入者身分 (TW / US) 帶入，前端無需傳送
+ * 2026.10.08 feat: market_type 改由前端 body 傳入 (不限定市場清單，缺少則回 400)
  */
 module.exports = async function handler(req, res) {
   // 1. 驗證身分授權並取得市場別
-  const sessionUser = getAuthenticatedUser(req);
+  // 2026.10.08 feat: getAuthenticatedUser 改為非同步 (驗證 Clerk Token)，需 await
+  const sessionUser = await getAuthenticatedUser(req);
   if (!sessionUser) {
     return res.status(401).json({ success: false, message: '未登入或登入已過期' });
   }
@@ -20,8 +21,11 @@ module.exports = async function handler(req, res) {
   }
 
   const userId = sessionUser.userId || sessionUser.id;
-  // 自動判斷當前帳戶市場：美股填 US，其餘一律填 TW
-  const marketType = (sessionUser.market || sessionUser.market_type || 'TW').toUpperCase() === 'US' ? 'US' : 'TW';
+  // 2026.10.08 feat: Token 不含市場別，改讀前端傳入的 market_type，缺少時一律視為錯誤
+  const marketType = String((req.body || {}).market_type || '').trim().toUpperCase();
+  if (!marketType) {
+    return res.status(400).json({ success: false, message: '缺少市場別 (market_type)！' });
+  }
 
   try {
     const { stock_id, stock_name } = req.body || {};

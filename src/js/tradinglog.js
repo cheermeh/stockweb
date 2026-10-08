@@ -13,8 +13,10 @@ document.addEventListener('DOMContentLoaded', async () => {
    * 3. currencySymbol: 幣別符號
    */
   const sessionInfo = window.ClientAuth ? window.ClientAuth.getSessionInfo() : {};
-  const currentMarket = (sessionInfo.market || 'TW').toUpperCase();
-  const currencySymbol = currentMarket === 'US' ? '$' : 'NT$ ';
+  // 2026.10.08 feat: 移除市場別預設 TW (requireAuth 已確保有市場別)
+  const currentMarket = String(sessionInfo.market || '').toUpperCase();
+  // 2026.10.08 feat: 幣別符號一律使用 $，不再依市場區分
+  const currencySymbol = '$';
 
   // 渲染頂部市場徽章 (若 HTML 有此元素)
   const badgeTradingMarket = document.getElementById('badge-trading-market');
@@ -213,7 +215,8 @@ const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10
       if (stockId) params.set('stock_id', stockId);
       if (roundParam) params.set('round', roundParam);
 
-      const res = await fetch(`/api/trading/detail?${params.toString()}`);
+      // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
+      const res = await window.ClientAuth.authFetch(`/api/trading/detail?${params.toString()}`);
       if (res.status === 401) {
         if (window.ClientAuth) await window.ClientAuth.logout();
         return;
@@ -400,7 +403,8 @@ const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10
       btn.onclick = async () => {
         if (!confirm('確定要刪除這筆交易記錄嗎？此操作將無法復原。')) return;
         try {
-          const res = await fetch(`/api/trading/detail?trade_id=${encodeURIComponent(btn.dataset.id)}`, { method: 'DELETE' });
+          // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
+          const res = await window.ClientAuth.authFetch(`/api/trading/detail?trade_id=${encodeURIComponent(btn.dataset.id)}`, { method: 'DELETE' });
           const result = await res.json();
           if (!result.success) throw new Error(result.message);
           loadTradingData(currentStock, currentRound);
@@ -571,7 +575,8 @@ const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10
       };
 
       try {
-        const res = await fetch('/api/trading/detail', {
+        // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
+        const res = await window.ClientAuth.authFetch('/api/trading/detail', {
           method: isEdit ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -616,7 +621,8 @@ const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10
       }
 
       try {
-        const res = await fetch('/api/trading/addstock', {
+        // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
+        const res = await window.ClientAuth.authFetch('/api/trading/addstock', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
