@@ -25,13 +25,14 @@ const AUTH_CONFIG = {
 function getSessionInfo() {
   return {
     username: sessionStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.USER) || '',
-    market: sessionStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.MARKET) || 'TW'
+    // 2026.10.08 feat: 不再預設 TW，沒有市場別即視為未登入
+    market: sessionStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.MARKET) || ''
   };
 }
 
 function setSessionInfo(username, market) {
   sessionStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.USER, username || '');
-  sessionStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.MARKET, market || 'TW');
+  sessionStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.MARKET, market || ''); // 2026.10.08 feat: 移除預設 TW
 }
 
 /**
@@ -41,12 +42,13 @@ function setSessionInfo(username, market) {
  * @param {string} newMarket - 目標市場代碼 (例如 'TW', 'US')
  */
 function setMarket(newMarket) {
-  sessionStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.MARKET, newMarket || 'TW');
+  sessionStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.MARKET, newMarket || ''); // 2026.10.08 feat: 移除預設 TW
 }
 
 // 路由守衛：未登入踢回首頁
 function requireAuth() {
-  if (!sessionStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.USER)) {
+  // 2026.10.08 feat: 帳號或市場別任一缺少都視為未登入
+  if (!sessionStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.USER) || !sessionStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.MARKET)) {
     window.location.replace(AUTH_CONFIG.PAGES.HOME);
     return false;
   }
@@ -59,8 +61,7 @@ async function logout() {
   sessionStorage.clear();
   localStorage.clear();
   
-  // 2. 背景通知後端清除 Cookie
-  fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+  // 2. 2026.10.08 feat: 已改用 Clerk Token，不再有後端 Cookie 需清除
 
   // 3. 安全呼叫 Clerk 登出，並確保 100% 跳轉
   if (window.Clerk && window.Clerk.loaded) {
@@ -71,6 +72,35 @@ async function logout() {
     }
   }
   window.location.replace(AUTH_CONFIG.PAGES.HOME);
+}
+
+/**
+ * 2026.10.08 feat: 帶 Clerk Token 呼叫後端 API
+ * 取不到 Token (未登入或 Session 已失效) 時回傳 401 Response，由呼叫端既有的 401 流程登出
+ * @param {string} url - API 路徑
+ * @param {RequestInit} [options] - fetch 選項
+ * @returns {Promise<Response>}
+ */
+async function authFetch(url, options = {}) {
+  // 變數用途說明：token 當前 Clerk Session 的 JWT (Clerk 會在快過期時自動換發)
+  let token = null;
+  try {
+    if (window.Clerk && !window.Clerk.loaded) {
+      await window.Clerk.load();
+    }
+    token = window.Clerk?.session ? await window.Clerk.session.getToken() : null;
+  } catch (e) {
+    console.warn('[Clerk Token]:', e);
+  }
+
+  if (!token) {
+    return new Response(null, { status: 401 });
+  }
+
+  // 變數用途說明：headers 合併呼叫端自訂標頭與 Authorization
+  const headers = new Headers(options.headers || {});
+  headers.set('Authorization', `Bearer ${token}`);
+  return fetch(url, { ...options, headers });
 }
 
 // ==========================================
@@ -169,6 +199,7 @@ window.ClientAuth = {
   setSessionInfo,
   setMarket, // [2026-10-06] 匯出市場更新函式
   requireAuth,
+  authFetch, // 2026.10.08 feat: 匯出帶 Clerk Token 的 fetch
   logout,
   initAutoLogout
 };

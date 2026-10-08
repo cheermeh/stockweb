@@ -10,8 +10,9 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // 1. 身分鑑權：從 HttpOnly Session Cookie 提取已認證的使用者 ID
-    const sessionUser = getAuthenticatedUser(req);
+    // 1. 身分鑑權：驗證 Clerk Bearer Token 取得已認證的使用者 ID
+    // 2026.10.08 feat: getAuthenticatedUser 改為非同步，需 await
+    const sessionUser = await getAuthenticatedUser(req);
     if (!sessionUser || !sessionUser.userId) {
       return res.status(401).json({
         success: false,
@@ -26,7 +27,11 @@ module.exports = async function handler(req, res) {
      * 目的：支援前端即時傳入目標市場代碼 (例如 ?market=US) 取得對應市場的財務數據
      * 實作說明：優先讀取 req.query.market，若未帶入則以 sessionUser 中的 market 或預設 TW 為主
      */
-    const marketType = (req.query.market || sessionUser.market || sessionUser.market_type || 'TW').toUpperCase();
+    // 2026.10.08 feat: Token 不含市場別，僅讀取前端傳入的 market，缺少時一律視為錯誤
+    const marketType = String(req.query.market || '').trim().toUpperCase();
+    if (!marketType) {
+      return res.status(400).json({ success: false, message: '缺少市場別 (market)！' });
+    }
 
     /**
      * [2026-10-06] 異動說明

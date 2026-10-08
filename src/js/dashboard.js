@@ -8,7 +8,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 取得使用者資訊與初始市場環境
   // 變數用途說明：username 使用者登入帳號名稱；market 預設或上次選取的市場環境代碼
-  const { username = '', market = 'TW' } = window.ClientAuth ? window.ClientAuth.getSessionInfo() : {};
+  // 2026.10.08 feat: 移除市場別預設 TW (requireAuth 已確保有市場別)
+  const { username = '', market = '' } = window.ClientAuth ? window.ClientAuth.getSessionInfo() : {};
   
   /**
    * [2026-10-06] 異動說明
@@ -16,13 +17,11 @@ document.addEventListener('DOMContentLoaded', async () => {
    * 1. currentActiveMarket: 記錄目前儀表板正在瀏覽的市場代碼 (例如 'TW', 'US')
    * 2. isMarketDropdownReady: 旗標，確保市場下拉選單只在首次由後端取得清單時初始化一次，防止重複重繪引發迴圈
    */
-  let currentActiveMarket = (market || 'TW').toUpperCase();
+  let currentActiveMarket = String(market).toUpperCase();
   let isMarketDropdownReady = false;
 
-  // 變數用途說明：getCurrencySymbol 函式，依據傳入之市場代碼決定貨幣符號 (美股為 $，其餘為 NT$ )
-  const getCurrencySymbol = (marketCode) => {
-    return marketCode === 'US' ? '$' : 'NT$ ';
-  };
+  // 2026.10.08 feat: 幣別符號一律使用 $，不再依市場區分
+  const CURRENCY_SYMBOL = '$';
 
   /**
    * [2026-10-06] 異動說明
@@ -79,8 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const formatAmount = (val, isPnL = false) => {
     if (isMasked) return '******';
     const sign = isPnL && val > 0 ? '+' : '';
-    const currencyPrefix = getCurrencySymbol(currentActiveMarket);
-    return `${sign}${currencyPrefix}${val.toLocaleString()}`;
+    return `${sign}${CURRENCY_SYMBOL}${val.toLocaleString()}`;
   };
 
   /**
@@ -94,10 +92,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const selectMarket = document.getElementById('select-market');
     if (!selectMarket || isMarketDropdownReady) return;
 
-    // 變數用途說明：validMarkets 正規化後的合法市場代碼陣列 (轉大寫)，預設為 TW 與 US
-    const validMarkets = (Array.isArray(marketList) && marketList.length > 0)
-      ? marketList.map(m => String(m).trim().toUpperCase())
-      : ['TW', 'US'];
+    // 變數用途說明：validMarkets 正規化後的市場代碼陣列 (轉大寫)，2026.10.08 feat: 完全來自後端資料庫，不再寫死 TW/US
+    const validMarkets = (Array.isArray(marketList) ? marketList : [])
+      .map(m => String(m).trim().toUpperCase());
 
     if (!validMarkets.includes(currentActiveMarket)) {
       validMarkets.push(currentActiveMarket);
@@ -150,7 +147,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (serverStatus) serverStatus.textContent = '載入中...';
 
       // 變數用途說明：res 發送至後端 summary API 之 fetch 回應物件
-      const res = await fetch(`/api/dashboard/summary?market=${encodeURIComponent(targetMarket)}`);
+      // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
+      const res = await window.ClientAuth.authFetch(`/api/dashboard/summary?market=${encodeURIComponent(targetMarket)}`);
 
       if (res.status === 401) {
         if (window.ClientAuth) window.ClientAuth.logout();

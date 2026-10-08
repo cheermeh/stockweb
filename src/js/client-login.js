@@ -10,30 +10,17 @@ function withTimeout(promise, ms, errorMsg) {
   ]);
 }
 
-// 換發後端 Cookie 並導向
+// 2026.10.08 feat: 不再換發後端 Cookie，後端 API 改由每次請求帶 Clerk Token 驗證，故只儲存顯示用資訊後導向
 async function exchangeAndRedirect(selectedMarket) {
   try {
-    const clerkToken = await withTimeout(window.Clerk.session.getToken(), 5000, '取得安全憑證超時，請重試');
-    
-    const userId = window.Clerk.user?.id || '';
+    // 變數用途說明：username 頁首顯示用的帳號名稱
     const username = window.Clerk.user?.username || 
                      window.Clerk.user?.primaryEmailAddress?.emailAddress || 
                      'Admin';
 
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clerkToken, userId, username, market: selectedMarket })
-    });
-
-    const result = await response.json();
-    
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || '伺服器身分驗證失敗！');
-    }
-
-    const finalMarket = result.data?.market || selectedMarket;
-    const finalUsername = result.data?.username || username;
+    // 變數用途說明：finalMarket / finalUsername 存入 sessionStorage 的顯示用資料
+    const finalMarket = selectedMarket;
+    const finalUsername = username;
 
     if (window.ClientAuth) {
       window.ClientAuth.setSessionInfo(finalUsername, finalMarket);
@@ -73,7 +60,12 @@ async function handleLoginSubmit(e) {
   }
 
   const checkedRadio = document.querySelector('input[name="market"]:checked');
-  const selectedMarket = checkedRadio ? checkedRadio.value.trim().toUpperCase() : 'TW';
+  // 2026.10.08 feat: 取不到市場別一律視為錯誤，不再預設 TW
+  const selectedMarket = checkedRadio ? checkedRadio.value.trim().toUpperCase() : '';
+  if (!selectedMarket) {
+    alert('請選擇管理市場環境！');
+    return;
+  }
 
   const btnLogin = document.getElementById('btn-login');
   if (btnLogin) {
