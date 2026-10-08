@@ -194,12 +194,10 @@ if (document.readyState === 'loading') {
 }
 
 window.ClientAuth = {
-  config: AUTH_CONFIG,
   getSessionInfo,
   setSessionInfo,
   setMarket, // [2026-10-06] 匯出市場更新函式
   requireAuth,
   authFetch, // 2026.10.08 feat: 匯出帶 Clerk Token 的 fetch
-  logout,
-  initAutoLogout
+  logout
 };

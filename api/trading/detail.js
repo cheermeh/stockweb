@@ -12,7 +12,7 @@ module.exports = async function handler(req, res) {
   }
 
   // 變數用途說明：userId 儲存當前使用者的唯一識別代碼，供 SQL 隔離資料使用
-  const userId = sessionUser.userId || sessionUser.id;
+  const userId = sessionUser.userId;
 
   /**
    * [2026-10-06] 異動說明

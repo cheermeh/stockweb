@@ -18,12 +18,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 2026.10.08 feat: 幣別符號一律使用 $，不再依市場區分
   const currencySymbol = '$';
 
-  // 渲染頂部市場徽章 (若 HTML 有此元素)
-  const badgeTradingMarket = document.getElementById('badge-trading-market');
-  if (badgeTradingMarket) {
-    badgeTradingMarket.textContent = currentMarket;
-  }
-
   // 取得網址列參數
   const urlParams = new URLSearchParams(window.location.search);
   let currentStock = (urlParams.get('symbol') || urlParams.get('stock_id') || '').toUpperCase();

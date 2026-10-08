@@ -12,18 +12,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 標題與分區容器 */
-.section-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #e2e8f0;
-  margin-bottom: 1rem;
-}
-
 /* ==========================================================================
-   頂部導覽列雙膠囊元件 (市場別 / 連線狀態)
+   頂部導覽列連線狀態膠囊元件
    ========================================================================== */
-#badge-market,
 #server-status {
   letter-spacing: 0.025em;
   user-select: none;
@@ -33,50 +24,20 @@ body {
    上方 KPI 卡片指標 (鎖定權重，移除亮紅亮綠)
    ========================================================================== */
 
-.stat-grid, .kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.stat-card, .kpi-card {
-  background-color: #111827;
-  border: 1px solid #1f2937;
-  border-radius: 0.5rem;
-  padding: 1.25rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.25);
-}
-
-.stat-label, .kpi-label {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: #94a3b8;
-  margin-bottom: 0.5rem;
-}
-
-.stat-value, .kpi-value {
+.kpi-value {
   font-size: 1.375rem;
   font-weight: 700;
   color: #f8fafc;
   letter-spacing: -0.025em;
 }
 
-.stat-sub, .kpi-sub {
-  font-size: 0.75rem;
-  color: #64748b;
-  margin-top: 0.25rem;
-}
-
 /* 損益數值標準 class */
 .kpi-value.text-profit,
-.stat-value.text-profit,
 .text-profit {
   color: #5eead4 !important; /* 柔和青綠 */
 }
 
 .kpi-value.text-loss,
-.stat-value.text-loss,
 .text-loss {
   color: #94a3b8 !important; /* 冷調石板灰 */
 }
@@ -86,26 +47,14 @@ body {
    ========================================================================== */
 
 /* 1. 攔截卡片內所有包含 text-red 的標籤 */
-.stat-card [class*="text-red"],
-.kpi-card [class*="text-red"],
 [class*="kpi"] [class*="text-red"] {
   color: #94a3b8 !important; /* 冷調石板灰 */
 }
 
 /* 2. 攔截卡片內所有包含 text-green 或 text-emerald 的標籤 */
-.stat-card [class*="text-green"],
-.stat-card [class*="text-emerald"],
-.kpi-card [class*="text-green"],
-.kpi-card [class*="text-emerald"],
 [class*="kpi"] [class*="text-green"],
 [class*="kpi"] [class*="text-emerald"] {
   color: #5eead4 !important; /* 柔和青綠 */
-}
-
-/* 3. 百分比專屬樣式 (若值為 0.00% 時呈現低調中性灰) */
-.kpi-sub,
-.stat-sub {
-  color: #94a3b8 !important;
 }
 
 /* ==========================================================================
@@ -162,14 +111,6 @@ body {
    流水帳表格 (進款 NET+ 與 出款 NET-)
    ========================================================================== */
 
-.table-container {
-  background-color: #111827;
-  border: 1px solid #1f2937;
-  border-radius: 0.5rem;
-  overflow: hidden;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
-}
-
 table {
   width: 100%;
   border-collapse: collapse;
@@ -207,16 +148,12 @@ tbody td {
 }
 
 /* 進款 (NET+)：乾淨亮白偏微青，像正式入帳 */
-.net-income,
-td.text-income,
 tbody td:nth-child(4) {
   color: #f1f5f9 !important;
   font-weight: 600;
 }
 
 /* 出款 (NET-)：冷調灰藍，像一般經常性成本支出 */
-.net-expense,
-td.text-expense,
 tbody td:nth-child(5) {
   color: #94a3b8 !important;
   font-weight: 500;
@@ -226,12 +163,4 @@ tbody td:nth-child(5) {
 tbody td:nth-child(4):empty,
 tbody td:nth-child(5):empty {
   color: #64748b !important;
-}
-
-.text-right {
-  text-align: right;
-}
-
-.text-center {
-  text-align: center;
 }
