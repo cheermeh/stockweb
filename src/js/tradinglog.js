@@ -52,6 +52,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   const inputNewStockId = document.getElementById('input-new-stock-id');
   const inputNewStockName = document.getElementById('input-new-stock-name');
 
+  // 2026.10.09 feat: 分頁控制介面 DOM 元素快取宣告
+  const selectPageSize = document.getElementById('select-page-size');
+  const btnPrevPage = document.getElementById('btn-prev-page');
+  const btnNextPage = document.getElementById('btn-next-page');
+  const pageIndicator = document.getElementById('page-indicator');
+
+  /**
+   * [2026-10-09] 異動說明
+   * 目的：支援前端交易流水帳分頁與序號累計計算
+   * 變數說明：
+   * 1. currentPage: 當前頁碼（由 1 開始整數）
+   * 2. pageSizeSetting: 每頁筆數設定字串（如 '10', '20', '50', '100', 'ALL'，預設 '10'）
+   * 3. currentLogsCache: 儲存當前回合載入的完整交易明細陣列，供分頁切換時直接取用
+   */
+  let currentPage = 1;
+  let pageSizeSetting = '10';
+  let currentLogsCache = [];
+
   const toggleModal = (modalEl, show) => {
     if (!modalEl) return;
     modalEl.classList.toggle('hidden', !show);
@@ -64,28 +82,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.history.replaceState(null, '', newUrl);
   };
 
-// 2026.10.07 修正：防止 type="number" 輸入小數點時被清空的問題
-const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10) => {
-  if (!inputElement) return;
+  // 2026.10.07 修正：防止 type="number" 輸入小數點時被清空的問題
+  const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10) => {
+    if (!inputElement) return;
 
-  inputElement.addEventListener('keydown', (e) => {
-    // 允許 Backspace, Delete, Tab, 方向鍵
-    if (['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
-    
-    // 阻擋科學記號與正負號
-    if (['e', 'E', '+', '-'].includes(e.key)) {
-      e.preventDefault();
-      return;
-    }
-    
-    // 如果不允許小數點，或是已經有小數點了，阻擋再按小數點
-    if (e.key === '.') {
-      if (!allowDecimal || inputElement.value.includes('.')) {
+    inputElement.addEventListener('keydown', (e) => {
+      // 允許 Backspace, Delete, Tab, 方向鍵
+      if (['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+
+      // 阻擋科學記號與正負號
+      if (['e', 'E', '+', '-'].includes(e.key)) {
         e.preventDefault();
+        return;
       }
-    }
-  });
-};
+
+      // 如果不允許小數點，或是已經有小數點了，阻擋再按小數點
+      if (e.key === '.') {
+        if (!allowDecimal || inputElement.value.includes('.')) {
+          e.preventDefault();
+        }
+      }
+    });
+  };
 
   bindStrictNumericFilter(inputRound, false, 4);
   bindStrictNumericFilter(inputShares, false, 8);
@@ -203,7 +221,7 @@ const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10
   async function loadTradingData(stockId, round) {
     try {
       const roundParam = round !== '' && round !== null && round !== undefined ? encodeURIComponent(round) : '';
-      
+
       const params = new URLSearchParams();
       params.set('market', currentMarket);
       if (stockId) params.set('stock_id', stockId);
@@ -234,6 +252,9 @@ const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10
           if (sId === stockId) opt.selected = true;
           selectStock.appendChild(opt);
         });
+
+        // 2026.10.09：標的資料全部塞入完畢後，解除禁用，避免破圖
+        selectStock.disabled = false;
       }
 
       // (2) 渲染回合下拉選單
@@ -288,55 +309,94 @@ const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10
         }
       }
 
-      // (4) 渲染流水帳表格
-      renderTable(logs, stockId, round);
+      // (4) 2026.10.09 feat: 暫存當前查詢的全部流水帳，重設當前頁碼為第 1 頁並執行分頁渲染
+      currentLogsCache = Array.isArray(logs) ? logs : [];
+      currentPage = 1;
+      renderTable(stockId, round);
     } catch (err) {
       console.error('[TradingLog Load Error]:', err);
       const tbody = document.getElementById('trade-log-body');
-      if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-red-400">載入失敗: ${err.message}</td></tr>`;
+      if (tbody) tbody.innerHTML = `<tr><td colspan="10" class="text-center py-6 text-red-400">載入失敗: ${err.message}</td></tr>`;
+      updatePaginationControls(0, 1, 1);
     }
   }
 
-  function renderTable(logs, stockId, round) {
+  /**
+   * [2026-10-09] 異動說明
+   * 目的：依據當前分頁與每頁筆數，渲染歷史交易明細流水帳表格（含最左側自動計算之序號欄位）
+   * 變數說明：
+   * 1. stockId: 當前選取的標的代碼
+   * 2. round: 當前選取的回合
+   * 3. totalCount: 當前回合總紀錄筆數
+   * 4. isAll: 是否選擇顯示全部
+   * 5. pageSizeNum: 數字型態的每頁顯示筆數
+   * 6. totalPages: 總頁數
+   * 7. startIndex: 當前頁面第一筆資料在整個陣列中的起始索引 (用於計算序號與 slice)
+   * 8. currentRows: 當前頁面要切片顯示的交易明細清單
+   */
+  function renderTable(stockId, round) {
     const tbody = document.getElementById('trade-log-body');
     const countBadge = document.getElementById('log-count');
     if (!tbody) return;
 
+    // 檢查條件：未選擇標的
     if (!stockId) {
-      tbody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td></tr>';
       if (countBadge) countBadge.textContent = '共 0 筆';
+      updatePaginationControls(0, 1, 1);
       return;
     }
 
+    // 檢查條件：未選擇回合
     if (round === '' || round === null || round === undefined) {
-      tbody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-gray-500">請選擇特定回合以檢視該回合交易流水帳明細</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">請選擇特定回合以檢視該回合交易流水帳明細</td></tr>';
       if (countBadge) countBadge.textContent = '共 0 筆';
+      updatePaginationControls(0, 1, 1);
       return;
     }
 
-    if (!logs || logs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-gray-500">該回合尚無任何交易流水記錄</td></tr>';
+    // 檢查條件：該回合無任何明細紀錄
+    const totalCount = currentLogsCache.length;
+    if (totalCount === 0) {
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">該回合尚無任何交易流水記錄</td></tr>';
       if (countBadge) countBadge.textContent = '共 0 筆';
+      updatePaginationControls(0, 1, 1);
       return;
     }
 
-    if (countBadge) countBadge.textContent = `共 ${logs.length} 筆`;
-    
+    if (countBadge) countBadge.textContent = `共 ${totalCount} 筆`;
+
+    // 依據每頁筆數計算總頁數與資料切片
+    const isAll = pageSizeSetting === 'ALL';
+    const pageSizeNum = isAll ? totalCount : parseInt(pageSizeSetting, 10);
+    const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalCount / pageSizeNum));
+
+    // 當前頁碼防呆邊界檢查
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const startIndex = (currentPage - 1) * pageSizeNum;
+    const currentRows = isAll ? currentLogsCache : currentLogsCache.slice(startIndex, startIndex + pageSizeNum);
+
     // 2026.10.07 異動說明：將 INTEREST 類別的中文顯示文字由「利息」改為「銀行利息」
     const TYPE_MAP = {
       BUY: { label: '買進', class: 'badge-buy' },
       SELL: { label: '賣出', class: 'badge-sell' },
       REVENUE: { label: '股息', class: 'badge-dividend' },
       INTEREST: { label: '銀行利息', class: 'badge-dividend' },
-      INPUT:    { label: '入金', class: 'badge-input' },
-      OUTPUT:   { label: '出金', class: 'badge-output' }
+      INPUT: { label: '入金', class: 'badge-input' },
+      OUTPUT: { label: '出金', class: 'badge-output' }
     };
 
-    tbody.innerHTML = logs.map((log) => {
+    // 渲染資料列：第一欄為自動累加序號 (由 1 開始累算)
+    tbody.innerHTML = currentRows.map((log, index) => {
+      const serialNumber = startIndex + index + 1; // 序號計算：(當前頁碼 - 1) * 每頁筆數 + 當頁索引 + 1
       const typeConf = TYPE_MAP[log.trade_type] || { label: log.trade_type, class: 'badge-buy' };
       const isIncome = ['SELL', 'REVENUE', 'INTEREST'].includes(log.trade_type);
+
       return `
         <tr>
+          <td class="px-3 py-3 text-center text-gray-400 font-mono text-xs">${serialNumber}</td>
           <td class="px-4 py-3">${log.trade_date ? log.trade_date.slice(0, 10) : '-'}</td>
           <td class="px-4 py-3"><span class="badge ${typeConf.class}">${typeConf.label} (R${log.round})</span></td>
           <td class="px-4 py-3 text-right">${Number(log.price || 0).toLocaleString()}</td>
@@ -355,9 +415,44 @@ const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10
       `;
     }).join('');
 
+    // 重新綁定當頁按鈕的編輯與刪除事件
+    bindTableRowEvents();
+
+    // 更新分頁按鈕狀態與頁碼顯示
+    updatePaginationControls(totalCount, currentPage, totalPages);
+  }
+
+  /**
+   * [2026-10-09] 異動說明
+   * 目的：更新分頁指示器文字與切換按鈕的啟用/停用樣式
+   * 變數說明：
+   * 1. totalCount: 總筆數
+   * 2. current: 當前頁碼
+   * 3. totalPages: 總頁數
+   */
+  function updatePaginationControls(totalCount, current, totalPages) {
+    if (pageIndicator) {
+      pageIndicator.textContent = `第 ${current} / ${totalPages} 頁`;
+    }
+    if (btnPrevPage) {
+      btnPrevPage.disabled = (current <= 1 || totalCount === 0);
+    }
+    if (btnNextPage) {
+      btnNextPage.disabled = (current >= totalPages || totalCount === 0);
+    }
+  }
+
+  /**
+   * [2026-10-09] 異動說明
+   * 目的：為表格內的「編輯」與「刪除」按鈕綁定操作事件
+   */
+  function bindTableRowEvents() {
+    const tbody = document.getElementById('trade-log-body');
+    if (!tbody) return;
+
     tbody.querySelectorAll('.btn-edit').forEach((btn) => {
       btn.onclick = () => {
-        const targetLog = logs.find((item) => String(item.trade_id) === String(btn.dataset.id));
+        const targetLog = currentLogsCache.find((item) => String(item.trade_id) === String(btn.dataset.id));
         if (!targetLog) return;
 
         if (inputTradeId) inputTradeId.value = targetLog.trade_id;
@@ -407,6 +502,39 @@ const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10
         }
       };
     });
+  }
+
+  // =========================================================================
+  // 2026.10.09 feat: 監聽分頁操作控制元件事件
+  // =========================================================================
+  if (selectPageSize) {
+    selectPageSize.onchange = (e) => {
+      pageSizeSetting = e.target.value;
+      currentPage = 1; // 切換每頁筆數時重回第 1 頁
+      renderTable(currentStock, currentRound);
+    };
+  }
+
+  if (btnPrevPage) {
+    btnPrevPage.onclick = () => {
+      if (currentPage > 1) {
+        currentPage--;
+        renderTable(currentStock, currentRound);
+      }
+    };
+  }
+
+  if (btnNextPage) {
+    btnNextPage.onclick = () => {
+      const isAll = pageSizeSetting === 'ALL';
+      const pageSizeNum = isAll ? currentLogsCache.length : parseInt(pageSizeSetting, 10);
+      const totalPages = isAll ? 1 : Math.ceil(currentLogsCache.length / pageSizeNum);
+
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderTable(currentStock, currentRound);
+      }
+    };
   }
 
   if (selectStock) {
@@ -619,10 +747,10 @@ const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10
         const res = await window.ClientAuth.authFetch('/api/trading/addstock', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            stock_id, 
-            stock_name, 
-            market_type: currentMarket 
+          body: JSON.stringify({
+            stock_id,
+            stock_name,
+            market_type: currentMarket
           })
         });
         const result = await res.json();

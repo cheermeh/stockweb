@@ -7,7 +7,8 @@
   <title>StockWeb - Dashboard</title>
 
   <!-- 宣告藍色折線圖 Favicon -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='22 7 13.5 15.5 8.5 10.5 2 17'%3E%3C/polyline%3E%3Cpolyline points='16 7 22 7 22 13'%3E%3C/polyline%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='22 7 13.5 15.5 8.5 10.5 2 17'%3E%3C/polyline%3E%3Cpolyline points='16 7 22 7 22 13'%3E%3C/polyline%3E%3C/svg%3E">
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -33,13 +34,17 @@
       <!-- [2026-10-06] 異動說明
            目的：改為 Market: [市場下拉選單] 與 User: [帳號明碼] 樣式
            實作說明：膠囊內分別呈現 Market 選擇器與 User 帳號文字 -->
-      <div id="badge-market-container" class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-900/60 text-blue-300 border border-blue-700/50">
+      <div id="badge-market-container"
+        class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-900/60 text-blue-300 border border-blue-700/50">
         <!-- 1. Market: 市場下拉選單 -->
         <div class="flex items-center gap-1">
           <span class="text-blue-400 font-semibold">Market:</span>
           <!-- 2026.10.08 feat: 選項由 dashboard.js 依 GET_DISTINCT_MARKETS_BY_STOCK 的查詢結果動態產生 -->
-          <!-- 2026.10.08 fix: color-scheme dark 讓原生下拉面板底色為深色，避免選項右側露出白底 -->
-          <select id="select-market" style="color-scheme: dark;" class="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"></select>
+          <!-- 2026.10.09 fix: 預設 disabled 防止載入中被點擊產生破圖白邊 (修正全形引號錯誤) -->
+          <select id="select-market" disabled
+            class="bg-transparent text-white font-semibold focus:outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
+            <option value="">載入市場中...</option>
+          </select>
         </div>
 
         <span class="text-blue-700/80">|</span>
@@ -116,14 +121,42 @@
 
     <!-- 近期交易流水帳表格 -->
     <section class="bg-gray-800/40 border border-gray-700/50 rounded-xl overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-700/50 flex justify-between items-center">
-        <h2 class="font-semibold text-white">最近 10 筆收支流水明細</h2>
-        <span class="text-xs text-gray-400">系統即時同步</span>
+      <!-- 2026.10.09 feat: 區塊標頭整合總筆數與頂部分頁控制器，風格與 tradinglog 一致 -->
+      <div class="px-6 py-4 border-b border-gray-700/50 flex flex-wrap justify-between items-center gap-3">
+        <div class="flex items-center gap-3">
+          <h2 class="font-semibold text-white">最近收支流水明細</h2>
+          <span id="ledger-count" class="text-xs text-gray-400">共 0 筆</span>
+        </div>
+
+        <!-- 2026.10.09 feat: 頂部分頁控制介面 (全部/10/20/50/100，預設 10) -->
+        <div class="flex items-center gap-3 text-xs">
+          <!-- 每頁筆數下拉選單 -->
+          <div class="flex items-center gap-1.5">
+            <label for="select-page-size" class="text-gray-400">每頁：</label>
+            <select id="select-page-size" class="bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="ALL">全部</option>
+            </select>
+          </div>
+
+          <!-- 上一頁 / 當前頁數 / 下一頁按鈕群組 -->
+          <div class="flex items-center gap-1.5">
+            <button type="button" id="btn-prev-page" class="px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">上一頁</button>
+            <span id="page-indicator" class="text-gray-400 px-1">第 1 / 1 頁</span>
+            <button type="button" id="btn-next-page" class="px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">下一頁</button>
+          </div>
+        </div>
       </div>
+
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm text-gray-300">
           <thead class="bg-gray-800/60 text-xs uppercase text-gray-400 border-b border-gray-700/50">
             <tr>
+              <!-- 2026.10.09 feat: 新增最左側序號欄位，寬度固定並置中呈現 -->
+              <th class="px-4 py-3 text-center w-16">序號</th>
               <th class="px-6 py-3">交易日期</th>
               <th class="px-6 py-3">標的代碼</th>
               <th class="px-6 py-3">交易類別</th>
@@ -134,12 +167,39 @@
           </thead>
           <tbody id="ledger-body" class="divide-y divide-gray-800">
             <tr>
-              <td colspan="6" class="text-center py-8 text-gray-500">
+              <!-- 2026.10.09 feat: 配合新增序號欄位，跨欄數由 6 調整為 7 -->
+              <td colspan="7" class="text-center py-8 text-gray-500">
                 載入資料庫紀錄中...
               </td>
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- 2026.10.09 feat: 底部分頁控制列，提供滾動至底部時直接翻頁操作 (與頂部同步) -->
+      <div class="px-6 py-3 border-t border-gray-700/50 flex flex-wrap justify-between items-center gap-3 bg-gray-800/20">
+        <span id="ledger-count-bottom" class="text-xs text-gray-400">共 0 筆</span>
+
+        <div class="flex items-center gap-3 text-xs">
+          <!-- 底部每頁筆數下拉選單 -->
+          <div class="flex items-center gap-1.5">
+            <label for="select-page-size-bottom" class="text-gray-400">每頁：</label>
+            <select id="select-page-size-bottom" class="bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="ALL">全部</option>
+            </select>
+          </div>
+
+          <!-- 底部上一頁 / 當前頁數 / 下一頁按鈕群組 -->
+          <div class="flex items-center gap-1.5">
+            <button type="button" id="btn-prev-page-bottom" class="px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">上一頁</button>
+            <span id="page-indicator-bottom" class="text-gray-400 px-1">第 1 / 1 頁</span>
+            <button type="button" id="btn-next-page-bottom" class="px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">下一頁</button>
+          </div>
+        </div>
       </div>
     </section>
   </main>

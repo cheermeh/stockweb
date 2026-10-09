@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 變數用途說明：username 使用者登入帳號名稱；market 預設或上次選取的市場環境代碼
   // 2026.10.08 feat: 移除市場別預設 TW (requireAuth 已確保有市場別)
   const { username = '', market = '' } = window.ClientAuth ? window.ClientAuth.getSessionInfo() : {};
-  
+
   /**
    * [2026-10-06] 異動說明
    * 變數用途說明：
@@ -22,6 +22,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 2026.10.08 feat: 幣別符號一律使用 $，不再依市場區分
   const CURRENCY_SYMBOL = '$';
+
+  /**
+   * [2026-10-09] 異動說明
+   * 目的：支援儀表板收支流水明細分頁切片與序號累計計算
+   * 變數用途說明：
+   * 1. currentPage: 當前頁碼（由 1 開始之整數）
+   * 2. pageSizeSetting: 每頁筆數設定字串（'10', '20', '50', '100', 'ALL'，預設 '10'）
+   */
+  let currentPage = 1;
+  let pageSizeSetting = '10';
 
   /**
    * [2026-10-06] 異動說明
@@ -57,15 +67,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
   }
 
+  // 2026.10.09 feat: 分頁控制介面 DOM 快取 (頂部與底部)
+  // 變數用途說明：selectPageSize 頂部每頁筆數下拉選單；btnPrevPage 頂部上一頁按鈕；btnNextPage 頂部下一頁按鈕；pageIndicator 頂部頁碼提示文字；countBadgeTop 頂部總筆數標籤
+  const selectPageSize = document.getElementById('select-page-size');
+  const btnPrevPage = document.getElementById('btn-prev-page');
+  const btnNextPage = document.getElementById('btn-next-page');
+  const pageIndicator = document.getElementById('page-indicator');
+  const countBadgeTop = document.getElementById('ledger-count');
+
+  // 變數用途說明：selectPageSizeBottom 底部分頁筆數選單；btnPrevPageBottom 底部上一頁按鈕；btnNextPageBottom 底部下一頁按鈕；pageIndicatorBottom 底部頁碼提示文字；countBadgeBottom 底部總筆數標籤
+  const selectPageSizeBottom = document.getElementById('select-page-size-bottom');
+  const btnPrevPageBottom = document.getElementById('btn-prev-page-bottom');
+  const btnNextPageBottom = document.getElementById('btn-next-page-bottom');
+  const pageIndicatorBottom = document.getElementById('page-indicator-bottom');
+  const countBadgeBottom = document.getElementById('ledger-count-bottom');
+
   // 變數用途說明：TYPE_CONFIG 定義各交易類別在表格上的中文顯示文字與徽章樣式類別
   // 2026.10.07 異動說明：將 INTEREST 類別的中文顯示文字由「利息」改為「銀行利息」
   // 2026.10.07 異動說明：出入金改為使用 badge-input 與 badge-output 樣式
   const TYPE_CONFIG = {
-    INPUT:    { label: '入金', badgeClass: 'badge-input' },
-    OUTPUT:   { label: '出金', badgeClass: 'badge-output' },
-    BUY:      { label: '買進', badgeClass: 'badge-buy' },
-    SELL:     { label: '賣出', badgeClass: 'badge-sell' },
-    REVENUE:  { label: '股利', badgeClass: 'badge-dividend' },
+    INPUT: { label: '入金', badgeClass: 'badge-input' },
+    OUTPUT: { label: '出金', badgeClass: 'badge-output' },
+    BUY: { label: '買進', badgeClass: 'badge-buy' },
+    SELL: { label: '賣出', badgeClass: 'badge-sell' },
+    REVENUE: { label: '股利', badgeClass: 'badge-dividend' },
     INTEREST: { label: '銀行利息', badgeClass: 'badge-dividend' }
   };
 
@@ -127,10 +152,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         sessionStorage.setItem('stockweb_session_market', currentActiveMarket);
       }
 
-      await loadDashboardData(currentActiveMarket);
+      // 2026.10.09 fix: 發送請求前立即鎖定，載入完畢後解除鎖定，避免請求期間被重複點擊
+      selectMarket.disabled = true;
+      try {
+        await loadDashboardData(currentActiveMarket);
+      } finally {
+        selectMarket.disabled = false;
+      }
     };
 
     isMarketDropdownReady = true;
+    //2026.10.09：標的資料全部塞入完畢後，解除禁用，避免破圖
+    selectMarket.disabled = false;
   }
 
   /**
@@ -164,6 +197,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 變數用途說明：summary 財務彙總數據；recentLogs 最近 10 筆流水明細；availableMarkets 資料庫市場清單
       const { summary = {}, recentLogs = [], availableMarkets = [] } = result.data || {};
       globalRecentLogs = recentLogs;
+      currentPage = 1; // 2026.10.09 feat: 切換市場重新拉取數據時，重設頁碼為第 1 頁
 
       if (!isMarketDropdownReady) {
         initMarketSelect(availableMarkets);
@@ -203,7 +237,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // 變數用途說明：totalDep 總入金數值，用於計算報酬率分母
       const totalDep = Number(summary.totalDeposit || 0);
-      
+
       // 變數用途說明：renderRate 函式，計算百分比並渲染至指定元素
       const renderRate = (elemId, pnlValue) => {
         // 變數用途說明：el 呈現報酬率百分比之 DOM 元素
@@ -221,7 +255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderRate('sub-pnl-noint', Number(summary.pnlExcludingInterest || 0));
       renderRate('sub-pnl-int', Number(summary.pnlIncludingInterest || 0));
 
-      renderLedgerTable(globalRecentLogs);
+      renderLedgerTable();
 
     } catch (err) {
       console.error('[Dashboard Error]:', err);
@@ -229,18 +263,44 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // 變數用途說明：renderLedgerTable 函式，渲染最近 10 筆流水明細清單
-  function renderLedgerTable(logs) {
+  /**
+   * [2026-10-09] 異動說明
+   * 目的：渲染收支流水明細清單，並依當前分頁設定進行陣列切片及自動累加序號
+   * 變數用途說明：
+   * 1. ledgerBody: 表格內容 tbody 元素
+   * 2. totalCount: 流水紀錄總筆數
+   * 3. isAll: 是否選擇全部顯示
+   * 4. pageSizeNum: 數字型態的每頁顯示筆數
+   * 5. totalPages: 總頁數
+   * 6. startIndex: 當前頁面第一筆資料在整個陣列中的起始索引 (用於序號計算與 slice)
+   * 7. currentRows: 當前分頁所屬之資料列陣列
+   */
+  function renderLedgerTable() {
     // 變數用途說明：ledgerBody 表格內容 tbody 元素
     const ledgerBody = document.getElementById('ledger-body');
     if (!ledgerBody) return;
 
-    if (!logs || logs.length === 0) {
-      ledgerBody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500">尚無任何交易流水記錄</td></tr>';
+    const totalCount = globalRecentLogs.length;
+    if (totalCount === 0) {
+      ledgerBody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">尚無任何交易流水記錄</td></tr>';
+      updatePaginationControls(0, 1, 1);
       return;
     }
 
-    ledgerBody.innerHTML = logs.map(item => {
+    const isAll = pageSizeSetting === 'ALL';
+    const pageSizeNum = isAll ? totalCount : parseInt(pageSizeSetting, 10);
+    const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalCount / pageSizeNum));
+
+    // 當前頁碼邊界檢查
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const startIndex = (currentPage - 1) * pageSizeNum;
+    const currentRows = isAll ? globalRecentLogs : globalRecentLogs.slice(startIndex, startIndex + pageSizeNum);
+
+    ledgerBody.innerHTML = currentRows.map((item, index) => {
+      // 序號計算：(當前頁碼 - 1) * 每頁筆數 + 當頁索引 + 1
+      const serialNumber = startIndex + index + 1;
       // 變數用途說明：typeConf 該筆紀錄對應之交易類別中文標籤與 CSS 樣式
       const typeConf = TYPE_CONFIG[item.trade_type] || { label: item.trade_type || '其他', badgeClass: 'badge-deposit' };
       // 變數用途說明：isIncome 判斷該交易類別是否屬於進款 (Net+)
@@ -254,6 +314,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       return `
         <tr class="hover:bg-gray-800/30 transition-colors">
+          <td class="px-4 py-4 text-center text-gray-400 font-mono text-xs">${serialNumber}</td>
           <td class="px-6 py-4">${displayDate}</td>
           <td class="px-6 py-4 font-mono font-medium text-white">${displayStock}</td>
           <td class="px-6 py-4"><span class="badge ${typeConf.badgeClass}">${typeConf.label}</span></td>
@@ -263,7 +324,90 @@ document.addEventListener('DOMContentLoaded', async () => {
         </tr>
       `;
     }).join('');
+
+    updatePaginationControls(totalCount, currentPage, totalPages);
   }
+
+  /**
+   * [2026-10-09] 異動說明
+   * 目的：同步更新頂部與底部分頁控制器之按鈕啟用狀態、總筆數與頁碼顯示
+   * 變數用途說明：
+   * 1. totalCount: 資料總筆數
+   * 2. current: 當前頁碼
+   * 3. totalPages: 總頁數
+   * 4. countText: 顯示筆數文字
+   * 5. pageText: 顯示頁碼文字
+   * 6. prevDisabled: 上一頁按鈕是否禁用
+   * 7. nextDisabled: 下一頁按鈕是否禁用
+   */
+  function updatePaginationControls(totalCount, current, totalPages) {
+    const countText = `共 ${totalCount} 筆`;
+    const pageText = `第 ${current} / ${totalPages} 頁`;
+    const prevDisabled = (current <= 1 || totalCount === 0);
+    const nextDisabled = (current >= totalPages || totalCount === 0);
+
+    // 1. 同步總筆數
+    if (countBadgeTop) countBadgeTop.textContent = countText;
+    if (countBadgeBottom) countBadgeBottom.textContent = countText;
+
+    // 2. 同步頁碼標籤
+    if (pageIndicator) pageIndicator.textContent = pageText;
+    if (pageIndicatorBottom) pageIndicatorBottom.textContent = pageText;
+
+    // 3. 同步下拉選單數值
+    if (selectPageSize && selectPageSize.value !== pageSizeSetting) {
+      selectPageSize.value = pageSizeSetting;
+    }
+    if (selectPageSizeBottom && selectPageSizeBottom.value !== pageSizeSetting) {
+      selectPageSizeBottom.value = pageSizeSetting;
+    }
+
+    // 4. 同步按鈕禁用狀態
+    if (btnPrevPage) btnPrevPage.disabled = prevDisabled;
+    if (btnPrevPageBottom) btnPrevPageBottom.disabled = prevDisabled;
+    if (btnNextPage) btnNextPage.disabled = nextDisabled;
+    if (btnNextPageBottom) btnNextPageBottom.disabled = nextDisabled;
+  }
+
+  // =========================================================================
+  // 2026.10.09 feat: 分頁事件監聽處理函式（頂部與底部共用）
+  // =========================================================================
+  // 變數用途說明：changePageSize 處理每頁筆數變更之函式
+  const changePageSize = (newSize) => {
+    pageSizeSetting = newSize;
+    currentPage = 1;
+    renderLedgerTable();
+  };
+
+  // 變數用途說明：goToPrevPage 處理前往上一頁之函式
+  const goToPrevPage = () => {
+    if (currentPage > 1) {
+      currentPage--;
+      renderLedgerTable();
+    }
+  };
+
+  // 變數用途說明：goToNextPage 處理前往下一頁之函式
+  const goToNextPage = () => {
+    const isAll = pageSizeSetting === 'ALL';
+    const pageSizeNum = isAll ? globalRecentLogs.length : parseInt(pageSizeSetting, 10);
+    const totalPages = isAll ? 1 : Math.ceil(globalRecentLogs.length / pageSizeNum);
+
+    if (currentPage < totalPages) {
+      currentPage++;
+      renderLedgerTable();
+    }
+  };
+
+  // 綁定頂部分頁控制器事件
+  if (selectPageSize) selectPageSize.onchange = (e) => changePageSize(e.target.value);
+  if (btnPrevPage) btnPrevPage.onclick = goToPrevPage;
+  if (btnNextPage) btnNextPage.onclick = goToNextPage;
+
+  // 綁定底部分頁控制器事件
+  if (selectPageSizeBottom) selectPageSizeBottom.onchange = (e) => changePageSize(e.target.value);
+  if (btnPrevPageBottom) btnPrevPageBottom.onclick = goToPrevPage;
+  if (btnNextPageBottom) btnNextPageBottom.onclick = goToNextPage;
 
   // 變數用途說明：btnMaskToggle 隱藏/顯示金額之切換按鈕元素
   const btnMaskToggle = document.getElementById('btn-mask-toggle');
@@ -281,7 +425,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (el) el.textContent = isMasked ? '***%' : (el.dataset.rawRate || '--%');
       });
 
-      renderLedgerTable(globalRecentLogs);
+      renderLedgerTable();
     };
   }
 
