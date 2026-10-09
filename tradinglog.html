@@ -7,7 +7,8 @@
   <title>StockWeb - 個股波段交易紀錄</title>
 
   <!-- 瀏覽器頁籤圖示 (Favicon) -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233B82F6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='22 7 13.5 15.5 8.5 10.5 2 17'/><polyline points='16 7 22 7 22 13'/></svg>">
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233B82F6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='22 7 13.5 15.5 8.5 10.5 2 17'/><polyline points='16 7 22 7 22 13'/></svg>">
 
   <!-- Tailwind CSS 核心樣式庫 -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -19,13 +20,14 @@
   <script defer crossorigin="anonymous"
     data-clerk-publishable-key="pk_test_YWN0aXZlLW9jdG9wdXMtMjgzNi5jbGVyay5hY2NvdW50cy5kZXYk"
     src="https://active-octopus-2836.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js">
-  </script>
+    </script>
 </head>
 
 <body class="bg-gray-900 text-gray-100 min-h-screen">
 
   <!-- 頂部導航列 -->
-  <header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur px-6 py-4 flex flex-wrap justify-between items-center gap-4">
+  <header
+    class="border-b border-gray-800 bg-gray-900/50 backdrop-blur px-6 py-4 flex flex-wrap justify-between items-center gap-4">
     <div class="flex items-center gap-4">
       <a href="dashboard.html" class="text-gray-400 hover:text-white transition text-sm">← 回到主儀表板</a>
       <span class="text-gray-600">|</span>
@@ -33,15 +35,19 @@
       <!-- 標的下拉選單 -->
       <div class="flex items-center gap-2">
         <label for="select-stock" class="text-xs text-gray-400 font-medium">標的：</label>
-        <select id="select-stock" class="bg-gray-800 border border-gray-700 text-sm font-semibold rounded px-2.5 py-1 text-blue-400 focus:outline-none focus:border-blue-500">
-          <option value="">-- 請選擇標的 --</option>
+        <!-- 2026.10.09 fix: 預設 disabled 避免載入完成前點擊破圖，調整disabled顏色 -->
+        <select id="select-stock" disabled
+          class="bg-gray-800 border border-gray-700 text-sm font-semibold rounded px-2.5 py-1 text-white focus:outline-none focus:border-blue-500 disabled:text-gray-50 disabled:cursor-not-allowed">
+          <option value="">載入標的中...</option>
         </select>
       </div>
 
       <!-- 回合下拉選單 -->
       <div class="flex items-center gap-2">
         <label for="select-round" class="text-xs text-gray-400 font-medium">回合：</label>
-        <select id="select-round" disabled class="bg-gray-800 border border-gray-700 text-sm rounded px-2.5 py-1 text-white focus:outline-none focus:border-blue-500 disabled:opacity-50">
+        <!-- 2026.10.09 fix: 預設 disabled 避免載入完成前點擊破圖，調整disabled顏色 -->
+        <select id="select-round" disabled
+          class="bg-gray-800 border border-gray-700 font-semibold text-sm rounded px-2.5 py-1 text-white focus:outline-none focus:border-blue-500 disabled:text-gray-50 disabled:cursor-not-allowed">
           <option value="">-- 請先選擇標的 --</option>
         </select>
       </div>
@@ -49,13 +55,16 @@
 
     <!-- 右側功能按鈕區 -->
     <div class="flex items-center gap-3">
-      <button id="btn-open-stock-modal" type="button" class="px-3.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 text-sm font-medium transition shadow-sm">
+      <button id="btn-open-stock-modal" type="button"
+        class="px-3.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 text-sm font-medium transition shadow-sm">
         + 標的維護
       </button>
-      <button id="btn-open-modal" type="button" class="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium transition shadow-sm">
+      <button id="btn-open-modal" type="button"
+        class="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium transition shadow-sm">
         + 新增交易記錄
       </button>
-      <button id="btn-logout" type="button" class="px-3 py-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-800/50 text-sm transition">
+      <button id="btn-logout" type="button"
+        class="px-3 py-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-800/50 text-sm transition">
         登出
       </button>
     </div>
@@ -89,14 +98,45 @@
 
     <!-- 標的歷史交易明細流水帳區塊 -->
     <div class="bg-gray-800/40 border border-gray-700/50 rounded-xl overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-700/50 flex justify-between items-center">
-        <h2 class="font-semibold text-white">歷史交易流水帳</h2>
-        <span id="log-count" class="text-xs text-gray-400">共 0 筆</span>
+      <!-- 區塊標頭與分頁控制器 -->
+      <div class="px-6 py-4 border-b border-gray-700/50 flex flex-wrap justify-between items-center gap-3">
+        <div class="flex items-center gap-3">
+          <h2 class="font-semibold text-white">歷史交易流水帳</h2>
+          <span id="log-count" class="text-xs text-gray-400">共 0 筆</span>
+        </div>
+
+        <!-- 2026.10.09 feat: 分頁控制介面 -->
+        <div class="flex items-center gap-3 text-xs">
+          <!-- 每頁筆數選擇 -->
+          <div class="flex items-center gap-1.5">
+            <label for="select-page-size" class="text-gray-400">每頁：</label>
+            <select id="select-page-size"
+              class="bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="ALL">全部</option>
+            </select>
+          </div>
+
+          <!-- 頁碼切換按鈕區 -->
+          <div class="flex items-center gap-1.5">
+            <button type="button" id="btn-prev-page"
+              class="px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">上一頁</button>
+            <span id="page-indicator" class="text-gray-400 px-1">第 1 / 1 頁</span>
+            <button type="button" id="btn-next-page"
+              class="px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">下一頁</button>
+          </div>
+        </div>
       </div>
+
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm text-gray-300">
           <thead class="bg-gray-800/60 text-xs uppercase text-gray-400 border-b border-gray-700/50">
             <tr>
+              <!-- 最左側新增序號欄位 -->
+              <th class="px-3 py-3 text-center w-14">序號</th>
               <th class="px-4 py-3">交易日</th>
               <th class="px-4 py-3">類別</th>
               <th class="px-4 py-3 text-right">單價</th>
@@ -110,7 +150,8 @@
           </thead>
           <tbody id="trade-log-body" class="divide-y divide-gray-800">
             <tr>
-              <td colspan="9" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td>
+              <!-- 欄位擴充為 10 欄，colspan 調整為 10 -->
+              <td colspan="10" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td>
             </tr>
           </tbody>
         </table>
@@ -121,7 +162,8 @@
   <!-- ========================================================================= -->
   <!-- 彈窗 1：新增 / 編輯交易明細彈窗 -->
   <!-- ========================================================================= -->
-  <div id="modal-add-trade" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+  <div id="modal-add-trade"
+    class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div class="bg-gray-800 border border-gray-700 rounded-xl w-full max-w-md p-6 space-y-4">
       <div class="flex justify-between items-center border-b border-gray-700 pb-3">
         <h3 id="modal-title" class="font-bold text-white">新增交易明細</h3>
@@ -136,7 +178,8 @@
           <div>
             <label class="text-xs text-gray-400">標的代碼</label>
             <!-- 嚴格保留：從外面代入，禁止手動輸入 -->
-            <input type="text" id="input-stock-id" required readonly class="w-full mt-1 bg-gray-950 border border-gray-700/60 rounded px-3 py-1.5 text-gray-300 uppercase text-sm cursor-not-allowed opacity-75 focus:outline-none">
+            <input type="text" id="input-stock-id" required readonly
+              class="w-full mt-1 bg-gray-950 border border-gray-700/60 rounded px-3 py-1.5 text-gray-300 uppercase text-sm cursor-not-allowed opacity-75 focus:outline-none">
           </div>
           <div>
             <label class="text-xs text-gray-400">回合 (Round)</label>
@@ -148,11 +191,13 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-gray-400">交易日期</label>
-            <input type="date" id="input-trade-date" required class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm">
+            <input type="date" id="input-trade-date" required
+              class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm">
           </div>
           <div>
             <label class="text-xs text-gray-400">交易型態</label>
-            <select id="input-trade-type" class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm">
+            <select id="input-trade-type"
+              class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm">
               <option value="BUY">買進 (BUY)</option>
               <option value="SELL">賣出 (SELL)</option>
               <option value="REVENUE">股息 (REVENUE)</option>
@@ -205,7 +250,8 @@
         </div>
 
         <div class="pt-2">
-          <button type="button" id="btn-submit-trade" class="w-full bg-blue-600 hover:bg-blue-500 py-2 rounded-lg text-white font-medium text-sm transition">
+          <button type="button" id="btn-submit-trade"
+            class="w-full bg-blue-600 hover:bg-blue-500 py-2 rounded-lg text-white font-medium text-sm transition">
             <span id="btn-submit-trade-text">確認送出儲存</span>
           </button>
         </div>
@@ -216,7 +262,8 @@
   <!-- ========================================================================= -->
   <!-- 彈窗 2：標的代碼維護彈窗 -->
   <!-- ========================================================================= -->
-  <div id="modal-stock-comp" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+  <div id="modal-stock-comp"
+    class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div class="bg-gray-800 border border-gray-700 rounded-xl w-full max-w-sm p-6 space-y-4">
       <div class="flex justify-between items-center border-b border-gray-700 pb-3">
         <h3 class="font-bold text-white">標的代碼維護</h3>
@@ -226,15 +273,18 @@
       <form id="form-stock-comp" class="space-y-4">
         <div>
           <label class="text-xs text-gray-400 font-medium">標的代碼 (Symbol / ID)</label>
-          <input type="text" id="input-new-stock-id" required placeholder="例如：2330 或 NVDA" class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white uppercase text-sm focus:outline-none focus:border-blue-500">
+          <input type="text" id="input-new-stock-id" required placeholder="例如：2330 或 NVDA"
+            class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white uppercase text-sm focus:outline-none focus:border-blue-500">
         </div>
         <div>
           <label class="text-xs text-gray-400 font-medium">標的名稱 (Name)</label>
-          <input type="text" id="input-new-stock-name" required placeholder="例如：台積電 或 輝達" class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm focus:outline-none focus:border-blue-500">
+          <input type="text" id="input-new-stock-name" required placeholder="例如：台積電 或 輝達"
+            class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm focus:outline-none focus:border-blue-500">
         </div>
 
         <div class="pt-2">
-          <button type="button" id="btn-submit-stock-comp" class="w-full bg-blue-600 hover:bg-blue-500 py-2 rounded-lg text-white font-medium text-sm transition">
+          <button type="button" id="btn-submit-stock-comp"
+            class="w-full bg-blue-600 hover:bg-blue-500 py-2 rounded-lg text-white font-medium text-sm transition">
             儲存至標的名單
           </button>
         </div>

@@ -83,6 +83,10 @@ const DASHBOARD_QUERIES = {
    * 參數：
    *   $1: userId (使用者識別碼)
    *   $2: market_type ('TW' 或 'US')
+   * 
+   * [2026-10-09] 異動說明：
+   * 目的：配合前端新增分頁功能 (全部/10/20/50/100)，移除 LIMIT 10 限制
+   * 
    */
   GET_RECENT_LOGS: `
     SELECT 
@@ -104,7 +108,7 @@ const DASHBOARD_QUERIES = {
       ON t.stock_id = c.stock_id AND t.user_id = c.user_id
     WHERE t.user_id = $1 AND c.market_type = $2
     ORDER BY t.trade_date DESC, t.created_at DESC
-    LIMIT 10;
+    /* LIMIT 10 */;
   `
 };
 
