@@ -15,7 +15,7 @@ const currentDate = new Date();
 const padZero = (num) => String(num).padStart(2, '0');
 
 // 變數用途：分別提取年月日與時分字串
-const year = currentDate.getFullYear();
+const year = padZero(currentDate.getFullYear() % 100);
 const month = padZero(currentDate.getMonth() + 1);
 const day = padZero(currentDate.getDate());
 const hours = padZero(currentDate.getHours());
@@ -23,7 +23,7 @@ const minutes = padZero(currentDate.getMinutes());
 
 // 變數用途：組合成格式化的版號物件
 const versionPayload = {
-  version: `Ver ${packageData.version} (build_${year}/${month}/${day}_${hours}:${minutes})`
+  version: `Ver ${packageData.version} build_${year}${month}${day}${hours}${minutes}`
 };
 
 // 變數用途：指定欲輸出的 version.json 絕對路徑
