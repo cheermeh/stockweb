@@ -102,16 +102,17 @@
       <div class="px-6 py-4 border-b border-gray-700/50 flex flex-wrap justify-between items-center gap-3">
         <div class="flex items-center gap-3">
           <h2 class="font-semibold text-white">歷史交易流水帳</h2>
-          <span id="log-count" class="text-xs text-gray-400">共 0 筆</span>
+          <!-- 2026.10.10 feat: 將 ID 改為 Class 共用 -->
+          <span class="log-count text-xs text-gray-400">共 0 筆</span>
         </div>
 
-        <!-- 2026.10.09 feat: 分頁控制介面 -->
+        <!-- 2026.10.09 feat: 頂部分頁控制介面 -->
         <div class="flex items-center gap-3 text-xs">
           <!-- 每頁筆數選擇 -->
           <div class="flex items-center gap-1.5">
-            <label for="select-page-size" class="text-gray-400">每頁：</label>
-            <select id="select-page-size"
-              class="bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
+            <label class="text-gray-400">每頁：</label>
+            <!-- 2026.10.10 feat: 將 ID 改為 Class 共用 -->
+            <select class="select-page-size bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
               <option value="10" selected>10</option>
               <option value="20">20</option>
               <option value="50">50</option>
@@ -122,11 +123,10 @@
 
           <!-- 頁碼切換按鈕區 -->
           <div class="flex items-center gap-1.5">
-            <button type="button" id="btn-prev-page"
-              class="px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">上一頁</button>
-            <span id="page-indicator" class="text-gray-400 px-1">第 1 / 1 頁</span>
-            <button type="button" id="btn-next-page"
-              class="px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">下一頁</button>
+            <!-- 2026.10.10 feat: 將 ID 改為 Class 共用 -->
+            <button type="button" class="btn-prev-page px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">上一頁</button>
+            <span class="page-indicator text-gray-400 px-1">第 1 / 1 頁</span>
+            <button type="button" class="btn-next-page px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">下一頁</button>
           </div>
         </div>
       </div>
@@ -155,6 +155,32 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- 2026.10.10 feat: 底部分頁控制列，提供滾動至底部時直接翻頁操作 (使用共用 Class) -->
+      <div class="px-6 py-3 border-t border-gray-700/50 flex flex-wrap justify-between items-center gap-3 bg-gray-800/20">
+        <span class="log-count text-xs text-gray-400">共 0 筆</span>
+
+        <div class="flex items-center gap-3 text-xs">
+          <!-- 底部每頁筆數下拉選單 -->
+          <div class="flex items-center gap-1.5">
+            <label class="text-gray-400">每頁：</label>
+            <select class="select-page-size bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="ALL">全部</option>
+            </select>
+          </div>
+
+          <!-- 底部上一頁 / 當前頁數 / 下一頁按鈕群組 -->
+          <div class="flex items-center gap-1.5">
+            <button type="button" class="btn-prev-page px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">上一頁</button>
+            <span class="page-indicator text-gray-400 px-1">第 1 / 1 頁</span>
+            <button type="button" class="btn-next-page px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">下一頁</button>
+          </div>
+        </div>
       </div>
     </div>
   </main>
