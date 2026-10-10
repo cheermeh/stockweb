@@ -52,11 +52,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   const inputNewStockId = document.getElementById('input-new-stock-id');
   const inputNewStockName = document.getElementById('input-new-stock-name');
 
-  // 2026.10.09 feat: 分頁控制介面 DOM 元素快取宣告
-  const selectPageSize = document.getElementById('select-page-size');
-  const btnPrevPage = document.getElementById('btn-prev-page');
-  const btnNextPage = document.getElementById('btn-next-page');
-  const pageIndicator = document.getElementById('page-indicator');
+  // 2026.10.09 作廢 feat: 分頁控制介面 DOM 元素快取宣告 (已改為下方 2026.10.10 的 class 選取陣列)
+  // const selectPageSize = document.getElementById('select-page-size');
+  // const btnPrevPage = document.getElementById('btn-prev-page');
+  // const btnNextPage = document.getElementById('btn-next-page');
+  // const pageIndicator = document.getElementById('page-indicator');
+
+  // 2026.10.10 feat: 分頁控制介面 DOM 元素快取宣告 (改用 class，支援多組分頁)
+  // 變數說明：
+  // 1. logCounts: NodeList，儲存所有顯示總筆數的文字標籤
+  // 2. selectPageSizes: NodeList，儲存所有每頁筆數下拉選單
+  // 3. btnPrevPages: NodeList，儲存所有「上一頁」按鈕
+  // 4. btnNextPages: NodeList，儲存所有「下一頁」按鈕
+  // 5. pageIndicators: NodeList，儲存所有頁碼指示器
+  const logCounts = document.querySelectorAll('.log-count');
+  const selectPageSizes = document.querySelectorAll('.select-page-size');
+  const btnPrevPages = document.querySelectorAll('.btn-prev-page');
+  const btnNextPages = document.querySelectorAll('.btn-next-page');
+  const pageIndicators = document.querySelectorAll('.page-indicator');
 
   /**
    * [2026-10-09] 異動說明
@@ -336,13 +349,11 @@ document.addEventListener('DOMContentLoaded', async () => {
    */
   function renderTable(stockId, round) {
     const tbody = document.getElementById('trade-log-body');
-    const countBadge = document.getElementById('log-count');
     if (!tbody) return;
 
     // 檢查條件：未選擇標的
     if (!stockId) {
       tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td></tr>';
-      if (countBadge) countBadge.textContent = '共 0 筆';
       updatePaginationControls(0, 1, 1);
       return;
     }
@@ -350,7 +361,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 檢查條件：未選擇回合
     if (round === '' || round === null || round === undefined) {
       tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">請選擇特定回合以檢視該回合交易流水帳明細</td></tr>';
-      if (countBadge) countBadge.textContent = '共 0 筆';
       updatePaginationControls(0, 1, 1);
       return;
     }
@@ -359,12 +369,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const totalCount = currentLogsCache.length;
     if (totalCount === 0) {
       tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">該回合尚無任何交易流水記錄</td></tr>';
-      if (countBadge) countBadge.textContent = '共 0 筆';
       updatePaginationControls(0, 1, 1);
       return;
     }
-
-    if (countBadge) countBadge.textContent = `共 ${totalCount} 筆`;
 
     // 依據每頁筆數計算總頁數與資料切片
     const isAll = pageSizeSetting === 'ALL';
@@ -423,23 +430,45 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /**
-   * [2026-10-09] 異動說明
+   * [2026-10-09 作廢] 異動說明 (已改為 2026-10-10 支援 class 多組同步邏輯)
    * 目的：更新分頁指示器文字與切換按鈕的啟用/停用樣式
    * 變數說明：
    * 1. totalCount: 總筆數
    * 2. current: 當前頁碼
    * 3. totalPages: 總頁數
    */
+  // function updatePaginationControls(totalCount, current, totalPages) { ... }
+
+  /**
+   * [2026-10-10] 異動說明
+   * 目的：更新分頁指示器文字與切換按鈕的啟用/停用樣式 (支援 class 多組同步)
+   * 變數說明：
+   * 1. totalCount: 總筆數 (若為 0 則鎖定按鈕)
+   * 2. current: 當前頁碼 
+   * 3. totalPages: 總頁數
+   */
   function updatePaginationControls(totalCount, current, totalPages) {
-    if (pageIndicator) {
-      pageIndicator.textContent = `第 ${current} / ${totalPages} 頁`;
-    }
-    if (btnPrevPage) {
-      btnPrevPage.disabled = (current <= 1 || totalCount === 0);
-    }
-    if (btnNextPage) {
-      btnNextPage.disabled = (current >= totalPages || totalCount === 0);
-    }
+    // 1. 同步更新所有總筆數標籤
+    logCounts.forEach(el => {
+      el.textContent = `共 ${totalCount} 筆`;
+    });
+
+    // 2. 同步更新所有頁碼文字
+    pageIndicators.forEach(el => {
+      el.textContent = `第 ${current} / ${totalPages} 頁`;
+    });
+    
+    // 3. 同步更新所有「上一頁」按鈕狀態
+    const disablePrev = (current <= 1 || totalCount === 0);
+    btnPrevPages.forEach(el => {
+      el.disabled = disablePrev;
+    });
+    
+    // 4. 同步更新所有「下一頁」按鈕狀態
+    const disableNext = (current >= totalPages || totalCount === 0);
+    btnNextPages.forEach(el => {
+      el.disabled = disableNext;
+    });
   }
 
   /**
@@ -505,27 +534,44 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // =========================================================================
-  // 2026.10.09 feat: 監聽分頁操作控制元件事件
+  // 2026.10.09 作廢 feat: 監聽分頁操作控制元件事件 (已改為 2026-10-10 class 陣列綁定)
   // =========================================================================
-  if (selectPageSize) {
-    selectPageSize.onchange = (e) => {
+  // if (selectPageSize) { ... }
+  // if (btnPrevPage) { ... }
+  // if (btnNextPage) { ... }
+
+  // =========================================================================
+  // 2026.10.10 feat: 監聽分頁操作控制元件事件 (針對 class 多組元件綁定)
+  // =========================================================================
+  
+  // 綁定所有每頁筆數下拉選單
+  selectPageSizes.forEach(selectEl => {
+    selectEl.addEventListener('change', (e) => {
       pageSizeSetting = e.target.value;
+      
+      // 連動更新畫面上其他所有的下拉選單的值，保持狀態一致
+      selectPageSizes.forEach(el => {
+        if (el !== e.target) el.value = pageSizeSetting;
+      });
+      
       currentPage = 1; // 切換每頁筆數時重回第 1 頁
       renderTable(currentStock, currentRound);
-    };
-  }
+    });
+  });
 
-  if (btnPrevPage) {
-    btnPrevPage.onclick = () => {
+  // 綁定所有上一頁按鈕
+  btnPrevPages.forEach(btn => {
+    btn.addEventListener('click', () => {
       if (currentPage > 1) {
         currentPage--;
         renderTable(currentStock, currentRound);
       }
-    };
-  }
+    });
+  });
 
-  if (btnNextPage) {
-    btnNextPage.onclick = () => {
+  // 綁定所有下一頁按鈕
+  btnNextPages.forEach(btn => {
+    btn.addEventListener('click', () => {
       const isAll = pageSizeSetting === 'ALL';
       const pageSizeNum = isAll ? currentLogsCache.length : parseInt(pageSizeSetting, 10);
       const totalPages = isAll ? 1 : Math.ceil(currentLogsCache.length / pageSizeNum);
@@ -534,8 +580,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentPage++;
         renderTable(currentStock, currentRound);
       }
-    };
-  }
+    });
+  });
 
   if (selectStock) {
     selectStock.onchange = (e) => {
