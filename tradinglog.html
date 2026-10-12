@@ -275,10 +275,15 @@
             class="w-full mt-1 bg-gray-900 border border-emerald-500 rounded px-3 py-1.5 text-white font-bold text-sm focus:outline-none">
         </div>
 
-        <div class="pt-2">
+        <!-- 2026.10.12 feat: 將送出按鈕改為雙按鈕，「儲存並繼續新增」與「儲存並關閉」 -->
+        <div class="pt-2 flex items-center gap-3">
+          <button type="button" id="btn-submit-trade-continue"
+            class="flex-1 bg-gray-700 hover:bg-gray-600 py-2 rounded-lg text-white font-medium text-sm transition">
+            儲存並繼續新增
+          </button>
           <button type="button" id="btn-submit-trade"
-            class="w-full bg-blue-600 hover:bg-blue-500 py-2 rounded-lg text-white font-medium text-sm transition">
-            <span id="btn-submit-trade-text">確認送出儲存</span>
+            class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded-lg text-white font-medium text-sm transition">
+            <span id="btn-submit-trade-text">儲存並關閉</span>
           </button>
         </div>
       </form>
@@ -304,14 +309,19 @@
         </div>
         <div>
           <label class="text-xs text-gray-400 font-medium">標的名稱 (Name)</label>
-          <input type="text" id="input-new-stock-name" required placeholder="例如：台積電 或 輝達"
+          <input type="text" id="input-new-stock-name" placeholder="例如：台積電 或 輝達"
             class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm focus:outline-none focus:border-blue-500">
         </div>
 
-        <div class="pt-2">
+        <!-- 2026.10.12 feat: 將標的維護按鈕改為雙按鈕，「儲存並繼續新增」與「儲存並關閉」 -->
+        <div class="pt-2 flex items-center gap-3">
+          <button type="button" id="btn-submit-stock-comp-continue"
+            class="flex-1 bg-gray-700 hover:bg-gray-600 py-2 rounded-lg text-white font-medium text-sm transition">
+            儲存並繼續新增
+          </button>
           <button type="button" id="btn-submit-stock-comp"
-            class="w-full bg-blue-600 hover:bg-blue-500 py-2 rounded-lg text-white font-medium text-sm transition">
-            儲存至標的名單
+            class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded-lg text-white font-medium text-sm transition">
+            儲存並關閉
           </button>
         </div>
       </form>

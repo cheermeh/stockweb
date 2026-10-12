@@ -102,12 +102,12 @@ const DASHBOARD_QUERIES = {
       t.tax,
       t.net_total,
       t.note,
-      t.created_at
+      t.crtdt
     FROM public.trade_store t
     INNER JOIN public.stock_comp c 
       ON t.stock_id = c.stock_id AND t.user_id = c.user_id
     WHERE t.user_id = $1 AND c.market_type = $2
-    ORDER BY t.trade_date DESC, t.created_at DESC
+    ORDER BY t.trade_date DESC, t.crtdt DESC
     /* LIMIT 10 */;
   `
 };
@@ -280,10 +280,10 @@ const TRADING_QUERIES = {
       tax,
       net_total,
       note,
-      created_at
+      crtdt
     FROM public.trade_store
     WHERE user_id = $1 AND stock_id = $2 AND round = ANY($3::int[])
-    ORDER BY trade_date DESC, created_at DESC;
+    ORDER BY trade_date DESC, crtdt DESC;
   `,
 
   /**
