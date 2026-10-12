@@ -52,6 +52,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   const inputNewStockId = document.getElementById('input-new-stock-id');
   const inputNewStockName = document.getElementById('input-new-stock-name');
 
+  /**
+   * [2026-10-12] 異動說明
+   * 目的：快取「儲存並繼續新增」按鈕元素
+   * 變數說明：
+   * 1. btnSubmitTradeContinue: 交易記錄開窗之「儲存並繼續新增」按鈕
+   * 2. btnSubmitStockCompContinue: 標的開窗之「儲存並繼續新增」按鈕
+   */
+  const btnSubmitTradeContinue = document.getElementById('btn-submit-trade-continue');
+  const btnSubmitStockCompContinue = document.getElementById('btn-submit-stock-comp-continue');
+
   // 2026.10.09 作廢 feat: 分頁控制介面 DOM 元素快取宣告 (已改為下方 2026.10.10 的 class 選取陣列)
   // const selectPageSize = document.getElementById('select-page-size');
   // const btnPrevPage = document.getElementById('btn-prev-page');
@@ -488,6 +498,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (modalTitle) modalTitle.textContent = '編輯交易明細';
         if (btnSubmitTradeText) btnSubmitTradeText.textContent = '儲存修改';
 
+        /**
+         * [2026-10-12] 異動說明
+         * 目的：編輯模式下，隱藏「儲存並繼續新增」按鈕
+         */
+        if (btnSubmitTradeContinue) btnSubmitTradeContinue.classList.add('hidden');
+
         if (inputStockId) {
           inputStockId.value = targetLog.stock_id || currentStock;
           inputStockId.readOnly = true;
@@ -612,7 +628,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       if (inputTradeId) inputTradeId.value = '';
       if (modalTitle) modalTitle.textContent = '新增交易明細';
-      if (btnSubmitTradeText) btnSubmitTradeText.textContent = '確認送出儲存';
+      if (btnSubmitTradeText) btnSubmitTradeText.textContent = '儲存並關閉';
+
+      /**
+       * [2026-10-12] 異動說明
+       * 目的：在新增模式下，確保「儲存並繼續新增」按鈕正常顯示
+       */
+      if (btnSubmitTradeContinue) btnSubmitTradeContinue.classList.remove('hidden');
 
       if (inputStockId) {
         inputStockId.value = currentStock;
@@ -639,127 +661,175 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const btnSubmitTrade = document.getElementById('btn-submit-trade');
-  if (btnSubmitTrade) {
-    btnSubmitTrade.onclick = async () => {
-      const trade_id = inputTradeId?.value?.trim();
-      const stock_id = inputStockId?.value?.trim();
-      const trade_date = inputTradeDate?.value?.trim();
-      const trade_type = inputTradeType?.value;
 
-      if (!stock_id || !trade_date || !trade_type) {
-        alert('請完整填寫標的代碼、交易日期與交易型態！');
+  /**
+   * [2026-10-12] 異動說明
+   * 目的：送出交易明細表單資料，支援「儲存並關閉」或「儲存並繼續新增」
+   * 變數說明：
+   * 1. keepOpen: 布林值，true 代表儲存後不關閉彈窗，繼續登打下一筆明細
+   * 2. trade_id: 交易流水識別碼 (若有值表示為編輯模式)
+   * 3. stock_id: 股票標的代碼
+   * 4. trade_date: 交易發生日期
+   * 5. trade_type: 交易型態字串
+   * 6. isIncomeType: 是否為收益金流型態
+   * 7. round: 交易回合數
+   * 8. isEdit: 是否為編輯模式
+   * 9. payload: 送往 API 的交易資料物件
+   */
+  async function submitTradeForm(keepOpen = false) {
+    const trade_id = inputTradeId?.value?.trim();
+    const stock_id = inputStockId?.value?.trim();
+    const trade_date = inputTradeDate?.value?.trim();
+    const trade_type = inputTradeType?.value;
+
+    if (!stock_id || !trade_date || !trade_type) {
+      alert('請完整填寫標的代碼、交易日期與交易型態！');
+      return;
+    }
+
+    if (isNaN(new Date(trade_date).getTime())) {
+      alert('請填寫正確有效的交易日期！');
+      if (inputTradeDate) inputTradeDate.focus();
+      return;
+    }
+
+    /**
+     * [2026-10-07] 異動說明
+     * 目的：驗證送出資料時，INPUT 與 OUTPUT 比照 REVENUE / INTEREST 邏輯
+     * 變數說明：
+     * 1. isIncomeType: 判斷是否為收益/金流型態 (REVENUE, INTEREST, INPUT, OUTPUT)
+     * 2. round: 回合數 (金流型態強制為 0，買賣交易則檢核整數值)
+     * 3. netTotalNum: 收付淨額數值
+     */
+    const isIncomeType = (
+      trade_type === 'REVENUE' ||
+      trade_type === 'INTEREST' ||
+      trade_type === 'INPUT' ||
+      trade_type === 'OUTPUT'
+    );
+    let round = 0;
+
+    const MAX_ROUND_LIMIT = 9999;
+    const MAX_PRICE_LIMIT = 999999.9999;
+    const MAX_SHARES_LIMIT = 99999999;
+    const MAX_FEE_LIMIT = 9999999;
+    const MAX_NET_TOTAL_LIMIT = 999999999;
+
+    if (isIncomeType) {
+      round = 0;
+      const netTotalNum = Number(inputNetTotal?.value || 0);
+      if (netTotalNum <= 0) {
+        alert('請填寫大於 0 的實收入帳金額！');
+        if (inputNetTotal) inputNetTotal.focus();
+        return;
+      }
+      if (netTotalNum > MAX_NET_TOTAL_LIMIT) {
+        alert(`實收入帳金額過大，不可超過 ${MAX_NET_TOTAL_LIMIT.toLocaleString()}！`);
+        if (inputNetTotal) inputNetTotal.focus();
+        return;
+      }
+    } else {
+      const roundRaw = inputRound?.value?.trim();
+      round = parseInt(roundRaw, 10);
+      if (isNaN(round) || round < 0) {
+        alert('回合 (Round) 只能填寫大於或等於 0 的整數！');
+        if (inputRound) inputRound.focus();
+        return;
+      }
+      if (round > MAX_ROUND_LIMIT) {
+        alert(`回合數不可超過 ${MAX_ROUND_LIMIT}！`);
+        if (inputRound) inputRound.focus();
         return;
       }
 
-      if (isNaN(new Date(trade_date).getTime())) {
-        alert('請填寫正確有效的交易日期！');
-        if (inputTradeDate) inputTradeDate.focus();
+      const priceNum = Number(inputPrice?.value || 0);
+      const sharesNum = Number(inputShares?.value || 0);
+      const feeNum = Number(inputFee?.value || 0);
+      const taxNum = Number(inputTax?.value || 0);
+
+      if (priceNum <= 0 || priceNum > MAX_PRICE_LIMIT) {
+        alert(`單價必須大於 0 且不可超過 ${MAX_PRICE_LIMIT}！`);
+        if (inputPrice) inputPrice.focus();
         return;
       }
+      if (sharesNum <= 0 || sharesNum > MAX_SHARES_LIMIT) {
+        alert(`股數必須大於 0 且不可超過 ${MAX_SHARES_LIMIT.toLocaleString()} 股！`);
+        if (inputShares) inputShares.focus();
+        return;
+      }
+      if (feeNum > MAX_FEE_LIMIT || taxNum > MAX_FEE_LIMIT) {
+        alert(`手續費或交易稅金額過大，請確認是否輸入正確！`);
+        return;
+      }
+    }
+
+    const isEdit = Boolean(trade_id);
+    const payload = {
+      ...(isEdit && { trade_id }),
+      stock_id,
+      round,
+      trade_date,
+      trade_type,
+      price: isIncomeType ? 0 : (inputPrice?.value || 0),
+      shares: isIncomeType ? 0 : (inputShares?.value || 0),
+      fee: isIncomeType ? 0 : (inputFee?.value || 0),
+      tax: isIncomeType ? 0 : (inputTax?.value || 0),
+      net_total: isIncomeType ? (inputNetTotal?.value || 0) : undefined,
+      note: inputNote?.value?.trim() || ''
+    };
+
+    try {
+      // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
+      const res = await window.ClientAuth.authFetch('/api/trading/detail', {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message);
+
+      // 重新整理資料庫與流水帳數據
+      currentStock = stock_id.toUpperCase();
+      loadTradingData(currentStock, currentRound);
 
       /**
-       * [2026-10-07] 異動說明
-       * 目的：驗證送出資料時，INPUT 與 OUTPUT 比照 REVENUE / INTEREST 邏輯
-       * 變數說明：
-       * 1. isIncomeType: 判斷是否為收益/金流型態 (REVENUE, INTEREST, INPUT, OUTPUT)
-       * 2. round: 回合數 (金流型態強制為 0，買賣交易則檢核整數值)
-       * 3. netTotalNum: 收付淨額數值
+       * [2026-10-12] 異動說明
+       * 目的：若選擇「儲存並繼續新增」，則清空數值欄位並保持開窗；若選擇關閉則關閉彈窗
        */
-      const isIncomeType = (
-        trade_type === 'REVENUE' ||
-        trade_type === 'INTEREST' ||
-        trade_type === 'INPUT' ||
-        trade_type === 'OUTPUT'
-      );
-      let round = 0;
+      if (keepOpen && !isEdit) {
+        if (inputPrice) inputPrice.value = '';
+        if (inputShares) inputShares.value = '';
+        if (inputFee) inputFee.value = '';
+        if (inputTax) inputTax.value = '';
+        if (inputNetTotal) inputNetTotal.value = '';
+        if (inputNote) inputNote.value = '';
 
-      const MAX_ROUND_LIMIT = 9999;
-      const MAX_PRICE_LIMIT = 999999.9999;
-      const MAX_SHARES_LIMIT = 99999999;
-      const MAX_FEE_LIMIT = 9999999;
-      const MAX_NET_TOTAL_LIMIT = 999999999;
-
-      if (isIncomeType) {
-        round = 0;
-        const netTotalNum = Number(inputNetTotal?.value || 0);
-        if (netTotalNum <= 0) {
-          alert('請填寫大於 0 的實收入帳金額！');
+        // 依交易型態自動重新聚焦
+        if (isIncomeType) {
           if (inputNetTotal) inputNetTotal.focus();
-          return;
-        }
-        if (netTotalNum > MAX_NET_TOTAL_LIMIT) {
-          alert(`實收入帳金額過大，不可超過 ${MAX_NET_TOTAL_LIMIT.toLocaleString()}！`);
-          if (inputNetTotal) inputNetTotal.focus();
-          return;
+        } else {
+          if (inputPrice) inputPrice.focus();
         }
       } else {
-        const roundRaw = inputRound?.value?.trim();
-        round = parseInt(roundRaw, 10);
-        if (isNaN(round) || round < 0) {
-          alert('回合 (Round) 只能填寫大於或等於 0 的整數！');
-          if (inputRound) inputRound.focus();
-          return;
-        }
-        if (round > MAX_ROUND_LIMIT) {
-          alert(`回合數不可超過 ${MAX_ROUND_LIMIT}！`);
-          if (inputRound) inputRound.focus();
-          return;
-        }
-
-        const priceNum = Number(inputPrice?.value || 0);
-        const sharesNum = Number(inputShares?.value || 0);
-        const feeNum = Number(inputFee?.value || 0);
-        const taxNum = Number(inputTax?.value || 0);
-
-        if (priceNum <= 0 || priceNum > MAX_PRICE_LIMIT) {
-          alert(`單價必須大於 0 且不可超過 ${MAX_PRICE_LIMIT}！`);
-          if (inputPrice) inputPrice.focus();
-          return;
-        }
-        if (sharesNum <= 0 || sharesNum > MAX_SHARES_LIMIT) {
-          alert(`股數必須大於 0 且不可超過 ${MAX_SHARES_LIMIT.toLocaleString()} 股！`);
-          if (inputShares) inputShares.focus();
-          return;
-        }
-        if (feeNum > MAX_FEE_LIMIT || taxNum > MAX_FEE_LIMIT) {
-          alert(`手續費或交易稅金額過大，請確認是否輸入正確！`);
-          return;
-        }
-      }
-
-      const isEdit = Boolean(trade_id);
-      const payload = {
-        ...(isEdit && { trade_id }),
-        stock_id,
-        round,
-        trade_date,
-        trade_type,
-        price: isIncomeType ? 0 : (inputPrice?.value || 0),
-        shares: isIncomeType ? 0 : (inputShares?.value || 0),
-        fee: isIncomeType ? 0 : (inputFee?.value || 0),
-        tax: isIncomeType ? 0 : (inputTax?.value || 0),
-        net_total: isIncomeType ? (inputNetTotal?.value || 0) : undefined,
-        note: inputNote?.value?.trim() || ''
-      };
-
-      try {
-        // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
-        const res = await window.ClientAuth.authFetch('/api/trading/detail', {
-          method: isEdit ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const result = await res.json();
-        if (!result.success) throw new Error(result.message);
-
         alert(isEdit ? '交易明細更新成功！' : '交易明細記錄成功！');
         toggleModal(modalTrade, false);
-        currentStock = stock_id.toUpperCase();
-        loadTradingData(currentStock, currentRound);
-      } catch (err) {
-        alert(`${isEdit ? '更新' : '新增'}失敗: ${err.message}`);
       }
-    };
+    } catch (err) {
+      alert(`${isEdit ? '更新' : '新增'}失敗: ${err.message}`);
+    }
+  }
+
+  // 綁定交易開窗「儲存並關閉」事件
+  if (btnSubmitTrade) {
+    btnSubmitTrade.onclick = () => submitTradeForm(false);
+  }
+
+  /**
+   * [2026-10-12] 異動說明
+   * 目的：綁定交易開窗「儲存並繼續新增」點擊事件
+   */
+  if (btnSubmitTradeContinue) {
+    btnSubmitTradeContinue.onclick = () => submitTradeForm(true);
   }
 
   const btnOpenStockModal = document.getElementById('btn-open-stock-modal');
@@ -778,44 +848,82 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnCloseStockModal.onclick = () => toggleModal(modalStock, false);
   }
 
-  if (btnSubmitStockComp) {
-    btnSubmitStockComp.onclick = async () => {
-      const stock_id = inputNewStockId?.value?.trim();
-      const stock_name = inputNewStockName?.value?.trim();
+  /**
+   * [2026-10-12] 異動說明
+   * 目的：送出標的維護表單資料，支援「儲存並關閉」或「儲存並繼續新增」
+   * 變數說明：
+   * 1. keepOpen: 布林值，true 代表儲存後不關閉彈窗，繼續新增下一個標的
+   * 2. stock_id: 新增之標的代碼
+   * 3. stock_name: 新增之標的名稱
+   */
+  async function submitStockCompForm(keepOpen = false) {
+    const stock_id = inputNewStockId?.value?.trim();
+    const stock_name = inputNewStockName?.value?.trim();
 
-      if (!stock_id || !stock_name) {
-        alert('請完整填寫標的代碼與標的名稱！');
+    //2026.10.12 feat: 標的名稱改為選填
+    if (!stock_id) {
+      alert('請完整填寫標的代碼！');
+      return;
+    }
+
+    try {
+      // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
+      const res = await window.ClientAuth.authFetch('/api/trading/addstock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stock_id,
+          stock_name,
+          market_type: currentMarket
+        })
+      });
+      const result = await res.json();
+      if (!result.success) {
+        alert(`提示：${result.message}`);
         return;
       }
 
-      try {
-        // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
-        const res = await window.ClientAuth.authFetch('/api/trading/addstock', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            stock_id,
-            stock_name,
-            market_type: currentMarket
-          })
-        });
-        const result = await res.json();
-        if (!result.success) {
-          alert(`提示：${result.message}`);
-          return;
+      alert(result.message);
+
+      /**
+       * [2026-10-12] 異動說明
+       * 目的：若選擇「儲存並繼續新增」，則清空標的輸入欄位並聚焦至代碼欄位；若為「儲存並關閉」則立即關閉開窗並清空欄位
+       */
+      if (keepOpen) {
+        if (inputNewStockId) {
+          inputNewStockId.value = '';
+          inputNewStockId.focus();
         }
-
-        alert(result.message);
+        if (inputNewStockName) {
+          inputNewStockName.value = '';
+        }
+      } else {
         toggleModal(modalStock, false);
-
-        currentStock = stock_id.toUpperCase();
-        currentRound = '';
-        syncUrl();
-        loadTradingData(currentStock, currentRound);
-      } catch (err) {
-        alert(`連線或新增失敗: ${err.message}`);
+        if (inputNewStockId) inputNewStockId.value = '';
+        if (inputNewStockName) inputNewStockName.value = '';
       }
-    };
+
+      // 同步刷新標的與交易明細清單
+      currentStock = stock_id.toUpperCase();
+      currentRound = '';
+      syncUrl();
+      loadTradingData(currentStock, currentRound);
+    } catch (err) {
+      alert(`連線或新增失敗: ${err.message}`);
+    }
+  }
+
+  // 綁定標的開窗「儲存並關閉」事件
+  if (btnSubmitStockComp) {
+    btnSubmitStockComp.onclick = () => submitStockCompForm(false);
+  }
+
+  /**
+   * [2026-10-12] 異動說明
+   * 目的：綁定標的開窗「儲存並繼續新增」點擊事件
+   */
+  if (btnSubmitStockCompContinue) {
+    btnSubmitStockCompContinue.onclick = () => submitStockCompForm(true);
   }
 
   // 初始載入
