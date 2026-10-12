@@ -31,7 +31,8 @@ module.exports = async function handler(req, res) {
     const { stock_id, stock_name } = req.body || {};
 
     // 2. 欄位格式檢查
-    if (!stock_id || !stock_name) {
+    // 2026.10.12 feat: 僅檢核標的代碼為必填，標的名稱可為空值
+    if (!stock_id) {
       return res.status(400).json({ 
         success: false, 
         message: '標的代碼 (stock_id) 與標的名稱 (stock_name) 為必填欄位！' 

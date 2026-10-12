@@ -52,36 +52,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const inputNewStockId = document.getElementById('input-new-stock-id');
   const inputNewStockName = document.getElementById('input-new-stock-name');
 
-  // 2026.10.09 作廢 feat: 分頁控制介面 DOM 元素快取宣告 (已改為下方 2026.10.10 的 class 選取陣列)
-  // const selectPageSize = document.getElementById('select-page-size');
-  // const btnPrevPage = document.getElementById('btn-prev-page');
-  // const btnNextPage = document.getElementById('btn-next-page');
-  // const pageIndicator = document.getElementById('page-indicator');
-
-  // 2026.10.10 feat: 分頁控制介面 DOM 元素快取宣告 (改用 class，支援多組分頁)
-  // 變數說明：
-  // 1. logCounts: NodeList，儲存所有顯示總筆數的文字標籤
-  // 2. selectPageSizes: NodeList，儲存所有每頁筆數下拉選單
-  // 3. btnPrevPages: NodeList，儲存所有「上一頁」按鈕
-  // 4. btnNextPages: NodeList，儲存所有「下一頁」按鈕
-  // 5. pageIndicators: NodeList，儲存所有頁碼指示器
-  const logCounts = document.querySelectorAll('.log-count');
-  const selectPageSizes = document.querySelectorAll('.select-page-size');
-  const btnPrevPages = document.querySelectorAll('.btn-prev-page');
-  const btnNextPages = document.querySelectorAll('.btn-next-page');
-  const pageIndicators = document.querySelectorAll('.page-indicator');
-
   /**
-   * [2026-10-09] 異動說明
-   * 目的：支援前端交易流水帳分頁與序號累計計算
+   * [2026-10-12] 異動說明
+   * 目的：快取「儲存並繼續新增」之按鈕 DOM 元素
    * 變數說明：
-   * 1. currentPage: 當前頁碼（由 1 開始整數）
-   * 2. pageSizeSetting: 每頁筆數設定字串（如 '10', '20', '50', '100', 'ALL'，預設 '10'）
-   * 3. currentLogsCache: 儲存當前回合載入的完整交易明細陣列，供分頁切換時直接取用
+   * 1. btnSubmitTradeContinue: 交易記錄開窗之「儲存並繼續新增」按鈕
+   * 2. btnSubmitStockCompContinue: 標的代碼維護開窗之「儲存並繼續新增」按鈕
    */
-  let currentPage = 1;
-  let pageSizeSetting = '10';
-  let currentLogsCache = [];
+  const btnSubmitTradeContinue = document.getElementById('btn-submit-trade-continue');
+  const btnSubmitStockCompContinue = document.getElementById('btn-submit-stock-comp-continue');
 
   const toggleModal = (modalEl, show) => {
     if (!modalEl) return;
@@ -93,6 +72,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const roundParam = currentRound ? `&round=${encodeURIComponent(currentRound)}` : '';
     const newUrl = currentStock ? `${window.location.pathname}?symbol=${currentStock}${roundParam}` : window.location.pathname;
     window.history.replaceState(null, '', newUrl);
+  };
+
+  /**
+   * [2026-10-12] 異動說明
+   * 目的：抽共用交易明細數值欄位清空邏輯，供「開啟新增開窗」與「儲存並繼續新增」重複使用
+   * 變數說明：無外部變數，直接清空 inputPrice, inputShares, inputFee, inputTax, inputNetTotal, inputNote 之值
+   */
+  const resetTradeInputValues = () => {
+    if (inputPrice) inputPrice.value = '';
+    if (inputShares) inputShares.value = '';
+    if (inputFee) inputFee.value = '';
+    if (inputTax) inputTax.value = '';
+    if (inputNetTotal) inputNetTotal.value = '';
+    if (inputNote) inputNote.value = '';
   };
 
   // 2026.10.07 修正：防止 type="number" 輸入小數點時被清空的問題
@@ -265,9 +258,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (sId === stockId) opt.selected = true;
           selectStock.appendChild(opt);
         });
-
-        // 2026.10.09：標的資料全部塞入完畢後，解除禁用，避免破圖
-        selectStock.disabled = false;
       }
 
       // (2) 渲染回合下拉選單
@@ -322,68 +312,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
 
-      // (4) 2026.10.09 feat: 暫存當前查詢的全部流水帳，重設當前頁碼為第 1 頁並執行分頁渲染
-      currentLogsCache = Array.isArray(logs) ? logs : [];
-      currentPage = 1;
-      renderTable(stockId, round);
+      // (4) 渲染流水帳表格
+      renderTable(logs, stockId, round);
     } catch (err) {
       console.error('[TradingLog Load Error]:', err);
       const tbody = document.getElementById('trade-log-body');
-      if (tbody) tbody.innerHTML = `<tr><td colspan="10" class="text-center py-6 text-red-400">載入失敗: ${err.message}</td></tr>`;
-      updatePaginationControls(0, 1, 1);
+      if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-red-400">載入失敗: ${err.message}</td></tr>`;
     }
   }
 
-  /**
-   * [2026-10-09] 異動說明
-   * 目的：依據當前分頁與每頁筆數，渲染歷史交易明細流水帳表格（含最左側自動計算之序號欄位）
-   * 變數說明：
-   * 1. stockId: 當前選取的標的代碼
-   * 2. round: 當前選取的回合
-   * 3. totalCount: 當前回合總紀錄筆數
-   * 4. isAll: 是否選擇顯示全部
-   * 5. pageSizeNum: 數字型態的每頁顯示筆數
-   * 6. totalPages: 總頁數
-   * 7. startIndex: 當前頁面第一筆資料在整個陣列中的起始索引 (用於計算序號與 slice)
-   * 8. currentRows: 當前頁面要切片顯示的交易明細清單
-   */
-  function renderTable(stockId, round) {
+  function renderTable(logs, stockId, round) {
     const tbody = document.getElementById('trade-log-body');
+    const countBadge = document.getElementById('log-count');
     if (!tbody) return;
 
-    // 檢查條件：未選擇標的
     if (!stockId) {
-      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td></tr>';
-      updatePaginationControls(0, 1, 1);
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td></tr>';
+      if (countBadge) countBadge.textContent = '共 0 筆';
       return;
     }
 
-    // 檢查條件：未選擇回合
     if (round === '' || round === null || round === undefined) {
-      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">請選擇特定回合以檢視該回合交易流水帳明細</td></tr>';
-      updatePaginationControls(0, 1, 1);
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-gray-500">請選擇特定回合以檢視該回合交易流水帳明細</td></tr>';
+      if (countBadge) countBadge.textContent = '共 0 筆';
       return;
     }
 
-    // 檢查條件：該回合無任何明細紀錄
-    const totalCount = currentLogsCache.length;
-    if (totalCount === 0) {
-      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">該回合尚無任何交易流水記錄</td></tr>';
-      updatePaginationControls(0, 1, 1);
+    if (!logs || logs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-gray-500">該回合尚無任何交易流水記錄</td></tr>';
+      if (countBadge) countBadge.textContent = '共 0 筆';
       return;
     }
 
-    // 依據每頁筆數計算總頁數與資料切片
-    const isAll = pageSizeSetting === 'ALL';
-    const pageSizeNum = isAll ? totalCount : parseInt(pageSizeSetting, 10);
-    const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalCount / pageSizeNum));
-
-    // 當前頁碼防呆邊界檢查
-    if (currentPage > totalPages) currentPage = totalPages;
-    if (currentPage < 1) currentPage = 1;
-
-    const startIndex = (currentPage - 1) * pageSizeNum;
-    const currentRows = isAll ? currentLogsCache : currentLogsCache.slice(startIndex, startIndex + pageSizeNum);
+    if (countBadge) countBadge.textContent = `共 ${logs.length} 筆`;
 
     // 2026.10.07 異動說明：將 INTEREST 類別的中文顯示文字由「利息」改為「銀行利息」
     const TYPE_MAP = {
@@ -395,15 +356,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       OUTPUT: { label: '出金', class: 'badge-output' }
     };
 
-    // 渲染資料列：第一欄為自動累加序號 (由 1 開始累算)
-    tbody.innerHTML = currentRows.map((log, index) => {
-      const serialNumber = startIndex + index + 1; // 序號計算：(當前頁碼 - 1) * 每頁筆數 + 當頁索引 + 1
+    tbody.innerHTML = logs.map((log) => {
       const typeConf = TYPE_MAP[log.trade_type] || { label: log.trade_type, class: 'badge-buy' };
       const isIncome = ['SELL', 'REVENUE', 'INTEREST'].includes(log.trade_type);
-
       return `
         <tr>
-          <td class="px-3 py-3 text-center text-gray-400 font-mono text-xs">${serialNumber}</td>
           <td class="px-4 py-3">${log.trade_date ? log.trade_date.slice(0, 10) : '-'}</td>
           <td class="px-4 py-3"><span class="badge ${typeConf.class}">${typeConf.label} (R${log.round})</span></td>
           <td class="px-4 py-3 text-right">${Number(log.price || 0).toLocaleString()}</td>
@@ -422,71 +379,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
     }).join('');
 
-    // 重新綁定當頁按鈕的編輯與刪除事件
-    bindTableRowEvents();
-
-    // 更新分頁按鈕狀態與頁碼顯示
-    updatePaginationControls(totalCount, currentPage, totalPages);
-  }
-
-  /**
-   * [2026-10-09 作廢] 異動說明 (已改為 2026-10-10 支援 class 多組同步邏輯)
-   * 目的：更新分頁指示器文字與切換按鈕的啟用/停用樣式
-   * 變數說明：
-   * 1. totalCount: 總筆數
-   * 2. current: 當前頁碼
-   * 3. totalPages: 總頁數
-   */
-  // function updatePaginationControls(totalCount, current, totalPages) { ... }
-
-  /**
-   * [2026-10-10] 異動說明
-   * 目的：更新分頁指示器文字與切換按鈕的啟用/停用樣式 (支援 class 多組同步)
-   * 變數說明：
-   * 1. totalCount: 總筆數 (若為 0 則鎖定按鈕)
-   * 2. current: 當前頁碼 
-   * 3. totalPages: 總頁數
-   */
-  function updatePaginationControls(totalCount, current, totalPages) {
-    // 1. 同步更新所有總筆數標籤
-    logCounts.forEach(el => {
-      el.textContent = `共 ${totalCount} 筆`;
-    });
-
-    // 2. 同步更新所有頁碼文字
-    pageIndicators.forEach(el => {
-      el.textContent = `第 ${current} / ${totalPages} 頁`;
-    });
-    
-    // 3. 同步更新所有「上一頁」按鈕狀態
-    const disablePrev = (current <= 1 || totalCount === 0);
-    btnPrevPages.forEach(el => {
-      el.disabled = disablePrev;
-    });
-    
-    // 4. 同步更新所有「下一頁」按鈕狀態
-    const disableNext = (current >= totalPages || totalCount === 0);
-    btnNextPages.forEach(el => {
-      el.disabled = disableNext;
-    });
-  }
-
-  /**
-   * [2026-10-09] 異動說明
-   * 目的：為表格內的「編輯」與「刪除」按鈕綁定操作事件
-   */
-  function bindTableRowEvents() {
-    const tbody = document.getElementById('trade-log-body');
-    if (!tbody) return;
-
     tbody.querySelectorAll('.btn-edit').forEach((btn) => {
       btn.onclick = () => {
-        const targetLog = currentLogsCache.find((item) => String(item.trade_id) === String(btn.dataset.id));
+        const targetLog = logs.find((item) => String(item.trade_id) === String(btn.dataset.id));
         if (!targetLog) return;
 
         if (inputTradeId) inputTradeId.value = targetLog.trade_id;
         if (modalTitle) modalTitle.textContent = '編輯交易明細';
         if (btnSubmitTradeText) btnSubmitTradeText.textContent = '儲存修改';
+
+        /**
+         * [2026-10-12] 異動說明
+         * 目的：編輯現有明細時，隱藏「儲存並繼續新增」按鈕
+         */
+        if (btnSubmitTradeContinue) btnSubmitTradeContinue.classList.add('hidden');
 
         if (inputStockId) {
           inputStockId.value = targetLog.stock_id || currentStock;
@@ -533,56 +439,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // =========================================================================
-  // 2026.10.09 作廢 feat: 監聽分頁操作控制元件事件 (已改為 2026-10-10 class 陣列綁定)
-  // =========================================================================
-  // if (selectPageSize) { ... }
-  // if (btnPrevPage) { ... }
-  // if (btnNextPage) { ... }
-
-  // =========================================================================
-  // 2026.10.10 feat: 監聽分頁操作控制元件事件 (針對 class 多組元件綁定)
-  // =========================================================================
-  
-  // 綁定所有每頁筆數下拉選單
-  selectPageSizes.forEach(selectEl => {
-    selectEl.addEventListener('change', (e) => {
-      pageSizeSetting = e.target.value;
-      
-      // 連動更新畫面上其他所有的下拉選單的值，保持狀態一致
-      selectPageSizes.forEach(el => {
-        if (el !== e.target) el.value = pageSizeSetting;
-      });
-      
-      currentPage = 1; // 切換每頁筆數時重回第 1 頁
-      renderTable(currentStock, currentRound);
-    });
-  });
-
-  // 綁定所有上一頁按鈕
-  btnPrevPages.forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (currentPage > 1) {
-        currentPage--;
-        renderTable(currentStock, currentRound);
-      }
-    });
-  });
-
-  // 綁定所有下一頁按鈕
-  btnNextPages.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const isAll = pageSizeSetting === 'ALL';
-      const pageSizeNum = isAll ? currentLogsCache.length : parseInt(pageSizeSetting, 10);
-      const totalPages = isAll ? 1 : Math.ceil(currentLogsCache.length / pageSizeNum);
-
-      if (currentPage < totalPages) {
-        currentPage++;
-        renderTable(currentStock, currentRound);
-      }
-    });
-  });
-
   if (selectStock) {
     selectStock.onchange = (e) => {
       currentStock = e.target.value;
@@ -614,6 +470,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (modalTitle) modalTitle.textContent = '新增交易明細';
       if (btnSubmitTradeText) btnSubmitTradeText.textContent = '確認送出儲存';
 
+      /**
+       * [2026-10-12] 異動說明
+       * 目的：在新增模式下，確保「儲存並繼續新增」按鈕正常顯示
+       */
+      if (btnSubmitTradeContinue) btnSubmitTradeContinue.classList.remove('hidden');
+
       if (inputStockId) {
         inputStockId.value = currentStock;
         inputStockId.readOnly = true;
@@ -622,12 +484,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (inputTradeDate) inputTradeDate.value = new Date().toISOString().slice(0, 10);
       if (inputTradeType) inputTradeType.value = 'BUY';
       if (inputRound) inputRound.value = currentSuggestedRound !== '0' ? currentSuggestedRound : '1';
-      if (inputPrice) inputPrice.value = '';
-      if (inputShares) inputShares.value = '';
-      if (inputFee) inputFee.value = '';
-      if (inputTax) inputTax.value = '';
-      if (inputNetTotal) inputNetTotal.value = '';
-      if (inputNote) inputNote.value = '';
+
+      // 呼叫共用函式清空明細輸入欄位
+      resetTradeInputValues();
 
       updateFormFieldsByTradeType();
       toggleModal(modalTrade, true);
@@ -639,127 +498,171 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const btnSubmitTrade = document.getElementById('btn-submit-trade');
-  if (btnSubmitTrade) {
-    btnSubmitTrade.onclick = async () => {
-      const trade_id = inputTradeId?.value?.trim();
-      const stock_id = inputStockId?.value?.trim();
-      const trade_date = inputTradeDate?.value?.trim();
-      const trade_type = inputTradeType?.value;
 
-      if (!stock_id || !trade_date || !trade_type) {
-        alert('請完整填寫標的代碼、交易日期與交易型態！');
+  /**
+   * [2026-10-12] 異動說明
+   * 目的：新增交易記錄送出邏輯，支援「儲存後關閉」或「儲存後繼續新增」
+   * 變數說明：
+   * 1. keepOpen: 布林值，true 代表儲存後不關閉彈窗，繼續登打下一筆
+   * 2. trade_id: 交易流水識別碼
+   * 3. stock_id: 股票或標的代碼
+   * 4. trade_date: 交易發生日期
+   * 5. trade_type: 交易型態字串
+   * 6. isIncomeType: 是否為收益金流型態
+   * 7. round: 該筆交易對應回合數
+   * 8. isEdit: 是否為編輯模式
+   * 9. payload: 送交後端 API 之資料物件
+   */
+  async function submitTradeForm(keepOpen = false) {
+    const trade_id = inputTradeId?.value?.trim();
+    const stock_id = inputStockId?.value?.trim();
+    const trade_date = inputTradeDate?.value?.trim();
+    const trade_type = inputTradeType?.value;
+
+    if (!stock_id || !trade_date || !trade_type) {
+      alert('請完整填寫標的代碼、交易日期與交易型態！');
+      return;
+    }
+
+    if (isNaN(new Date(trade_date).getTime())) {
+      alert('請填寫正確有效的交易日期！');
+      if (inputTradeDate) inputTradeDate.focus();
+      return;
+    }
+
+    /**
+     * [2026-10-07] 異動說明
+     * 目的：驗證送出資料時，INPUT 與 OUTPUT 比照 REVENUE / INTEREST 邏輯
+     * 變數說明：
+     * 1. isIncomeType: 判斷是否為收益/金流型態 (REVENUE, INTEREST, INPUT, OUTPUT)
+     * 2. round: 回合數 (金流型態強制為 0，買賣交易則檢核整數值)
+     * 3. netTotalNum: 收付淨額數值
+     */
+    const isIncomeType = (
+      trade_type === 'REVENUE' ||
+      trade_type === 'INTEREST' ||
+      trade_type === 'INPUT' ||
+      trade_type === 'OUTPUT'
+    );
+    let round = 0;
+
+    const MAX_ROUND_LIMIT = 9999;
+    const MAX_PRICE_LIMIT = 999999.9999;
+    const MAX_SHARES_LIMIT = 99999999;
+    const MAX_FEE_LIMIT = 9999999;
+    const MAX_NET_TOTAL_LIMIT = 999999999;
+
+    if (isIncomeType) {
+      round = 0;
+      const netTotalNum = Number(inputNetTotal?.value || 0);
+      if (netTotalNum <= 0) {
+        alert('請填寫大於 0 的實收入帳金額！');
+        if (inputNetTotal) inputNetTotal.focus();
+        return;
+      }
+      if (netTotalNum > MAX_NET_TOTAL_LIMIT) {
+        alert(`實收入帳金額過大，不可超過 ${MAX_NET_TOTAL_LIMIT.toLocaleString()}！`);
+        if (inputNetTotal) inputNetTotal.focus();
+        return;
+      }
+    } else {
+      const roundRaw = inputRound?.value?.trim();
+      round = parseInt(roundRaw, 10);
+      if (isNaN(round) || round < 0) {
+        alert('回合 (Round) 只能填寫大於或等於 0 的整數！');
+        if (inputRound) inputRound.focus();
+        return;
+      }
+      if (round > MAX_ROUND_LIMIT) {
+        alert(`回合數不可超過 ${MAX_ROUND_LIMIT}！`);
+        if (inputRound) inputRound.focus();
         return;
       }
 
-      if (isNaN(new Date(trade_date).getTime())) {
-        alert('請填寫正確有效的交易日期！');
-        if (inputTradeDate) inputTradeDate.focus();
+      const priceNum = Number(inputPrice?.value || 0);
+      const sharesNum = Number(inputShares?.value || 0);
+      const feeNum = Number(inputFee?.value || 0);
+      const taxNum = Number(inputTax?.value || 0);
+
+      if (priceNum <= 0 || priceNum > MAX_PRICE_LIMIT) {
+        alert(`單價必須大於 0 且不可超過 ${MAX_PRICE_LIMIT}！`);
+        if (inputPrice) inputPrice.focus();
         return;
       }
+      if (sharesNum <= 0 || sharesNum > MAX_SHARES_LIMIT) {
+        alert(`股數必須大於 0 且不可超過 ${MAX_SHARES_LIMIT.toLocaleString()} 股！`);
+        if (inputShares) inputShares.focus();
+        return;
+      }
+      if (feeNum > MAX_FEE_LIMIT || taxNum > MAX_FEE_LIMIT) {
+        alert(`手續費或交易稅金額過大，請確認是否輸入正確！`);
+        return;
+      }
+    }
+
+    const isEdit = Boolean(trade_id);
+    const payload = {
+      ...(isEdit && { trade_id }),
+      stock_id,
+      round,
+      trade_date,
+      trade_type,
+      price: isIncomeType ? 0 : (inputPrice?.value || 0),
+      shares: isIncomeType ? 0 : (inputShares?.value || 0),
+      fee: isIncomeType ? 0 : (inputFee?.value || 0),
+      tax: isIncomeType ? 0 : (inputTax?.value || 0),
+      net_total: isIncomeType ? (inputNetTotal?.value || 0) : undefined,
+      note: inputNote?.value?.trim() || ''
+    };
+
+    try {
+      // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
+      const res = await window.ClientAuth.authFetch('/api/trading/detail', {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message);
+
+      // 重新整理頁面數據
+      currentStock = stock_id.toUpperCase();
+      await loadTradingData(currentStock, currentRound);
 
       /**
-       * [2026-10-07] 異動說明
-       * 目的：驗證送出資料時，INPUT 與 OUTPUT 比照 REVENUE / INTEREST 邏輯
-       * 變數說明：
-       * 1. isIncomeType: 判斷是否為收益/金流型態 (REVENUE, INTEREST, INPUT, OUTPUT)
-       * 2. round: 回合數 (金流型態強制為 0，買賣交易則檢核整數值)
-       * 3. netTotalNum: 收付淨額數值
+       * [2026-10-12] 異動說明
+       * 目的：新增交易記錄若選擇「儲存並繼續新增」，則清空數值欄位並保持開窗，方便連續輸入
        */
-      const isIncomeType = (
-        trade_type === 'REVENUE' ||
-        trade_type === 'INTEREST' ||
-        trade_type === 'INPUT' ||
-        trade_type === 'OUTPUT'
-      );
-      let round = 0;
+      if (keepOpen && !isEdit) {
+        // 呼叫共用函式清空輸入欄位
+        resetTradeInputValues();
 
-      const MAX_ROUND_LIMIT = 9999;
-      const MAX_PRICE_LIMIT = 999999.9999;
-      const MAX_SHARES_LIMIT = 99999999;
-      const MAX_FEE_LIMIT = 9999999;
-      const MAX_NET_TOTAL_LIMIT = 999999999;
-
-      if (isIncomeType) {
-        round = 0;
-        const netTotalNum = Number(inputNetTotal?.value || 0);
-        if (netTotalNum <= 0) {
-          alert('請填寫大於 0 的實收入帳金額！');
+        // 依交易型態將游標重新聚焦至主要輸入欄位
+        if (isIncomeType) {
           if (inputNetTotal) inputNetTotal.focus();
-          return;
-        }
-        if (netTotalNum > MAX_NET_TOTAL_LIMIT) {
-          alert(`實收入帳金額過大，不可超過 ${MAX_NET_TOTAL_LIMIT.toLocaleString()}！`);
-          if (inputNetTotal) inputNetTotal.focus();
-          return;
+        } else {
+          if (inputPrice) inputPrice.focus();
         }
       } else {
-        const roundRaw = inputRound?.value?.trim();
-        round = parseInt(roundRaw, 10);
-        if (isNaN(round) || round < 0) {
-          alert('回合 (Round) 只能填寫大於或等於 0 的整數！');
-          if (inputRound) inputRound.focus();
-          return;
-        }
-        if (round > MAX_ROUND_LIMIT) {
-          alert(`回合數不可超過 ${MAX_ROUND_LIMIT}！`);
-          if (inputRound) inputRound.focus();
-          return;
-        }
-
-        const priceNum = Number(inputPrice?.value || 0);
-        const sharesNum = Number(inputShares?.value || 0);
-        const feeNum = Number(inputFee?.value || 0);
-        const taxNum = Number(inputTax?.value || 0);
-
-        if (priceNum <= 0 || priceNum > MAX_PRICE_LIMIT) {
-          alert(`單價必須大於 0 且不可超過 ${MAX_PRICE_LIMIT}！`);
-          if (inputPrice) inputPrice.focus();
-          return;
-        }
-        if (sharesNum <= 0 || sharesNum > MAX_SHARES_LIMIT) {
-          alert(`股數必須大於 0 且不可超過 ${MAX_SHARES_LIMIT.toLocaleString()} 股！`);
-          if (inputShares) inputShares.focus();
-          return;
-        }
-        if (feeNum > MAX_FEE_LIMIT || taxNum > MAX_FEE_LIMIT) {
-          alert(`手續費或交易稅金額過大，請確認是否輸入正確！`);
-          return;
-        }
-      }
-
-      const isEdit = Boolean(trade_id);
-      const payload = {
-        ...(isEdit && { trade_id }),
-        stock_id,
-        round,
-        trade_date,
-        trade_type,
-        price: isIncomeType ? 0 : (inputPrice?.value || 0),
-        shares: isIncomeType ? 0 : (inputShares?.value || 0),
-        fee: isIncomeType ? 0 : (inputFee?.value || 0),
-        tax: isIncomeType ? 0 : (inputTax?.value || 0),
-        net_total: isIncomeType ? (inputNetTotal?.value || 0) : undefined,
-        note: inputNote?.value?.trim() || ''
-      };
-
-      try {
-        // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
-        const res = await window.ClientAuth.authFetch('/api/trading/detail', {
-          method: isEdit ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const result = await res.json();
-        if (!result.success) throw new Error(result.message);
-
         alert(isEdit ? '交易明細更新成功！' : '交易明細記錄成功！');
         toggleModal(modalTrade, false);
-        currentStock = stock_id.toUpperCase();
-        loadTradingData(currentStock, currentRound);
-      } catch (err) {
-        alert(`${isEdit ? '更新' : '新增'}失敗: ${err.message}`);
       }
-    };
+    } catch (err) {
+      alert(`${isEdit ? '更新' : '新增'}失敗: ${err.message}`);
+    }
+  }
+
+  // 新增交易記錄「確認送出儲存」(儲存並關閉) 事件
+  if (btnSubmitTrade) {
+    btnSubmitTrade.onclick = () => submitTradeForm(false);
+  }
+
+  /**
+   * [2026-10-12] 異動說明
+   * 目的：新增交易記錄「儲存並繼續新增」事件
+   */
+  if (btnSubmitTradeContinue) {
+    btnSubmitTradeContinue.onclick = () => submitTradeForm(true);
   }
 
   const btnOpenStockModal = document.getElementById('btn-open-stock-modal');
@@ -778,44 +681,85 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnCloseStockModal.onclick = () => toggleModal(modalStock, false);
   }
 
-  if (btnSubmitStockComp) {
-    btnSubmitStockComp.onclick = async () => {
-      const stock_id = inputNewStockId?.value?.trim();
-      const stock_name = inputNewStockName?.value?.trim();
+  /**
+   * [2026-10-12] 異動說明
+   * 目的：新增標的邏輯，支援「儲存後關閉」或「儲存後繼續新增」
+   * 變數說明：
+   * 1. keepOpen: 布林值，true 代表儲存後不關閉彈窗，繼續登打下一個標的
+   * 2. stock_id: 新增之標的代碼
+   * 3. stock_name: 新增之標的名稱
+   */
+  async function submitStockCompForm(keepOpen = false) {
+    const stock_id = inputNewStockId?.value?.trim();
+    // 2026.10.12 feat: stock_name 允許空值
+    const stock_name = inputNewStockName?.value?.trim() || '';
 
-      if (!stock_id || !stock_name) {
-        alert('請完整填寫標的代碼與標的名稱！');
+    // 2026.10.12 feat: 僅檢核標的代碼為必填
+    if (!stock_id) {
+      alert('請填寫標的代碼！');
+      if (inputNewStockId) inputNewStockId.focus();
+      return;
+    }
+
+    try {
+      // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
+      const res = await window.ClientAuth.authFetch('/api/trading/addstock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stock_id,
+          stock_name,
+          market_type: currentMarket
+        })
+      });
+      const result = await res.json();
+      if (!result.success) {
+        alert(`提示：${result.message}`);
         return;
       }
 
-      try {
-        // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
-        const res = await window.ClientAuth.authFetch('/api/trading/addstock', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            stock_id,
-            stock_name,
-            market_type: currentMarket
-          })
-        });
-        const result = await res.json();
-        if (!result.success) {
-          alert(`提示：${result.message}`);
-          return;
+      alert(result.message);
+
+      /**
+       * [2026-10-12] 異動說明
+       * 目的：新增標的若選擇「儲存並繼續新增」，則清空標的輸入框並讓焦點回至代碼欄位；若選擇關閉則立即關閉開窗並清空欄位
+       */
+      if (keepOpen) {
+        if (inputNewStockId) {
+          inputNewStockId.value = '';
+          inputNewStockId.focus();
         }
-
-        alert(result.message);
+        if (inputNewStockName) {
+          inputNewStockName.value = '';
+        }
+      } else {
+        // 立即關閉視窗並清空欄位
         toggleModal(modalStock, false);
-
-        currentStock = stock_id.toUpperCase();
-        currentRound = '';
-        syncUrl();
-        loadTradingData(currentStock, currentRound);
-      } catch (err) {
-        alert(`連線或新增失敗: ${err.message}`);
+        if (inputNewStockId) inputNewStockId.value = '';
+        if (inputNewStockName) inputNewStockName.value = '';
       }
-    };
+
+      // 關閉視窗後更新背景資料與網址列
+      currentStock = stock_id.toUpperCase();
+      currentRound = '';
+      syncUrl();
+      await loadTradingData(currentStock, currentRound);
+    } catch (err) {
+      alert(`連線或新增失敗: ${err.message}`);
+    }
+  }
+
+  // 綁定「儲存至標的名單」(儲存並關閉) 事件
+  if (btnSubmitStockComp) {
+    btnSubmitStockComp.onclick = () => submitStockCompForm(false);
+  }
+
+  /**
+   * [2026-10-12] 異動說明
+   * 目的：新增標的維護「儲存並繼續新增」事件
+   */
+  if (btnSubmitStockCompContinue) {
+    btnSubmitStockCompContinue.onclick = () => submitStockCompForm(true);
   }
 
   // 初始載入
