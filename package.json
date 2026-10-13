@@ -1,6 +1,6 @@
 {
   "name": "stockweb",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "",
   "dependencies": {
     "@clerk/backend": "^3.22.0",

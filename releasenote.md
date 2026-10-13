@@ -5,3 +5,6 @@
 
 # release note: V 2.3.0
 1. Dashboard增加搜尋功能
+
+# release note: V 2.3.1
+1. TradingLog連續新增成功時出現提示
