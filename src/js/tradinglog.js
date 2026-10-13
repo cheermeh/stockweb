@@ -62,6 +62,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnSubmitTradeContinue = document.getElementById('btn-submit-trade-continue');
   const btnSubmitStockCompContinue = document.getElementById('btn-submit-stock-comp-continue');
 
+  /**
+   * [2026-10-13] 異動說明
+   * 目的：快取彈窗內的成功浮動提示列 (Toast) 元素
+   * 變數說明：
+   * 1. tradeToast: 交易記錄新增成功之浮動提示元素
+   * 2. stockToast: 標的代碼新增成功之浮動提示元素
+   */
+  const tradeToast = document.getElementById('trade-toast');
+  const stockToast = document.getElementById('stock-toast');
+
   // 2026.10.09 作廢 feat: 分頁控制介面 DOM 元素快取宣告 (已改為下方 2026.10.10 的 class 選取陣列)
   // const selectPageSize = document.getElementById('select-page-size');
   // const btnPrevPage = document.getElementById('btn-prev-page');
@@ -504,6 +514,9 @@ document.addEventListener('DOMContentLoaded', async () => {
          */
         if (btnSubmitTradeContinue) btnSubmitTradeContinue.classList.add('hidden');
 
+        // [2026-10-13] 編輯模式時確保提示條處於隱藏狀態
+        if (tradeToast) tradeToast.classList.add('hidden');
+
         if (inputStockId) {
           inputStockId.value = targetLog.stock_id || currentStock;
           inputStockId.readOnly = true;
@@ -635,6 +648,9 @@ document.addEventListener('DOMContentLoaded', async () => {
        * 目的：在新增模式下，確保「儲存並繼續新增」按鈕正常顯示
        */
       if (btnSubmitTradeContinue) btnSubmitTradeContinue.classList.remove('hidden');
+
+      // [2026-10-13] 開啟時重設隱藏浮動提示條
+      if (tradeToast) tradeToast.classList.add('hidden');
 
       if (inputStockId) {
         inputStockId.value = currentStock;
@@ -795,6 +811,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       /**
        * [2026-10-12] 異動說明
        * 目的：若選擇「儲存並繼續新增」，則清空數值欄位並保持開窗；若選擇關閉則關閉彈窗
+       * [2026-10-13] 異動說明：
+       * 目的：儲存成功後浮現成功提示條 (tradeToast)，1.5 秒後自動隱藏，讓使用者確認寫入且可流暢輸入
        */
       if (keepOpen && !isEdit) {
         if (inputPrice) inputPrice.value = '';
@@ -803,6 +821,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (inputTax) inputTax.value = '';
         if (inputNetTotal) inputNetTotal.value = '';
         if (inputNote) inputNote.value = '';
+
+        // 浮現成功提示條並於 1.5 秒後自動隱藏
+        if (tradeToast) {
+          tradeToast.classList.remove('hidden');
+          setTimeout(() => {
+            tradeToast.classList.add('hidden');
+          }, 1500);
+        }
 
         // 依交易型態自動重新聚焦
         if (isIncomeType) {
@@ -840,6 +866,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnOpenStockModal.onclick = () => {
       if (inputNewStockId) inputNewStockId.value = '';
       if (inputNewStockName) inputNewStockName.value = '';
+      // [2026-10-13] 開啟時重設隱藏標的提示條
+      if (stockToast) stockToast.classList.add('hidden');
       toggleModal(modalStock, true);
     };
   }
@@ -883,11 +911,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
-      alert(result.message);
-
       /**
        * [2026-10-12] 異動說明
        * 目的：若選擇「儲存並繼續新增」，則清空標的輸入欄位並聚焦至代碼欄位；若為「儲存並關閉」則立即關閉開窗並清空欄位
+       * [2026-10-13] 異動說明：
+       * 目的：在繼續新增模式下，改以 stockToast 浮動告知成功，避免 alert 中斷登打節奏
        */
       if (keepOpen) {
         if (inputNewStockId) {
@@ -897,7 +925,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (inputNewStockName) {
           inputNewStockName.value = '';
         }
+
+        // 浮現成功提示條並於 1.5 秒後自動隱藏
+        if (stockToast) {
+          stockToast.classList.remove('hidden');
+          setTimeout(() => {
+            stockToast.classList.add('hidden');
+          }, 1500);
+        }
       } else {
+        alert(result.message);
         toggleModal(modalStock, false);
         if (inputNewStockId) inputNewStockId.value = '';
         if (inputNewStockName) inputNewStockName.value = '';

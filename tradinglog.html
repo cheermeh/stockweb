@@ -112,7 +112,8 @@
           <div class="flex items-center gap-1.5">
             <label class="text-gray-400">每頁：</label>
             <!-- 2026.10.10 feat: 將 ID 改為 Class 共用 -->
-            <select class="select-page-size bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
+            <select
+              class="select-page-size bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
               <option value="10" selected>10</option>
               <option value="20">20</option>
               <option value="50">50</option>
@@ -124,9 +125,11 @@
           <!-- 頁碼切換按鈕區 -->
           <div class="flex items-center gap-1.5">
             <!-- 2026.10.10 feat: 將 ID 改為 Class 共用 -->
-            <button type="button" class="btn-prev-page px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">上一頁</button>
+            <button type="button"
+              class="btn-prev-page px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">上一頁</button>
             <span class="page-indicator text-gray-400 px-1">第 1 / 1 頁</span>
-            <button type="button" class="btn-next-page px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">下一頁</button>
+            <button type="button"
+              class="btn-next-page px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">下一頁</button>
           </div>
         </div>
       </div>
@@ -158,14 +161,16 @@
       </div>
 
       <!-- 2026.10.10 feat: 底部分頁控制列，提供滾動至底部時直接翻頁操作 (使用共用 Class) -->
-      <div class="px-6 py-3 border-t border-gray-700/50 flex flex-wrap justify-between items-center gap-3 bg-gray-800/20">
+      <div
+        class="px-6 py-3 border-t border-gray-700/50 flex flex-wrap justify-between items-center gap-3 bg-gray-800/20">
         <span class="log-count text-xs text-gray-400">共 0 筆</span>
 
         <div class="flex items-center gap-3 text-xs">
           <!-- 底部每頁筆數下拉選單 -->
           <div class="flex items-center gap-1.5">
             <label class="text-gray-400">每頁：</label>
-            <select class="select-page-size bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
+            <select
+              class="select-page-size bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
               <option value="10" selected>10</option>
               <option value="20">20</option>
               <option value="50">50</option>
@@ -176,9 +181,11 @@
 
           <!-- 底部上一頁 / 當前頁數 / 下一頁按鈕群組 -->
           <div class="flex items-center gap-1.5">
-            <button type="button" class="btn-prev-page px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">上一頁</button>
+            <button type="button"
+              class="btn-prev-page px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">上一頁</button>
             <span class="page-indicator text-gray-400 px-1">第 1 / 1 頁</span>
-            <button type="button" class="btn-next-page px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">下一頁</button>
+            <button type="button"
+              class="btn-next-page px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">下一頁</button>
           </div>
         </div>
       </div>
@@ -190,10 +197,16 @@
   <!-- ========================================================================= -->
   <div id="modal-add-trade"
     class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-    <div class="bg-gray-800 border border-gray-700 rounded-xl w-full max-w-md p-6 space-y-4">
+    <div class="relative bg-gray-800 border border-gray-700 rounded-xl w-full max-w-md p-6 space-y-4">
       <div class="flex justify-between items-center border-b border-gray-700 pb-3">
         <h3 id="modal-title" class="font-bold text-white">新增交易明細</h3>
         <button id="btn-close-modal" type="button" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+
+      <!-- [2026-10-13] 異動說明：連續新增成功浮動提示列 (預設 hidden，成功時短暫浮現) -->
+      <div id="trade-toast"
+        class="hidden absolute top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-emerald-950/95 border border-emerald-500/70 text-emerald-300 text-xs font-medium shadow-lg z-10 pointer-events-none transition-all">
+        ✓新增成功
       </div>
 
       <form id="form-trade" class="space-y-3">
@@ -295,10 +308,16 @@
   <!-- ========================================================================= -->
   <div id="modal-stock-comp"
     class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-    <div class="bg-gray-800 border border-gray-700 rounded-xl w-full max-w-sm p-6 space-y-4">
+    <div class="relative bg-gray-800 border border-gray-700 rounded-xl w-full max-w-sm p-6 space-y-4">
       <div class="flex justify-between items-center border-b border-gray-700 pb-3">
         <h3 class="font-bold text-white">標的代碼維護</h3>
         <button id="btn-close-stock-modal" type="button" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+
+      <!-- [2026-10-13] 異動說明：連續新增標的成功浮動提示列 (預設 hidden，成功時短暫浮現) -->
+      <div id="stock-toast"
+        class="hidden absolute top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-emerald-950/95 border border-emerald-500/70 text-emerald-300 text-xs font-medium shadow-lg z-10 pointer-events-none transition-all">
+        ✓ 新增成功
       </div>
 
       <form id="form-stock-comp" class="space-y-4">
