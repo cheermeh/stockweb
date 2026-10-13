@@ -170,9 +170,12 @@ document.addEventListener('DOMContentLoaded', async () => {
    * [2026-10-06] 異動說明
    * 目的：載入指定市場之統計指標與明細數據
    * 實作說明：在 API 帶入 market 參數請求後端，更新 6 大 KPI 卡片與流水帳表格
+   * [2026-10-13] 異動說明：
+   * 目的：支援搜尋過濾字串 extraQueryString (如 &trade_type=BUY&stock_id=NVDA)
    * @param {string} targetMarket - 目標市場代碼
+   * @param {string} [extraQueryString=''] - 附加的搜尋過濾字串
    */
-  async function loadDashboardData(targetMarket) {
+  async function loadDashboardData(targetMarket, extraQueryString = '') {
     // 變數用途說明：serverStatus 頂部導覽列連線狀態顯示元素
     const serverStatus = document.getElementById('server-status');
 
@@ -181,7 +184,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // 變數用途說明：res 發送至後端 summary API 之 fetch 回應物件
       // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
-      const res = await window.ClientAuth.authFetch(`/api/dashboard/summary?market=${encodeURIComponent(targetMarket)}`);
+      // 2026.10.13 feat: URL 串接 extraQueryString 搜尋參數
+      const res = await window.ClientAuth.authFetch(`/api/dashboard/summary?market=${encodeURIComponent(targetMarket)}${extraQueryString}`);
 
       if (res.status === 401) {
         if (window.ClientAuth) window.ClientAuth.logout();
@@ -197,7 +201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 變數用途說明：summary 財務彙總數據；recentLogs 最近 10 筆流水明細；availableMarkets 資料庫市場清單
       const { summary = {}, recentLogs = [], availableMarkets = [] } = result.data || {};
       globalRecentLogs = recentLogs;
-      currentPage = 1; // 2026.10.09 feat: 切換市場重新拉取數據時，重設頁碼為第 1 頁
+      currentPage = 1; // 2026.10.09 feat: 切換市場或搜尋重新拉取數據時，重設頁碼為第 1 頁
 
       if (!isMarketDropdownReady) {
         initMarketSelect(availableMarkets);
@@ -426,6 +430,68 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
 
       renderLedgerTable();
+    };
+  }
+
+  // =========================================================================
+  // [2026-10-13] 異動說明：搜尋與重置按鈕事件綁定
+  // =========================================================================
+  // 變數用途說明：快取 6 個篩選表單輸入元件 DOM
+  const inputFilterTradeType = document.getElementById('filter-trade-type');
+  const inputFilterStockId = document.getElementById('filter-stock-id');
+  const inputFilterStockName = document.getElementById('filter-stock-name');
+  const inputFilterStartDate = document.getElementById('filter-start-date');
+  const inputFilterEndDate = document.getElementById('filter-end-date');
+  const inputFilterNote = document.getElementById('filter-note');
+
+  // 變數用途說明：btnFilterSearch 執行查詢按鈕
+  const btnFilterSearch = document.getElementById('btn-filter-search');
+  if (btnFilterSearch) {
+    btnFilterSearch.onclick = async () => {
+      // 變數用途說明：params 用於組裝各篩選輸入欄位的 Query String 物件
+      const params = new URLSearchParams();
+
+      if (inputFilterTradeType && inputFilterTradeType.value) {
+        params.append('trade_type', inputFilterTradeType.value.trim());
+      }
+      if (inputFilterStockId && inputFilterStockId.value) {
+        params.append('stock_id', inputFilterStockId.value.trim());
+      }
+      if (inputFilterStockName && inputFilterStockName.value) {
+        params.append('stock_name', inputFilterStockName.value.trim());
+      }
+      if (inputFilterStartDate && inputFilterStartDate.value) {
+        params.append('start_date', inputFilterStartDate.value.trim());
+      }
+      if (inputFilterEndDate && inputFilterEndDate.value) {
+        params.append('end_date', inputFilterEndDate.value.trim());
+      }
+      if (inputFilterNote && inputFilterNote.value) {
+        params.append('note', inputFilterNote.value.trim());
+      }
+
+      // 變數用途說明：queryString 附加於 API 網址後方的搜尋參數字串
+      const queryString = params.toString() ? `&${params.toString()}` : '';
+
+      // 重新以篩選參數載入數據
+      await loadDashboardData(currentActiveMarket, queryString);
+    };
+  }
+
+  // 變數用途說明：btnFilterReset 重置條件按鈕
+  const btnFilterReset = document.getElementById('btn-filter-reset');
+  if (btnFilterReset) {
+    btnFilterReset.onclick = async () => {
+      // 清空 6 個搜尋欄位數值
+      if (inputFilterTradeType) inputFilterTradeType.value = '';
+      if (inputFilterStockId) inputFilterStockId.value = '';
+      if (inputFilterStockName) inputFilterStockName.value = '';
+      if (inputFilterStartDate) inputFilterStartDate.value = '';
+      if (inputFilterEndDate) inputFilterEndDate.value = '';
+      if (inputFilterNote) inputFilterNote.value = '';
+
+      // 重新載入無篩選條件之當前市場資料
+      await loadDashboardData(currentActiveMarket, '');
     };
   }
 
