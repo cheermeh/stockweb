@@ -79,7 +79,7 @@ const DASHBOARD_QUERIES = {
   `,
 
   /**
-   * 儀表板近期交易流水帳 (限定當前市場最近 10 筆明細)
+   * 儀表板近期交易流水帳
    * 參數：
    *   $1: userId (使用者識別碼)
    *   $2: market_type ('TW' 或 'US')
@@ -87,6 +87,8 @@ const DASHBOARD_QUERIES = {
    * [2026-10-09] 異動說明：
    * 目的：配合前端新增分頁功能 (全部/10/20/50/100)，移除 LIMIT 10 限制
    * 
+   * [2026-10-13] 異動說明：
+   * 目的：增加搜尋功能，允許前端依據交易類別、標的代碼、標的名稱、起訖日期及備註進行篩選(改WHERE子句)
    */
   GET_RECENT_LOGS: `
     SELECT 
@@ -105,10 +107,17 @@ const DASHBOARD_QUERIES = {
       t.crtdt
     FROM public.trade_store t
     INNER JOIN public.stock_comp c 
-      ON t.stock_id = c.stock_id AND t.user_id = c.user_id
-    WHERE t.user_id = $1 AND c.market_type = $2
+    ON t.stock_id = c.stock_id AND t.user_id = c.user_id
+    WHERE   t.user_id = $1 
+        AND c.market_type = $2
+        AND ($3::text IS NULL OR t.trade_type::text = $3) --列舉轉TXT否則不能用
+        AND ($4::text IS NULL OR t.stock_id = $4)
+        AND ($5::text IS NULL OR c.stock_name ILIKE '%' || $5 || '%')
+        AND ($6::date IS NULL OR t.trade_date >= $6)
+        AND ($7::date IS NULL OR t.trade_date <= $7)
+        AND ($8::text IS NULL OR t.note ILIKE '%' || $8 || '%')
     ORDER BY t.trade_date DESC, t.crtdt DESC
-    /* LIMIT 10 */;
+    /* LIMIT 10 */; --限制最多查詢筆數(暫時不用)
   `
 };
 
