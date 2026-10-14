@@ -8,3 +8,9 @@
 
 # release note: V 2.3.1
 1. TradingLog連續新增成功時出現提示
+
+# release note: V 2.3.2
+1. 增加區間損益合計功能(含息/不含息)
+2. 收入: SELL+REVERNUE+INTEREST
+3. 支出: BUY
+4. 不計INPUT跟OUPUT避免重覆計算
