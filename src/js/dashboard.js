@@ -260,6 +260,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderRate('sub-pnl-int', Number(summary.pnlIncludingInterest || 0));
 
       renderLedgerTable();
+      updateFilterSummary(); // [2026-10-14] 同步更新搜尋區塊的不分頁合計
 
     } catch (err) {
       console.error('[Dashboard Error]:', err);
@@ -429,6 +430,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (el) el.textContent = isMasked ? '***%' : (el.dataset.rawRate || '--%');
       });
 
+      // [2026-10-14] 同步更新搜尋區塊的不分頁合計遮罩狀態
+      const elNoInt = document.getElementById('filter-summary-no-int');
+      const elWithInt = document.getElementById('filter-summary-with-int');
+      if (elNoInt) elNoInt.textContent = formatAmount(Number(elNoInt.dataset.raw || 0), true);
+      if (elWithInt) elWithInt.textContent = formatAmount(Number(elWithInt.dataset.raw || 0), true);
+
       renderLedgerTable();
     };
   }
@@ -493,6 +500,64 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 重新載入無篩選條件之當前市場資料
       await loadDashboardData(currentActiveMarket, '');
     };
+  }
+
+  /**
+    * [2026-10-14] 異動說明
+    * 目的：依據條件篩選結果 (globalRecentLogs 全集，不限分頁) 計算不含息與含息之已實現投資損益
+    * 業務公式：
+    * 1. 不含息公式：SELL - BUY
+    * 2. 含息公式：(SELL + REVENUE + INTEREST) - BUY
+    * (說明：排除本金轉移的 INPUT 與 OUTPUT，避免重複扣除或雙重灌水)
+    * 變數用途說明：
+    * 1. elNoInt: 呈現不含息損益數值的 DOM 元素
+    * 2. elWithInt: 呈現含息損益數值的 DOM 元素
+    * 3. sumNoInterest: 累計不含息損益金額
+    * 4. sumWithInterest: 累計含息損益金額
+    */
+  function updateFilterSummary() {
+    // 變數用途說明：elNoInt 存放不含息損益 DOM 元素
+    const elNoInt = document.getElementById('filter-summary-no-int');
+    // 變數用途說明：elWithInt 存放含息損益 DOM 元素
+    const elWithInt = document.getElementById('filter-summary-with-int');
+
+    if (!elNoInt || !elWithInt) return;
+
+    // 變數用途說明：sumNoInterest 累積計算不含息之已實現損益 (SELL - BUY)
+    let sumNoInterest = 0;
+    // 變數用途說明：sumWithInterest 累積計算含息之已實現損益 (SELL + REVENUE + INTEREST - BUY)
+    let sumWithInterest = 0;
+
+    globalRecentLogs.forEach((item) => {
+      // 變數用途說明：net 該筆紀錄之收付淨額數值
+      const net = Number(item.net_total || 0);
+      // 變數用途說明：type 交易型態字串
+      const type = item.trade_type;
+
+      // 依交易型態計算實際投資損益
+      if (type === 'SELL') {
+        sumNoInterest += net;
+        sumWithInterest += net;
+      } else if (type === 'BUY') {
+        sumNoInterest -= net;
+        sumWithInterest -= net;
+      } else if (type === 'REVENUE' || type === 'INTEREST') {
+        // 股利與利息屬於被動收益，僅計入「含息損益」
+        sumWithInterest += net;
+      }
+      // 注意：INPUT (入金) 與 OUTPUT (出金) 屬本金資金流，不參與投資損益計算
+    });
+
+    // 暫存原始未遮罩數值，供切換遮罩時使用
+    elNoInt.dataset.raw = sumNoInterest;
+    elWithInt.dataset.raw = sumWithInterest;
+
+    // 渲染數值並套用盈虧樣式 (正數為 text-profit 柔和青綠，負數為 text-loss 冷調石板灰)
+    elNoInt.textContent = formatAmount(sumNoInterest, true);
+    elNoInt.className = `font-bold ${sumNoInterest >= 0 ? 'text-profit' : 'text-loss'}`;
+
+    elWithInt.textContent = formatAmount(sumWithInterest, true);
+    elWithInt.className = `font-bold ${sumWithInterest >= 0 ? 'text-profit' : 'text-loss'}`;
   }
 
   // 初始載入：抓取當前市場數據

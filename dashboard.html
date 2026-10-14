@@ -197,8 +197,20 @@
           </div>
         </div>
 
-        <!-- 按鈕操作區 -->
-        <div class="flex justify-end items-center gap-3 pt-2">
+        <!-- 按鈕操作與不分頁合計顯示區 -->
+        <!-- [2026-10-14] 異動說明：將 flex 改為 justify-between，左側呈現條件篩選後的不分頁合計(不含息/含息) -->
+
+        <!-- 左側合計結果區 -->
+        <div class="flex flex-wrap justify-between items-center gap-3 pt-2">
+          <!-- 不分頁合計顯示元件 -->
+          <div class="text-xs text-gray-300 font-medium">
+            <span>不分頁合計(不含息/含息)：</span>
+            <span id="filter-summary-no-int" class="font-bold text-gray-200">--</span>
+            <span class="text-gray-500 mx-1">/</span>
+            <span id="filter-summary-with-int" class="font-bold text-gray-200">--</span>
+          </div>
+        <!-- 右側按鈕操作區 -->
+        <div class="flex justify-between items-center gap-3 pt-2">
           <button type="button" id="btn-filter-reset"
             class="px-3.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium border border-gray-700 transition">
             重置條件
