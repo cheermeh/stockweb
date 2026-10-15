@@ -195,8 +195,7 @@ body.login-page {
         padding: 32px 24px;
         border: none;
         box-shadow: none;
-        background-color: transparent;
-        /* 手機端可採純色融入背景 */
+        background-color: transparent;         /* 手機端可採純色融入背景 */
     }
 
     .brand h1 {
