@@ -2,32 +2,23 @@
    1. 基礎變數與重設
    ========================================= */
 :root {
-    --bg-color: #0b1120;
-    /* 整頁底色：深沉深藍 */
-    --card-bg-color: #172236;
-    /* 卡片底色：略亮一層的深藍灰色 */
-    --input-bg-color: #1e293b;
-    /* 輸入框底色 */
-    --border-color: #2e3c54;
-    /* 邊框線條 */
-    --border-focus: #3b82f6;
-    /* 聚焦高亮色 */
+    --bg-color: #0b1120;            /* 整頁底色：深沉深藍 */
+    --card-bg-color: #172236;       /* 卡片底色：略亮一層的深藍灰色 */
+    --input-bg-color: #1e293b;      /* 輸入框底色 */
+    --border-color: #2e3c54;        /* 邊框線條 */
+    --border-focus: #3b82f6;        /* 聚焦高亮色 */
+    
+    --text-primary: #f8fafc;        /* 主文字白 */
+    --text-secondary: #94a3b8;      /* 次文字灰 */
+    --text-muted: #64748b;          /* 警語暗灰 */
 
-    --text-primary: #f8fafc;
-    /* 主文字白 */
-    --text-secondary: #94a3b8;
-    /* 次文字灰 */
-    --text-muted: #64748b;
-    /* 警語暗灰 */
+    --primary-blue: #2563eb;        /* 主按鈕藍 */
+    --primary-blue-hover: #1d4ed8;  /* 主按鈕滑鼠懸停 (Hover) 深藍色 */
+    --blue-shadow: rgba(37, 99, 235, 0.35); /* 按鈕與圖示發光藍色陰影 */
 
-    --primary-blue: #2563eb;
-    /* 主按鈕藍 */
-    --primary-blue-hover: #1d4ed8;
-    --blue-shadow: rgba(37, 99, 235, 0.35);
-
-    --radius-card: 16px;
-    --radius-input: 10px;
-    --radius-btn: 10px;
+    --radius-card: 16px;            /* 登入外層卡片圓角半徑 */
+    --radius-input: 10px;           /* 輸入框與選擇卡片圓角半徑 */
+    --radius-btn: 10px;             /* 登入按鈕圓角半徑 */
 }
 
 * {
