@@ -14,3 +14,6 @@
 2. 收入: SELL+REVERNUE+INTEREST
 3. 支出: BUY
 4. 不計INPUT跟OUPUT避免重覆計算
+
+# release note: V 2.3.3
+1. TradingLog警示訊息由msgbox改為toast
