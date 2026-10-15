@@ -872,6 +872,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (inputNetTotal) inputNetTotal.value = '';
         if (inputNote) inputNote.value = '';
 
+
+        // [2026-10-15] fix: 連續新增時，將開窗回合數同步更新為後端最新建議回合 (如平倉後自動 +1)
+        if (inputRound && !isIncomeType) {
+          inputRound.value = currentSuggestedRound !== '0' ? currentSuggestedRound : '1';
+        }
+
         // 浮現成功提示條並於 1.5 秒後自動隱藏 (保持開窗)
         showSuccessToast(tradeToast, isEdit, 1500);
 
@@ -1000,7 +1006,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentStock = stock_id.toUpperCase();
       currentRound = '';
       syncUrl();
-      loadTradingData(currentStock, currentRound);
+      // [2026-10-15] fix: 連續新增時，將開窗回合數同步更新為後端最新建議回合 (如平倉後自動 +1)
+      await loadTradingData(currentStock, currentRound);
     } catch (err) {
       /**
        * [2026-10-15] 異動說明
