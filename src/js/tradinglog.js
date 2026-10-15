@@ -111,6 +111,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, duration);
   };
 
+  /**
+   * [2026-10-15] 異動說明
+   * 目的：共用統一成功提示字詞處理函式，一律顯示「✓ 編輯成功」或「✓ 新增成功」
+   * 變數說明：
+   * 1. toastEl: 目標 Toast DOM 元素
+   * 2. isEdit: 是否為編輯模式 (true: 顯示編輯成功, false: 顯示新增成功)
+   * 3. duration: 停留時間 (毫秒)
+   * 4. onComplete: 倒數完的回呼函式 (關閉開窗用)
+   */
+  const showSuccessToast = (toastEl, isEdit = false, duration = 1500, onComplete = null) => {
+    // 依據編輯狀態決定統一提示文字
+    const message = isEdit ? '✓ 編輯成功' : '✓ 新增成功';
+    showModalToast(toastEl, message, true, duration, onComplete);
+  };
+
   // [2026-10-09] [作廢] feat: 分頁控制介面 DOM 元素快取宣告 (已改為下方 [2026-10-10] 的 class 選取陣列)
   // const selectPageSize = document.getElementById('select-page-size');
   // const btnPrevPage = document.getElementById('btn-prev-page');
@@ -847,12 +862,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       /**
        * [2026-10-15] 異動說明
-       * 目的：儲存成功改用共用 showModalToast 提示，取代 alert()；關閉時延遲 0.8 秒關閉開窗
-       * 變數說明：
-       * 1. successMessage: 成功提示文字
+       * 目的：儲存成功改用共用 showSuccessToast 提示，依 isEdit 統一顯示「✓ 編輯成功」或「✓ 新增成功」
        */
-      const successMessage = isEdit ? '✓ 交易明細更新成功' : '✓ 交易明細記錄成功';
-
       if (keepOpen && !isEdit) {
         if (inputPrice) inputPrice.value = '';
         if (inputShares) inputShares.value = '';
@@ -862,7 +873,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (inputNote) inputNote.value = '';
 
         // 浮現成功提示條並於 1.5 秒後自動隱藏 (保持開窗)
-        showModalToast(tradeToast, successMessage, true, 1500);
+        showSuccessToast(tradeToast, isEdit, 1500);
 
         // 依交易型態自動重新聚焦
         if (isIncomeType) {
@@ -871,8 +882,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (inputPrice) inputPrice.focus();
         }
       } else {
-        // 浮現成功提示條，停留 0.8 秒後自動關閉開窗
-        showModalToast(tradeToast, successMessage, true, 800, () => {
+        // 浮現成功提示條，停留 0.9 秒後自動關閉開窗
+        showSuccessToast(tradeToast, isEdit, 900, () => {
           toggleModal(modalTrade, false);
         });
       }
@@ -954,67 +965,4 @@ document.addEventListener('DOMContentLoaded', async () => {
          * [2026-10-15] 異動說明
          * 目的：標的新增業務檢核失敗時，改以紅色 Toast 警示，不跳原生 alert 且不關閉開窗
          * 變數說明：
-         * 1. failMessage: 業務失敗訊息字串
-         */
-        const failMessage = `✕ ${result.message}`;
-        showModalToast(stockToast, failMessage, false, 2000);
-        return;
-      }
-
-      /**
-       * [2026-10-15] 異動說明
-       * 目的：標的維護成功提示改用共用 showModalToast；「儲存並關閉」時延遲 0.8 秒關閉開窗並清空欄位
-       */
-      if (keepOpen) {
-        if (inputNewStockId) {
-          inputNewStockId.value = '';
-          inputNewStockId.focus();
-        }
-        if (inputNewStockName) {
-          inputNewStockName.value = '';
-        }
-
-        // 浮現成功提示條並於 1.5 秒後自動隱藏 (保持開窗)
-        showModalToast(stockToast, '✓ 標的新增成功', true, 1500);
-      } else {
-        // 浮現成功提示條，停留 0.8 秒後自動關閉開窗並重置輸入欄位
-        showModalToast(stockToast, '✓ 標的新增成功', true, 800, () => {
-          toggleModal(modalStock, false);
-          if (inputNewStockId) inputNewStockId.value = '';
-          if (inputNewStockName) inputNewStockName.value = '';
-        });
-      }
-
-      // 同步刷新標的與交易明細清單
-      currentStock = stock_id.toUpperCase();
-      currentRound = '';
-      syncUrl();
-      loadTradingData(currentStock, currentRound);
-    } catch (err) {
-      /**
-       * [2026-10-15] 異動說明
-       * 目的：連線或 API 請求發生未預期異常時，改以紅色 Toast 警示，不跳原生 alert
-       * 變數說明：
-       * 1. networkErrorMessage: 網路或伺服器異常提示字串
-       */
-      const networkErrorMessage = `✕ 新增失敗: ${err.message}`;
-      showModalToast(stockToast, networkErrorMessage, false, 2000);
-    }
-  }
-
-  // 綁定標的開窗「儲存並關閉」事件
-  if (btnSubmitStockComp) {
-    btnSubmitStockComp.onclick = () => submitStockCompForm(false);
-  }
-
-  /**
-   * [2026-10-12] 異動說明
-   * 目的：綁定標的開窗「儲存並繼續新增」點擊事件
-   */
-  if (btnSubmitStockCompContinue) {
-    btnSubmitStockCompContinue.onclick = () => submitStockCompForm(true);
-  }
-
-  // 初始載入
-  loadTradingData(currentStock, currentRound);
-});
+         * 1. failMessage
