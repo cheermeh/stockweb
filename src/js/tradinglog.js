@@ -965,4 +965,67 @@ document.addEventListener('DOMContentLoaded', async () => {
          * [2026-10-15] 異動說明
          * 目的：標的新增業務檢核失敗時，改以紅色 Toast 警示，不跳原生 alert 且不關閉開窗
          * 變數說明：
-         * 1. failMessage
+         * 1. failMessage: 業務失敗訊息字串
+         */
+        const failMessage = `✕ ${result.message}`;
+        showModalToast(stockToast, failMessage, false, 2000);
+        return;
+      }
+
+      /**
+       * [2026-10-15] 異動說明
+       * 目的：標的維護改用共用 showSuccessToast 顯示「✓ 新增成功」；「儲存並關閉」時延遲 0.8 秒關閉開窗並清空欄位
+       */
+      if (keepOpen) {
+        if (inputNewStockId) {
+          inputNewStockId.value = '';
+          inputNewStockId.focus();
+        }
+        if (inputNewStockName) {
+          inputNewStockName.value = '';
+        }
+
+        // 浮現成功提示條並於 1.5 秒後自動隱藏 (保持開窗，標的為新增，傳入 false)
+        showSuccessToast(stockToast, false, 1500);
+      } else {
+        // 浮現成功提示條，停留 0.8 秒後自動關閉開窗並重置輸入欄位
+        showSuccessToast(stockToast, false, 800, () => {
+          toggleModal(modalStock, false);
+          if (inputNewStockId) inputNewStockId.value = '';
+          if (inputNewStockName) inputNewStockName.value = '';
+        });
+      }
+
+      // 同步刷新標的與交易明細清單
+      currentStock = stock_id.toUpperCase();
+      currentRound = '';
+      syncUrl();
+      loadTradingData(currentStock, currentRound);
+    } catch (err) {
+      /**
+       * [2026-10-15] 異動說明
+       * 目的：連線或 API 請求發生未預期異常時，改以紅色 Toast 警示，不跳原生 alert
+       * 變數說明：
+       * 1. networkErrorMessage: 網路或伺服器異常提示字串
+       */
+      const networkErrorMessage = `✕ 新增失敗: ${err.message}`;
+      showModalToast(stockToast, networkErrorMessage, false, 2000);
+    }
+  }
+
+  // 綁定標的開窗「儲存並關閉」事件
+  if (btnSubmitStockComp) {
+    btnSubmitStockComp.onclick = () => submitStockCompForm(false);
+  }
+
+  /**
+   * [2026-10-12] 異動說明
+   * 目的：綁定標的開窗「儲存並繼續新增」點擊事件
+   */
+  if (btnSubmitStockCompContinue) {
+    btnSubmitStockCompContinue.onclick = () => submitStockCompForm(true);
+  }
+
+  // 初始載入
+  loadTradingData(currentStock, currentRound);
+});

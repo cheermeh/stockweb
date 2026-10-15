@@ -2,23 +2,23 @@
    1. 基礎變數與重設
    ========================================= */
 :root {
-    --bg-color: #0b1120;         /* 整頁底色：深沉深藍 */
-    --card-bg-color: #172236;    /* 卡片底色：略亮一層的深藍灰色 */
-    --input-bg-color: #1e293b;   /* 輸入框底色 */
-    --border-color: #2e3c54;     /* 邊框線條 */
-    --border-focus: #3b82f6;     /* 聚焦高亮色 */
+    --bg-color: #0b1120;            /* 整頁底色：深沉深藍 */
+    --card-bg-color: #172236;       /* 卡片底色：略亮一層的深藍灰色 */
+    --input-bg-color: #1e293b;      /* 輸入框底色 */
+    --border-color: #2e3c54;        /* 邊框線條 */
+    --border-focus: #3b82f6;        /* 聚焦高亮色 */
     
-    --text-primary: #f8fafc;     /* 主文字白 */
-    --text-secondary: #94a3b8;   /* 次文字灰 */
-    --text-muted: #64748b;       /* 警語暗灰 */
+    --text-primary: #f8fafc;        /* 主文字白 */
+    --text-secondary: #94a3b8;      /* 次文字灰 */
+    --text-muted: #64748b;          /* 警語暗灰 */
 
-    --primary-blue: #2563eb;     /* 主按鈕藍 */
-    --primary-blue-hover: #1d4ed8;
-    --blue-shadow: rgba(37, 99, 235, 0.35);
+    --primary-blue: #2563eb;        /* 主按鈕藍 */
+    --primary-blue-hover: #1d4ed8;  /* 主按鈕滑鼠懸停 (Hover) 深藍色 */
+    --blue-shadow: rgba(37, 99, 235, 0.35); /* 按鈕與圖示發光藍色陰影 */
 
-    --radius-card: 16px;
-    --radius-input: 10px;
-    --radius-btn: 10px;
+    --radius-card: 16px;            /* 登入外層卡片圓角半徑 */
+    --radius-input: 10px;           /* 輸入框與選擇卡片圓角半徑 */
+    --radius-btn: 10px;             /* 登入按鈕圓角半徑 */
 }
 
 * {
@@ -129,6 +129,17 @@ body.login-page {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
+/* [2026-10-15] 異動說明：覆蓋瀏覽器歷史紀錄與自動填入 (Autofill) 的預設白底樣式 */
+.input-group input:-webkit-autofill,
+.input-group input:-webkit-autofill:hover,
+.input-group input:-webkit-autofill:focus,
+.input-group input:-webkit-autofill:active {
+    -webkit-text-fill-color: var(--text-primary) !important;
+    -webkit-box-shadow: 0 0 0 1000px var(--input-bg-color) inset !important;
+    box-shadow: 0 0 0 1000px var(--input-bg-color) inset !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
 /* =========================================
    5. 登入按鈕
    ========================================= */
@@ -184,7 +195,7 @@ body.login-page {
         padding: 32px 24px;
         border: none;
         box-shadow: none;
-        background-color: transparent; /* 手機端可採純色融入背景 */
+        background-color: transparent;         /* 手機端可採純色融入背景 */
     }
 
     .brand h1 {
@@ -233,12 +244,12 @@ body.login-page {
 }
 
 /* 選取態高亮 */
-.market-option input[type="radio"]:checked + .market-card {
+.market-option input[type="radio"]:checked+.market-card {
     border-color: var(--primary-blue);
     background-color: rgba(37, 99, 235, 0.15);
     box-shadow: 0 0 0 1px var(--primary-blue);
 }
 
-.market-option input[type="radio"]:checked + .market-card strong {
+.market-option input[type="radio"]:checked+.market-card strong {
     color: #60a5fa;
 }
