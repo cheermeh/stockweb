@@ -13,9 +13,9 @@ document.addEventListener('DOMContentLoaded', async () => {
    * 3. currencySymbol: 幣別符號
    */
   const sessionInfo = window.ClientAuth ? window.ClientAuth.getSessionInfo() : {};
-  // 2026.10.08 feat: 移除市場別預設 TW (requireAuth 已確保有市場別)
+  // [2026-10-08] feat: 移除市場別預設 TW (requireAuth 已確保有市場別)
   const currentMarket = String(sessionInfo.market || '').toUpperCase();
-  // 2026.10.08 feat: 幣別符號一律使用 $，不再依市場區分
+  // [2026-10-08] feat: 幣別符號一律使用 $，不再依市場區分
   const currencySymbol = '$';
 
   // 取得網址列參數
@@ -72,13 +72,67 @@ document.addEventListener('DOMContentLoaded', async () => {
   const tradeToast = document.getElementById('trade-toast');
   const stockToast = document.getElementById('stock-toast');
 
-  // 2026.10.09 作廢 feat: 分頁控制介面 DOM 元素快取宣告 (已改為下方 2026.10.10 的 class 選取陣列)
+  /**
+   * [2026-10-15] 異動說明
+   * 目的：抽成彈窗共用 Toast 提示處理函式 (支援成功/失敗樣式與可選的倒數完成回呼)
+   * 變數說明：
+   * 1. toastEl: 目標 Toast DOM 元素 (如 tradeToast 或 stockToast)
+   * 2. message: 顯示的訊息字串
+   * 3. isSuccess: 是否為成功樣式 (true: 綠色, false: 紅色)
+   * 4. duration: 停留時間 (毫秒)
+   * 5. onComplete: 提示倒數結束後的 callback (例如執行 toggleModal 關閉彈窗)
+   */
+  const showModalToast = (toastEl, message, isSuccess = true, duration = 1500, onComplete = null) => {
+    if (!toastEl) return;
+
+    // 設定提示文字
+    toastEl.textContent = message;
+
+    // 清除既有色彩與隱藏狀態
+    toastEl.classList.remove(
+      'bg-emerald-950/95', 'border-emerald-500/70', 'text-emerald-300',
+      'bg-red-950/95', 'border-red-500/70', 'text-red-300',
+      'hidden'
+    );
+
+    // 依狀態套用綠色或紅色
+    if (isSuccess) {
+      toastEl.classList.add('bg-emerald-950/95', 'border-emerald-500/70', 'text-emerald-300');
+    } else {
+      toastEl.classList.add('bg-red-950/95', 'border-red-500/70', 'text-red-300');
+    }
+
+    // 倒數結束後隱藏，若有回呼函式則一併觸發
+    setTimeout(() => {
+      toastEl.classList.add('hidden');
+      if (typeof onComplete === 'function') {
+        onComplete();
+      }
+    }, duration);
+  };
+
+  /**
+   * [2026-10-15] 異動說明
+   * 目的：共用統一成功提示字詞處理函式，一律顯示「✓ 編輯成功」或「✓ 新增成功」
+   * 變數說明：
+   * 1. toastEl: 目標 Toast DOM 元素
+   * 2. isEdit: 是否為編輯模式 (true: 顯示編輯成功, false: 顯示新增成功)
+   * 3. duration: 停留時間 (毫秒)
+   * 4. onComplete: 倒數完的回呼函式 (關閉開窗用)
+   */
+  const showSuccessToast = (toastEl, isEdit = false, duration = 1500, onComplete = null) => {
+    // 依據編輯狀態決定統一提示文字
+    const message = isEdit ? '✓ 編輯成功' : '✓ 新增成功';
+    showModalToast(toastEl, message, true, duration, onComplete);
+  };
+
+  // [2026-10-09] [作廢] feat: 分頁控制介面 DOM 元素快取宣告 (已改為下方 [2026-10-10] 的 class 選取陣列)
   // const selectPageSize = document.getElementById('select-page-size');
   // const btnPrevPage = document.getElementById('btn-prev-page');
   // const btnNextPage = document.getElementById('btn-next-page');
   // const pageIndicator = document.getElementById('page-indicator');
 
-  // 2026.10.10 feat: 分頁控制介面 DOM 元素快取宣告 (改用 class，支援多組分頁)
+  // [2026-10-10] feat: 分頁控制介面 DOM 元素快取宣告 (改用 class，支援多組分頁)
   // 變數說明：
   // 1. logCounts: NodeList，儲存所有顯示總筆數的文字標籤
   // 2. selectPageSizes: NodeList，儲存所有每頁筆數下拉選單
@@ -115,7 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.history.replaceState(null, '', newUrl);
   };
 
-  // 2026.10.07 修正：防止 type="number" 輸入小數點時被清空的問題
+  // [2026-10-07] 修正：防止 type="number" 輸入小數點時被清空的問題
   const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10) => {
     if (!inputElement) return;
 
@@ -160,7 +214,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 取得當前選取的交易型態
     const currentType = inputTradeType.value;
 
-    // 2026.10.07 修正：將 INPUT 與 OUTPUT 納入比照 INTEREST 規則辦理
+    // [2026-10-07] 修正：將 INPUT 與 OUTPUT 納入比照 INTEREST 規則辦理
     const isIncomeType = (
       currentType === 'REVENUE' ||
       currentType === 'INTEREST' ||
@@ -260,7 +314,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (stockId) params.set('stock_id', stockId);
       if (roundParam) params.set('round', roundParam);
 
-      // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
+      // [2026-10-08] feat: 改用 authFetch 帶 Clerk Token
       const res = await window.ClientAuth.authFetch(`/api/trading/detail?${params.toString()}`);
       if (res.status === 401) {
         if (window.ClientAuth) await window.ClientAuth.logout();
@@ -286,7 +340,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           selectStock.appendChild(opt);
         });
 
-        // 2026.10.09：標的資料全部塞入完畢後，解除禁用，避免破圖
+        // [2026-10-09]：標的資料全部塞入完畢後，解除禁用，避免破圖
         selectStock.disabled = false;
       }
 
@@ -342,7 +396,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
 
-      // (4) 2026.10.09 feat: 暫存當前查詢的全部流水帳，重設當前頁碼為第 1 頁並執行分頁渲染
+      // (4) [2026-10-09] feat: 暫存當前查詢的全部流水帳，重設當前頁碼為第 1 頁並執行分頁渲染
       currentLogsCache = Array.isArray(logs) ? logs : [];
       currentPage = 1;
       renderTable(stockId, round);
@@ -405,7 +459,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const startIndex = (currentPage - 1) * pageSizeNum;
     const currentRows = isAll ? currentLogsCache : currentLogsCache.slice(startIndex, startIndex + pageSizeNum);
 
-    // 2026.10.07 異動說明：將 INTEREST 類別的中文顯示文字由「利息」改為「銀行利息」
+    // [2026-10-07] 異動說明：將 INTEREST 類別的中文顯示文字由「利息」改為「銀行利息」
     const TYPE_MAP = {
       BUY: { label: '買進', class: 'badge-buy' },
       SELL: { label: '賣出', class: 'badge-sell' },
@@ -449,14 +503,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     updatePaginationControls(totalCount, currentPage, totalPages);
   }
 
-  /**
-   * [2026-10-09 作廢] 異動說明 (已改為 2026-10-10 支援 class 多組同步邏輯)
-   * 目的：更新分頁指示器文字與切換按鈕的啟用/停用樣式
-   * 變數說明：
-   * 1. totalCount: 總筆數
-   * 2. current: 當前頁碼
-   * 3. totalPages: 總頁數
-   */
+  // [2026-10-09] [作廢] 異動說明 (已改為 [2026-10-10] 支援 class 多組同步邏輯)
+  // 目的：更新分頁指示器文字與切換按鈕的啟用/停用樣式
+  // 變數說明：
+  // 1. totalCount: 總筆數
+  // 2. current: 當前頁碼
+  // 3. totalPages: 總頁數
   // function updatePaginationControls(totalCount, current, totalPages) { ... }
 
   /**
@@ -527,7 +579,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         updateFormFieldsByTradeType();
 
-        // 2026.10.07 異動說明：編輯帶入資料時，INPUT 與 OUTPUT 比照 REVENUE / INTEREST 設定數值
+        // [2026-10-07] 異動說明：編輯帶入資料時，INPUT 與 OUTPUT 比照 REVENUE / INTEREST 設定數值
         const isIncome = ['REVENUE', 'INTEREST', 'INPUT', 'OUTPUT'].includes(targetLog.trade_type);
         if (isIncome) {
           if (inputRound) inputRound.value = '0';
@@ -550,7 +602,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       btn.onclick = async () => {
         if (!confirm('確定要刪除這筆交易記錄嗎？此操作將無法復原。')) return;
         try {
-          // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
+          // [2026-10-08] feat: 改用 authFetch 帶 Clerk Token
           const res = await window.ClientAuth.authFetch(`/api/trading/detail?trade_id=${encodeURIComponent(btn.dataset.id)}`, { method: 'DELETE' });
           const result = await res.json();
           if (!result.success) throw new Error(result.message);
@@ -563,14 +615,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // =========================================================================
-  // 2026.10.09 作廢 feat: 監聽分頁操作控制元件事件 (已改為 2026-10-10 class 陣列綁定)
+  // [2026-10-09] [作廢] feat: 監聽分頁操作控制元件事件 (已改為 [2026-10-10] class 陣列綁定)
   // =========================================================================
   // if (selectPageSize) { ... }
   // if (btnPrevPage) { ... }
   // if (btnNextPage) { ... }
 
   // =========================================================================
-  // 2026.10.10 feat: 監聽分頁操作控制元件事件 (針對 class 多組元件綁定)
+  // [2026-10-10] feat: 監聽分頁操作控制元件事件 (針對 class 多組元件綁定)
   // =========================================================================
   
   // 綁定所有每頁筆數下拉選單
@@ -795,7 +847,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     try {
-      // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
+      // [2026-10-08] feat: 改用 authFetch 帶 Clerk Token
       const res = await window.ClientAuth.authFetch('/api/trading/detail', {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -809,10 +861,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       loadTradingData(currentStock, currentRound);
 
       /**
-       * [2026-10-12] 異動說明
-       * 目的：若選擇「儲存並繼續新增」，則清空數值欄位並保持開窗；若選擇關閉則關閉彈窗
-       * [2026-10-13] 異動說明：
-       * 目的：儲存成功後浮現成功提示條 (tradeToast)，1.5 秒後自動隱藏，讓使用者確認寫入且可流暢輸入
+       * [2026-10-15] 異動說明
+       * 目的：儲存成功改用共用 showSuccessToast 提示，依 isEdit 統一顯示「✓ 編輯成功」或「✓ 新增成功」
        */
       if (keepOpen && !isEdit) {
         if (inputPrice) inputPrice.value = '';
@@ -822,13 +872,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (inputNetTotal) inputNetTotal.value = '';
         if (inputNote) inputNote.value = '';
 
-        // 浮現成功提示條並於 1.5 秒後自動隱藏
-        if (tradeToast) {
-          tradeToast.classList.remove('hidden');
-          setTimeout(() => {
-            tradeToast.classList.add('hidden');
-          }, 1500);
-        }
+        // 浮現成功提示條並於 1.5 秒後自動隱藏 (保持開窗)
+        showSuccessToast(tradeToast, isEdit, 1500);
 
         // 依交易型態自動重新聚焦
         if (isIncomeType) {
@@ -837,11 +882,20 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (inputPrice) inputPrice.focus();
         }
       } else {
-        alert(isEdit ? '交易明細更新成功！' : '交易明細記錄成功！');
-        toggleModal(modalTrade, false);
+        // 浮現成功提示條，停留 0.9 秒後自動關閉開窗
+        showSuccessToast(tradeToast, isEdit, 900, () => {
+          toggleModal(modalTrade, false);
+        });
       }
     } catch (err) {
-      alert(`${isEdit ? '更新' : '新增'}失敗: ${err.message}`);
+      /**
+       * [2026-10-15] 異動說明
+       * 目的：新增或更新交易明細失敗時，改以紅色 Toast 警示，不阻斷且不關閉開窗
+       * 變數說明：
+       * 1. errorMessage: 失敗錯誤提示文字
+       */
+      const errorMessage = `✕ ${isEdit ? '更新' : '新增'}失敗: ${err.message}`;
+      showModalToast(tradeToast, errorMessage, false, 2000);
     }
   }
 
@@ -888,14 +942,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const stock_id = inputNewStockId?.value?.trim();
     const stock_name = inputNewStockName?.value?.trim();
 
-    //2026.10.12 feat: 標的名稱改為選填
+    // [2026-10-12] feat: 標的名稱改為選填
     if (!stock_id) {
       alert('請完整填寫標的代碼！');
       return;
     }
 
     try {
-      // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
+      // [2026-10-08] feat: 改用 authFetch 帶 Clerk Token
       const res = await window.ClientAuth.authFetch('/api/trading/addstock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -907,62 +961,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       const result = await res.json();
       if (!result.success) {
-        alert(`提示：${result.message}`);
-        return;
-      }
-
-      /**
-       * [2026-10-12] 異動說明
-       * 目的：若選擇「儲存並繼續新增」，則清空標的輸入欄位並聚焦至代碼欄位；若為「儲存並關閉」則立即關閉開窗並清空欄位
-       * [2026-10-13] 異動說明：
-       * 目的：在繼續新增模式下，改以 stockToast 浮動告知成功，避免 alert 中斷登打節奏
-       */
-      if (keepOpen) {
-        if (inputNewStockId) {
-          inputNewStockId.value = '';
-          inputNewStockId.focus();
-        }
-        if (inputNewStockName) {
-          inputNewStockName.value = '';
-        }
-
-        // 浮現成功提示條並於 1.5 秒後自動隱藏
-        if (stockToast) {
-          stockToast.classList.remove('hidden');
-          setTimeout(() => {
-            stockToast.classList.add('hidden');
-          }, 1500);
-        }
-      } else {
-        alert(result.message);
-        toggleModal(modalStock, false);
-        if (inputNewStockId) inputNewStockId.value = '';
-        if (inputNewStockName) inputNewStockName.value = '';
-      }
-
-      // 同步刷新標的與交易明細清單
-      currentStock = stock_id.toUpperCase();
-      currentRound = '';
-      syncUrl();
-      loadTradingData(currentStock, currentRound);
-    } catch (err) {
-      alert(`連線或新增失敗: ${err.message}`);
-    }
-  }
-
-  // 綁定標的開窗「儲存並關閉」事件
-  if (btnSubmitStockComp) {
-    btnSubmitStockComp.onclick = () => submitStockCompForm(false);
-  }
-
-  /**
-   * [2026-10-12] 異動說明
-   * 目的：綁定標的開窗「儲存並繼續新增」點擊事件
-   */
-  if (btnSubmitStockCompContinue) {
-    btnSubmitStockCompContinue.onclick = () => submitStockCompForm(true);
-  }
-
-  // 初始載入
-  loadTradingData(currentStock, currentRound);
-});
+        /**
+         * [2026-10-15] 異動說明
+         * 目的：標的新增業務檢核失敗時，改以紅色 Toast 警示，不跳原生 alert 且不關閉開窗
+         * 變數說明：
+         * 1. failMessage
