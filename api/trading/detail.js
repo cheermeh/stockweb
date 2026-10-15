@@ -276,7 +276,8 @@ module.exports = async function handler(req, res) {
           // 變數用途說明：subtotal 未扣除稅費之成交金額 (單價 * 股數)
           const subtotal = numPrice * numShares;
           if (trade_type === 'BUY') {
-            computedNetTotal = subtotal + numFee;
+          // [2026-10-15] fix: 台股買入沒有手續費與交易稅的情況，仍需加上 numFee 與 numTax
+            computedNetTotal = subtotal + numFee + numTax;
           } else if (trade_type === 'SELL') {
             computedNetTotal = subtotal - numFee - numTax;
           } else {
