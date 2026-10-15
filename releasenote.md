@@ -17,3 +17,5 @@
 
 # release note: V 2.3.3
 1. TradingLog警示訊息由msgbox改為toast
+2. 修改Tradinglog標的下拉選單無法載入問題
+3. 登入的帳號欄位顏色修正
