@@ -1,10 +1,14 @@
 {
   "name": "stockweb",
-  "version": "2.3.3",
+  "version": "3.0.0",
   "description": "",
+  "scripts": {
+    "gem": "node gemini-cli.mjs"
+  },
   "dependencies": {
     "@clerk/backend": "^3.22.0",
-    "dotenv": "^18.0.0",
+    "@google/genai": "^2.30.0",
+    "dotenv": "^18.0.8",
     "pg": "^8.23.0"
   }
 }

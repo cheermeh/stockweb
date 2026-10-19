@@ -6,6 +6,13 @@ node_modules/
 dist/
 .vercel/
 .env*
-.sql
-.db
-.github
+*.sql
+*.db
+.github/
+*.lnk
+*.bat
+*.cmd
+
+# 本地專屬 Gemini CLI 腳本與行為規範文件
+gemini-cli.mjs
+gemini_cli_md.md
