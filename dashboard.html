@@ -16,7 +16,7 @@
   <!-- 載入專屬 CSS -->
   <link rel="stylesheet" href="./src/css/dashboard.css">
 
-  <!-- 2026.10.08 feat: 載入 Clerk 前端 SDK，供 API 請求取得 Token -->
+  <!-- [2026-10-08] feat: 載入 Clerk 前端 SDK，供 API 請求取得 Token -->
   <script defer crossorigin="anonymous"
     data-clerk-publishable-key="pk_test_YWN0aXZlLW9jdG9wdXMtMjgzNi5jbGVyay5hY2NvdW50cy5kZXYk"
     src="https://active-octopus-2836.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js">
@@ -39,8 +39,8 @@
         <!-- 1. Market: 市場下拉選單 -->
         <div class="flex items-center gap-1">
           <span class="text-blue-400 font-semibold">Market:</span>
-          <!-- 2026.10.08 feat: 選項由 dashboard.js 依 GET_DISTINCT_MARKETS_BY_STOCK 的查詢結果動態產生 -->
-          <!-- 2026.10.09 fix: 預設 disabled 防止載入中被點擊產生破圖白邊 (修正全形引號錯誤) -->
+          <!-- [2026-10-08] feat: 選項由 dashboard.js 依 GET_DISTINCT_MARKETS_BY_STOCK 的查詢結果動態產生 -->
+          <!-- [2026-10-09] fix: 預設 disabled 防止載入中被點擊產生破圖白邊 (修正全形引號錯誤) -->
           <select id="select-market" disabled
             class="bg-transparent text-white font-semibold focus:outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
             <option value="">載入市場中...</option>
@@ -63,6 +63,11 @@
     </div>
 
     <div class="flex items-center gap-3">
+      <!-- [2026-10-20] feat: 新增市場別按鈕，放置於功能列最左側，樣式比照 tradinglog 標的維護按鈕 -->
+      <button id="btn-open-market-modal" type="button"
+        class="px-3.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 text-sm font-medium transition shadow-sm">
+        + 新增市場
+      </button>
       <button id="btn-goto-tradinglog" type="button"
         class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium transition">
         個股交易紀錄
@@ -199,8 +204,6 @@
 
         <!-- 按鈕操作與不分頁合計顯示區 -->
         <!-- [2026-10-14] 異動說明：將 flex 改為 justify-between，左側呈現條件篩選後的不分頁合計(不含息/含息) -->
-
-        <!-- 左側合計結果區 -->
         <div class="flex flex-wrap justify-between items-center gap-3 pt-2">
           <!-- 不分頁合計顯示元件 -->
           <div class="text-xs text-gray-300 font-medium">
@@ -209,30 +212,32 @@
             <span class="text-gray-500 mx-1">/</span>
             <span id="filter-summary-with-int" class="font-bold text-gray-200">--</span>
           </div>
-        <!-- 右側按鈕操作區 -->
-        <div class="flex justify-between items-center gap-3 pt-2">
-          <button type="button" id="btn-filter-reset"
-            class="px-3.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium border border-gray-700 transition">
-            重置條件
-          </button>
-          <button type="button" id="btn-filter-search"
-            class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition shadow-sm">
-            執行查詢
-          </button>
+
+          <!-- 右側按鈕操作區 -->
+          <div class="flex justify-between items-center gap-3 pt-2">
+            <button type="button" id="btn-filter-reset"
+              class="px-3.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium border border-gray-700 transition">
+              重置條件
+            </button>
+            <button type="button" id="btn-filter-search"
+              class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition shadow-sm">
+              執行查詢
+            </button>
+          </div>
         </div>
       </div>
     </details>
 
     <!-- 近期交易流水帳表格 -->
     <section class="bg-gray-800/40 border border-gray-700/50 rounded-xl overflow-hidden">
-      <!-- 2026.10.09 feat: 區塊標頭整合總筆數與頂部分頁控制器，風格與 tradinglog 一致 -->
+      <!-- [2026-10-09] feat: 區塊標頭整合總筆數與頂部分頁控制器，風格與 tradinglog 一致 -->
       <div class="px-6 py-4 border-b border-gray-700/50 flex flex-wrap justify-between items-center gap-3">
         <div class="flex items-center gap-3">
           <h2 class="font-semibold text-white">收支明細</h2>
           <span id="ledger-count" class="text-xs text-gray-400">共 0 筆</span>
         </div>
 
-        <!-- 2026.10.09 feat: 頂部分頁控制介面 (全部/10/20/50/100，預設 10) -->
+        <!-- [2026-10-09] feat: 頂部分頁控制介面 (全部/10/20/50/100，預設 10) -->
         <div class="flex items-center gap-3 text-xs">
           <!-- 每頁筆數下拉選單 -->
           <div class="flex items-center gap-1.5">
@@ -262,7 +267,7 @@
         <table class="w-full text-left text-sm text-gray-300">
           <thead class="bg-gray-800/60 text-xs uppercase text-gray-400 border-b border-gray-700/50">
             <tr>
-              <!-- 2026.10.09 feat: 新增最左側序號欄位，寬度固定並置中呈現 -->
+              <!-- [2026-10-09] feat: 新增最左側序號欄位，寬度固定並置中呈現 -->
               <th class="px-4 py-3 text-center w-16">序號</th>
               <th class="px-6 py-3">交易日期</th>
               <th class="px-6 py-3">標的代碼</th>
@@ -274,7 +279,7 @@
           </thead>
           <tbody id="ledger-body" class="divide-y divide-gray-800">
             <tr>
-              <!-- 2026.10.09 feat: 配合新增序號欄位，跨欄數由 6 調整為 7 -->
+              <!-- [2026-10-09] feat: 配合新增序號欄位，跨欄數由 6 調整為 7 -->
               <td colspan="7" class="text-center py-8 text-gray-500">
                 載入資料庫紀錄中...
               </td>
@@ -283,7 +288,7 @@
         </table>
       </div>
 
-      <!-- 2026.10.09 feat: 底部分頁控制列，提供滾動至底部時直接翻頁操作 (與頂部同步) -->
+      <!-- [2026-10-09] feat: 底部分頁控制列，提供滾動至底部時直接翻頁操作 (與頂部同步) -->
       <div
         class="px-6 py-3 border-t border-gray-700/50 flex flex-wrap justify-between items-center gap-3 bg-gray-800/20">
         <span id="ledger-count-bottom" class="text-xs text-gray-400">共 0 筆</span>
@@ -314,6 +319,44 @@
       </div>
     </section>
   </main>
+
+  <!-- ========================================================================= -->
+  <!-- [2026-10-20] 彈窗：新增市場別維護彈窗 (比照 tradinglog 標的維護彈窗結構) -->
+  <!-- ========================================================================= -->
+  <div id="modal-market"
+    class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="relative bg-gray-800 border border-gray-700 rounded-xl w-full max-w-sm p-6 space-y-4">
+      <div class="flex justify-between items-center border-b border-gray-700 pb-3">
+        <h3 class="font-bold text-white">市場環境維護</h3>
+        <button id="btn-close-market-modal" type="button" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+
+      <!-- 浮動提示列 (Toast，預設 hidden，成功/失敗短暫浮現) -->
+      <div id="market-toast"
+        class="hidden absolute top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-emerald-950/95 border border-emerald-500/70 text-emerald-300 text-xs font-medium shadow-lg z-10 pointer-events-none transition-all">
+        ✓ 新增成功
+      </div>
+
+      <form id="form-market" class="space-y-4">
+        <div>
+          <label class="text-xs text-gray-400 font-medium">市場代碼 (Market Type)</label>
+          <input type="text" id="input-new-market-type" required placeholder="例如：TW, US, JP, CRYPTO"
+            class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white uppercase text-sm focus:outline-none focus:border-blue-500">
+        </div>
+
+        <div class="pt-2 flex items-center gap-3">
+          <button type="button" id="btn-submit-market-continue"
+            class="flex-1 bg-gray-700 hover:bg-gray-600 py-2 rounded-lg text-white font-medium text-sm transition">
+            儲存並繼續新增
+          </button>
+          <button type="button" id="btn-submit-market"
+            class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded-lg text-white font-medium text-sm transition">
+            儲存並關閉
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- 依序載入認證與資料渲染腳本 -->
   <script src="./src/js/client-auth.js"></script>
