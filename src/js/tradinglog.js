@@ -12,28 +12,38 @@ document.addEventListener('DOMContentLoaded', async () => {
    * 2. currentMarket: 當前市場代碼
    * 3. currencySymbol: 幣別符號
    */
+  // 變數用途說明：sessionInfo 儲存由前端 ClientAuth 取得之使用者登入工作階段物件
   const sessionInfo = window.ClientAuth ? window.ClientAuth.getSessionInfo() : {};
   // [2026-10-08] feat: 移除市場別預設 TW (requireAuth 已確保有市場別)
+  // 變數用途說明：currentMarket 儲存當前選定的市場代碼 (例如 'TW', 'US', 'JP')
   const currentMarket = String(sessionInfo.market || '').toUpperCase();
   // [2026-10-08] feat: 幣別符號一律使用 $，不再依市場區分
+  // 變數用途說明：currencySymbol 定義全站統一之貨幣符號
   const currencySymbol = '$';
 
   // 取得網址列參數
+  // 變數用途說明：urlParams 解析當前瀏覽器網址列查詢參數
   const urlParams = new URLSearchParams(window.location.search);
+  // 變數用途說明：currentStock 當前聚焦的股票標的代碼 (強制轉大寫)
   let currentStock = (urlParams.get('symbol') || urlParams.get('stock_id') || '').toUpperCase();
+  // 變數用途說明：currentRound 當前聚焦的交易回合字串
   let currentRound = (urlParams.get('round') || '').toUpperCase();
+  // 變數用途說明：currentSuggestedRound 後端計算建議開立的下一個回合編號
   let currentSuggestedRound = '0';
 
   // =========================================================================
   // DOM 元素快取宣告
   // =========================================================================
+  // 變數用途說明：selectStock 頂部導覽列標的下拉選單元素；selectRound 頂部導覽列回合下拉選單元素
   const selectStock = document.getElementById('select-stock');
   const selectRound = document.getElementById('select-round');
 
+  // 變數用途說明：modalTrade 交易明細彈窗外層容器；modalTitle 交易彈窗標題文字；btnSubmitTradeText 交易送出按鈕主文字
   const modalTrade = document.getElementById('modal-add-trade');
   const modalTitle = document.getElementById('modal-title');
   const btnSubmitTradeText = document.getElementById('btn-submit-trade-text');
 
+  // 變數用途說明：快取交易明細表單內各輸入元件 DOM
   const inputTradeId = document.getElementById('input-trade-id');
   const inputStockId = document.getElementById('input-stock-id');
   const inputRound = document.getElementById('input-round');
@@ -45,9 +55,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const inputTax = document.getElementById('input-tax');
   const inputNote = document.getElementById('input-note');
 
+  // 變數用途說明：wrapNetTotal 收付淨額輸入外層區塊；inputNetTotal 收付淨額數字輸入框
   const wrapNetTotal = document.getElementById('wrap-net-total');
   const inputNetTotal = document.getElementById('input-net-total');
 
+  // 變數用途說明：modalStock 標的維護彈窗外層容器；inputNewStockId 新標的代碼輸入框；inputNewStockName 新標的名稱輸入框
   const modalStock = document.getElementById('modal-stock-comp');
   const inputNewStockId = document.getElementById('input-new-stock-id');
   const inputNewStockName = document.getElementById('input-new-stock-name');
@@ -126,19 +138,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     showModalToast(toastEl, message, true, duration, onComplete);
   };
 
-  // [2026-10-09] [作廢] feat: 分頁控制介面 DOM 元素快取宣告 (已改為下方 [2026-10-10] 的 class 選取陣列)
+  // (作廢) [2026-10-09] feat: 分頁控制介面 DOM 元素快取宣告 (已改為下方 [2026-10-10] 的 class 選取陣列)
   // const selectPageSize = document.getElementById('select-page-size');
   // const btnPrevPage = document.getElementById('btn-prev-page');
   // const btnNextPage = document.getElementById('btn-next-page');
   // const pageIndicator = document.getElementById('page-indicator');
 
-  // [2026-10-10] feat: 分頁控制介面 DOM 元素快取宣告 (改用 class，支援多組分頁)
-  // 變數說明：
-  // 1. logCounts: NodeList，儲存所有顯示總筆數的文字標籤
-  // 2. selectPageSizes: NodeList，儲存所有每頁筆數下拉選單
-  // 3. btnPrevPages: NodeList，儲存所有「上一頁」按鈕
-  // 4. btnNextPages: NodeList，儲存所有「下一頁」按鈕
-  // 5. pageIndicators: NodeList，儲存所有頁碼指示器
+  /**
+   * [2026-10-10] 異動說明
+   * 目的：分頁控制介面 DOM 元素快取宣告 (改用 class，支援多組分頁)
+   * 變數說明：
+   * 1. logCounts: NodeList，儲存所有顯示總筆數的文字標籤
+   * 2. selectPageSizes: NodeList，儲存所有每頁筆數下拉選單
+   * 3. btnPrevPages: NodeList，儲存所有「上一頁」按鈕
+   * 4. btnNextPages: NodeList，儲存所有「下一頁」按鈕
+   * 5. pageIndicators: NodeList，儲存所有頁碼指示器
+   */
   const logCounts = document.querySelectorAll('.log-count');
   const selectPageSizes = document.querySelectorAll('.select-page-size');
   const btnPrevPages = document.querySelectorAll('.btn-prev-page');
@@ -157,12 +172,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   let pageSizeSetting = '10';
   let currentLogsCache = [];
 
+  // 變數用途說明：toggleModal 切換彈窗顯示與隱藏狀態之輔助函式
   const toggleModal = (modalEl, show) => {
     if (!modalEl) return;
     modalEl.classList.toggle('hidden', !show);
     modalEl.classList.toggle('flex', show);
   };
 
+  // 變數用途說明：syncUrl 將當前選取的標的與回合即時同步更新至瀏覽器網址列 (不重新整理)
   const syncUrl = () => {
     const roundParam = currentRound ? `&round=${encodeURIComponent(currentRound)}` : '';
     const newUrl = currentStock ? `${window.location.pathname}?symbol=${currentStock}${roundParam}` : window.location.pathname;
@@ -170,6 +187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // [2026-10-07] 修正：防止 type="number" 輸入小數點時被清空的問題
+  // 變數用途說明：bindStrictNumericFilter 數字欄位嚴格鍵盤輸入過濾監聽器
   const bindStrictNumericFilter = (inputElement, allowDecimal = false, maxLen = 10) => {
     if (!inputElement) return;
 
@@ -287,6 +305,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     inputRound.value = currentRound || '0';
   }
 
+  // 變數用途說明：btnLogout 登出按鈕元素
   const btnLogout = document.getElementById('btn-logout');
   if (btnLogout) {
     btnLogout.onclick = () => {
@@ -307,23 +326,28 @@ document.addEventListener('DOMContentLoaded', async () => {
    */
   async function loadTradingData(stockId, round) {
     try {
+      // 變數用途說明：roundParam 經 URI 編碼後的指定回合查詢參數
       const roundParam = round !== '' && round !== null && round !== undefined ? encodeURIComponent(round) : '';
 
+      // 變數用途說明：params 封裝向後端 detail API 請求之 Query String 物件
       const params = new URLSearchParams();
       params.set('market', currentMarket);
       if (stockId) params.set('stock_id', stockId);
       if (roundParam) params.set('round', roundParam);
 
       // [2026-10-08] feat: 改用 authFetch 帶 Clerk Token
+      // 變數用途說明：res 發送至 trading/detail API 之 fetch 回應物件
       const res = await window.ClientAuth.authFetch(`/api/trading/detail?${params.toString()}`);
       if (res.status === 401) {
         if (window.ClientAuth) await window.ClientAuth.logout();
         return;
       }
 
+      // 變數用途說明：result 後端回傳之 JSON 解析物件
       const result = await res.json();
       if (!result.success) throw new Error(result.message || '查詢失敗');
 
+      // 變數用途說明：解構後端回傳之可用標的、回合清單、財務彙總與流水明細
       const { availableStocks = [], availableRounds = [], summary = {}, logs = [], suggestedRound } = result.data || {};
       currentSuggestedRound = suggestedRound !== undefined && suggestedRound !== null ? String(suggestedRound) : '0';
 
@@ -331,8 +355,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (selectStock) {
         selectStock.innerHTML = '<option value="">-- 請選擇標的 --</option>';
         availableStocks.forEach((s) => {
+          // 變數用途說明：opt 標的下拉選單項目元素
           const opt = document.createElement('option');
+          // 變數用途說明：sId 標的股票代碼字串
           const sId = typeof s === 'object' ? s.stock_id : s;
+          // 變數用途說明：sName 標的股票顯示名稱
           const sName = typeof s === 'object' ? s.stock_name : '';
           opt.value = sId;
           opt.textContent = sName ? `${sId}-${sName}` : sId;
@@ -353,9 +380,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           selectRound.disabled = false;
           selectRound.innerHTML = '<option value="">-- 全部歷史 (未選回合) --</option>';
           availableRounds.forEach((r) => {
+            // 變數用途說明：opt 回合下拉選單項目元素
             const opt = document.createElement('option');
+            // 變數用途說明：roundVal 回合整數值
             const roundVal = typeof r === 'object' && r !== null ? r.round : r;
             opt.value = roundVal;
+            // 變數用途說明：statusText 回合進行狀態提示字詞 (進行中 / 已結束)
             const statusText = typeof r === 'object' && r.remaining_shares !== undefined ? (Number(r.remaining_shares) === 0 ? '已結束' : '進行中') : '';
             opt.textContent = `第 ${roundVal} 回合${statusText ? ` (${statusText})` : ''}`;
             if (String(roundVal) === String(round)) opt.selected = true;
@@ -365,6 +395,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       // (3) 渲染 5 大 KPI 指標卡片
+      // 變數用途說明：快取 5 大部位與財務統計指標之 DOM 元素
       const elShares = document.getElementById('stat-shares');
       const elAvgCost = document.getElementById('stat-avg-cost');
       const elBuyCost = document.getElementById('stat-buy-cost');
@@ -385,10 +416,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (elAvgCost) elAvgCost.textContent = `${currencySymbol}${Number(summary.avgCost || 0).toLocaleString()}`;
         if (elBuyCost) elBuyCost.textContent = `${currencySymbol}${Number(summary.totalBuyCost || 0).toLocaleString()}`;
         if (elRevenue) {
+          // 變數用途說明：totalRev 累計已實現收入 (賣出金額 + 股息利息合計)
           const totalRev = Number(summary.totalSellRevenue || 0) + Number(summary.totalDividends || 0);
           elRevenue.textContent = `${currencySymbol}${totalRev.toLocaleString()}`;
         }
         if (elPnl) {
+          // 變數用途說明：totalPnl 總損益數值；isProfit 判斷是否為獲利 (正數)
           const totalPnl = Number(summary.totalPnl ?? 0);
           const isProfit = totalPnl >= 0;
           elPnl.textContent = `${isProfit ? '+' : '-'}${currencySymbol}${Math.abs(totalPnl).toLocaleString()}`;
@@ -402,6 +435,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderTable(stockId, round);
     } catch (err) {
       console.error('[TradingLog Load Error]:', err);
+      // 變數用途說明：tbody 表格主體 DOM 元素
       const tbody = document.getElementById('trade-log-body');
       if (tbody) tbody.innerHTML = `<tr><td colspan="10" class="text-center py-6 text-red-400">載入失敗: ${err.message}</td></tr>`;
       updatePaginationControls(0, 1, 1);
@@ -422,6 +456,7 @@ document.addEventListener('DOMContentLoaded', async () => {
    * 8. currentRows: 當前頁面要切片顯示的交易明細清單
    */
   function renderTable(stockId, round) {
+    // 變數用途說明：tbody 交易歷史流水帳表格 tbody DOM 元素
     const tbody = document.getElementById('trade-log-body');
     if (!tbody) return;
 
@@ -460,6 +495,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const currentRows = isAll ? currentLogsCache : currentLogsCache.slice(startIndex, startIndex + pageSizeNum);
 
     // [2026-10-07] 異動說明：將 INTEREST 類別的中文顯示文字由「利息」改為「銀行利息」
+    // 變數用途說明：TYPE_MAP 對照各交易型態之中文標籤與 CSS Badge 樣式類別
     const TYPE_MAP = {
       BUY: { label: '買進', class: 'badge-buy' },
       SELL: { label: '賣出', class: 'badge-sell' },
@@ -471,8 +507,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 渲染資料列：第一欄為自動累加序號 (由 1 開始累算)
     tbody.innerHTML = currentRows.map((log, index) => {
+      // 變數用途說明：serialNumber 自動累加計算所得之該筆紀錄絕對序號
       const serialNumber = startIndex + index + 1; // 序號計算：(當前頁碼 - 1) * 每頁筆數 + 當頁索引 + 1
+      // 變數用途說明：typeConf 該筆紀錄對應之交易類別中文標籤與樣式物件
       const typeConf = TYPE_MAP[log.trade_type] || { label: log.trade_type, class: 'badge-buy' };
+      // 變數用途說明：isIncome 判斷該交易類別是否屬於正向資金流入
       const isIncome = ['SELL', 'REVENUE', 'INTEREST'].includes(log.trade_type);
 
       return `
@@ -503,7 +542,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     updatePaginationControls(totalCount, currentPage, totalPages);
   }
 
-  // [2026-10-09] [作廢] 異動說明 (已改為 [2026-10-10] 支援 class 多組同步邏輯)
+  // (作廢) [2026-10-09] 異動說明 (已改為 [2026-10-10] 支援 class 多組同步邏輯)
   // 目的：更新分頁指示器文字與切換按鈕的啟用/停用樣式
   // 變數說明：
   // 1. totalCount: 總筆數
@@ -531,12 +570,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     
     // 3. 同步更新所有「上一頁」按鈕狀態
+    // 變數用途說明：disablePrev 布林值，判斷上一頁按鈕是否需要禁用
     const disablePrev = (current <= 1 || totalCount === 0);
     btnPrevPages.forEach(el => {
       el.disabled = disablePrev;
     });
     
     // 4. 同步更新所有「下一頁」按鈕狀態
+    // 變數用途說明：disableNext 布林值，判斷下一頁按鈕是否需要禁用
     const disableNext = (current >= totalPages || totalCount === 0);
     btnNextPages.forEach(el => {
       el.disabled = disableNext;
@@ -548,11 +589,13 @@ document.addEventListener('DOMContentLoaded', async () => {
    * 目的：為表格內的「編輯」與「刪除」按鈕綁定操作事件
    */
   function bindTableRowEvents() {
+    // 變數用途說明：tbody 交易表格內容 DOM 元素
     const tbody = document.getElementById('trade-log-body');
     if (!tbody) return;
 
     tbody.querySelectorAll('.btn-edit').forEach((btn) => {
       btn.onclick = () => {
+        // 變數用途說明：targetLog 從快取清單中比對出的目標交易明細紀錄物件
         const targetLog = currentLogsCache.find((item) => String(item.trade_id) === String(btn.dataset.id));
         if (!targetLog) return;
 
@@ -580,6 +623,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateFormFieldsByTradeType();
 
         // [2026-10-07] 異動說明：編輯帶入資料時，INPUT 與 OUTPUT 比照 REVENUE / INTEREST 設定數值
+        // 變數用途說明：isIncome 判斷當前編輯項目是否為純資金/收益類別
         const isIncome = ['REVENUE', 'INTEREST', 'INPUT', 'OUTPUT'].includes(targetLog.trade_type);
         if (isIncome) {
           if (inputRound) inputRound.value = '0';
@@ -603,7 +647,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!confirm('確定要刪除這筆交易記錄嗎？此操作將無法復原。')) return;
         try {
           // [2026-10-08] feat: 改用 authFetch 帶 Clerk Token
+          // 變數用途說明：res 呼叫刪除明細 API 之回應物件
           const res = await window.ClientAuth.authFetch(`/api/trading/detail?trade_id=${encodeURIComponent(btn.dataset.id)}`, { method: 'DELETE' });
+          // 變數用途說明：result 刪除請求回傳之 JSON 結果
           const result = await res.json();
           if (!result.success) throw new Error(result.message);
           loadTradingData(currentStock, currentRound);
@@ -614,9 +660,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // =========================================================================
-  // [2026-10-09] [作廢] feat: 監聽分頁操作控制元件事件 (已改為 [2026-10-10] class 陣列綁定)
-  // =========================================================================
+  // (作廢) [2026-10-09] feat: 監聽分頁操作控制元件事件 (已改為 [2026-10-10] class 陣列綁定)
   // if (selectPageSize) { ... }
   // if (btnPrevPage) { ... }
   // if (btnNextPage) { ... }
@@ -653,6 +697,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 綁定所有下一頁按鈕
   btnNextPages.forEach(btn => {
     btn.addEventListener('click', () => {
+      // 變數用途說明：計算目前分頁總數以防超出上限
       const isAll = pageSizeSetting === 'ALL';
       const pageSizeNum = isAll ? currentLogsCache.length : parseInt(pageSizeSetting, 10);
       const totalPages = isAll ? 1 : Math.ceil(currentLogsCache.length / pageSizeNum);
@@ -681,6 +726,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
   }
 
+  // 變數用途說明：btnOpenModal 開啟交易彈窗按鈕；btnCloseModal 關閉交易彈窗按鈕
   const btnOpenModal = document.getElementById('btn-open-modal');
   const btnCloseModal = document.getElementById('btn-close-modal');
 
@@ -728,6 +774,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnCloseModal.onclick = () => toggleModal(modalTrade, false);
   }
 
+  // 變數用途說明：btnSubmitTrade 送出交易表單按鈕
   const btnSubmitTrade = document.getElementById('btn-submit-trade');
 
   /**
@@ -745,6 +792,7 @@ document.addEventListener('DOMContentLoaded', async () => {
    * 9. payload: 送往 API 的交易資料物件
    */
   async function submitTradeForm(keepOpen = false) {
+    // 變數用途說明：取得使用者在交易表單填寫的各項原始數值
     const trade_id = inputTradeId?.value?.trim();
     const stock_id = inputStockId?.value?.trim();
     const trade_date = inputTradeDate?.value?.trim();
@@ -777,6 +825,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
     let round = 0;
 
+    // 變數用途說明：定義數值範圍邊界常數，落實安全性與防呆原則
     const MAX_ROUND_LIMIT = 9999;
     const MAX_PRICE_LIMIT = 999999.9999;
     const MAX_SHARES_LIMIT = 99999999;
@@ -785,6 +834,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (isIncomeType) {
       round = 0;
+      // 變數用途說明：netTotalNum 轉為數字型態之實收入帳金額
       const netTotalNum = Number(inputNetTotal?.value || 0);
       if (netTotalNum <= 0) {
         alert('請填寫大於 0 的實收入帳金額！');
@@ -797,6 +847,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
     } else {
+      // 變數用途說明：roundRaw 原始回合文字；round 轉為十進位之回合整數
       const roundRaw = inputRound?.value?.trim();
       round = parseInt(roundRaw, 10);
       if (isNaN(round) || round < 0) {
@@ -810,6 +861,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
+      // 變數用途說明：數值轉換與上下限邊界檢核變數
       const priceNum = Number(inputPrice?.value || 0);
       const sharesNum = Number(inputShares?.value || 0);
       const feeNum = Number(inputFee?.value || 0);
@@ -831,7 +883,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
+    // 變數用途說明：isEdit 布林值，判斷當前為編輯模式或新增模式
     const isEdit = Boolean(trade_id);
+    // 變數用途說明：payload 組裝送往後端 detail API 之純物件資料
     const payload = {
       ...(isEdit && { trade_id }),
       stock_id,
@@ -848,11 +902,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       // [2026-10-08] feat: 改用 authFetch 帶 Clerk Token
+      // 變數用途說明：res 發送至 detail API 之 fetch 請求物件
       const res = await window.ClientAuth.authFetch('/api/trading/detail', {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      // 變數用途說明：result 後端交易儲存回傳結果
       const result = await res.json();
       if (!result.success) throw new Error(result.message);
 
@@ -871,7 +927,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (inputTax) inputTax.value = '';
         if (inputNetTotal) inputNetTotal.value = '';
         if (inputNote) inputNote.value = '';
-
 
         // [2026-10-15] fix: 連續新增時，將開窗回合數同步更新為後端最新建議回合 (如平倉後自動 +1)
         if (inputRound && !isIncomeType) {
@@ -900,6 +955,7 @@ document.addEventListener('DOMContentLoaded', async () => {
        * 變數說明：
        * 1. errorMessage: 失敗錯誤提示文字
        */
+      // 變數用途說明：errorMessage 失敗提示文字字串
       const errorMessage = `✕ ${isEdit ? '更新' : '新增'}失敗: ${err.message}`;
       showModalToast(tradeToast, errorMessage, false, 2000);
     }
@@ -918,6 +974,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnSubmitTradeContinue.onclick = () => submitTradeForm(true);
   }
 
+  // 變數用途說明：快取標的代碼維護開窗相關按鈕 DOM
   const btnOpenStockModal = document.getElementById('btn-open-stock-modal');
   const btnCloseStockModal = document.getElementById('btn-close-stock-modal');
   const btnSubmitStockComp = document.getElementById('btn-submit-stock-comp');
@@ -945,6 +1002,7 @@ document.addEventListener('DOMContentLoaded', async () => {
    * 3. stock_name: 新增之標的名稱
    */
   async function submitStockCompForm(keepOpen = false) {
+    // 變數用途說明：stock_id 使用者輸入之新標的代碼；stock_name 使用者輸入之新標的名稱
     const stock_id = inputNewStockId?.value?.trim();
     const stock_name = inputNewStockName?.value?.trim();
 
@@ -956,15 +1014,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       // [2026-10-08] feat: 改用 authFetch 帶 Clerk Token
+      // [2026-10-20] refactor: 因應 stock_comp 欄位重構，將傳遞欄位 market_type 改為 market_id
+      // (作廢) [2026-10-08] 原傳遞 payload 包含：market_type: currentMarket
+      // 變數用途說明：res 發送至 addstock API 之 fetch 回應物件
       const res = await window.ClientAuth.authFetch('/api/trading/addstock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           stock_id,
           stock_name,
-          market_type: currentMarket
+          market_id: currentMarket
         })
       });
+      // 變數用途說明：result 標的新增執行結果 JSON 物件
       const result = await res.json();
       if (!result.success) {
         /**
@@ -973,6 +1035,7 @@ document.addEventListener('DOMContentLoaded', async () => {
          * 變數說明：
          * 1. failMessage: 業務失敗訊息字串
          */
+        // 變數用途說明：failMessage 業務檢核失敗訊息字串
         const failMessage = `✕ ${result.message}`;
         showModalToast(stockToast, failMessage, false, 2000);
         return;
@@ -1015,6 +1078,7 @@ document.addEventListener('DOMContentLoaded', async () => {
        * 變數說明：
        * 1. networkErrorMessage: 網路或伺服器異常提示字串
        */
+      // 變數用途說明：networkErrorMessage 網路或伺服器未預期錯誤文字
       const networkErrorMessage = `✕ 新增失敗: ${err.message}`;
       showModalToast(stockToast, networkErrorMessage, false, 2000);
     }

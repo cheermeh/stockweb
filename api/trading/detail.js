@@ -5,7 +5,7 @@ const { TRADING_QUERIES } = require('../lib/queries');
 
 module.exports = async function handler(req, res) {
   // 變數用途說明：sessionUser 儲存由伺服端憑證解析出的當前登入使用者資訊
-  // 2026.10.08 feat: getAuthenticatedUser 改為非同步 (驗證 Clerk Token)，需 await
+  // [2026-10-08] feat: getAuthenticatedUser 改為非同步 (驗證 Clerk Token)，需 await
   const sessionUser = await getAuthenticatedUser(req);
   if (!sessionUser) {
     return res.status(401).json({ success: false, message: '未登入或登入已過期' });
@@ -19,12 +19,13 @@ module.exports = async function handler(req, res) {
    * 目的：修復未讀取最新切換之市場別，導致標的清單與幣別維持在登入時預設市場的問題
    * 程式實作說明：
    * 1. 優先從前端呼叫 API 時傳入的 URL Query 參數 (req.query.market) 讀取最新市場別 (例如 'US' 或 'TW')
-   * 2. 2026.10.08 feat: 不再降級為 sessionUser 或預設市場別，缺少時 GET 回 400
-   * 3. 強制轉為大寫，確保與 stock_comp 資料表內的 market_type 完全一致
+   * 2. [2026-10-08] feat: 不再降級為 sessionUser 或預設市場別，缺少時 GET 回 400
+   * 3. (作廢) [2026-10-06] 強制轉為大寫，確保與 stock_comp 資料表內的 market_type 完全一致
+   * 4. [2026-10-20] refactor: 強制轉為大寫，確保與 stock_comp 資料表內的 market_id 完全一致
    */
   // 變數用途說明：marketType 儲存本次請求所指定的市場代碼 (例如 'TW' 或 'US')
-  // 2026.10.08 feat: Token 不含市場別，僅讀取前端傳入的 market (POST/PUT/DELETE 不需要，GET 缺少時回 400)
-  const marketType = String(req.query.market || '').trim().toUpperCase();
+  // [2026-10-08] feat: Token 不含市場別，僅讀取前端傳入的 market (POST/PUT/DELETE 不需要，GET 缺少時回 400)
+  const marketType = String(req.query.market || req.query.market_id || '').trim().toUpperCase();
 
   // =========================================================================
   // 1. GET：查詢標的清單、回合狀態、部位統計與交易明細
@@ -34,7 +35,7 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ success: false, message: '缺少市場別 (market)！' });
     }
     try {
-      // 變數用途說明：stockListRes 儲存資料庫查詢回傳的標的清單原始結果
+      // 變數用途說明：stockListRes 儲存資料庫查詢回傳的標的清單原始結果 (已改由 market_id 篩選)
       const stockListRes = await query(TRADING_QUERIES.GET_STOCKS_FROM_COMP, [userId, marketType]);
       
       // 變數用途說明：availableStocks 格式化後的標的物件陣列，供前端下拉選單渲染
@@ -94,7 +95,7 @@ module.exports = async function handler(req, res) {
         // 變數用途說明：latestInfo 該標的最新回合之資料庫原始列
         const latestInfo = latestStatusRes.rows[0];
         // 變數用途說明：latestRoundNum 最新回合之編號整數
-        // 2026.10.08 fix: 回合 0 (出入金/利息) 不可被 `|| 1` 轉成 1，否則建議回合會變成 2
+        // [2026-10-08] fix: 回合 0 (出入金/利息) 不可被 `|| 1` 轉成 1，否則建議回合會變成 2
         const latestRoundNum = Number(latestInfo.round) || 0;
         // 變數用途說明：latestRemaining 最新回合目前剩餘之股數
         const latestRemaining = Number(latestInfo.remaining_shares || 0);
@@ -251,7 +252,7 @@ module.exports = async function handler(req, res) {
       }
 
       // 變數用途說明：isIncomeType 判斷交易類別是否為收益/金流型
-      // 2026.10.08 fix: 納入 INPUT 與 OUTPUT，否則回合 0 會被 `|| 1` 誤存為第 1 回合，導致下一回合建議變成 2
+      // [2026-10-08] fix: 納入 INPUT 與 OUTPUT，否則回合 0 會被 `|| 1` 誤存為第 1 回合，導致下一回合建議變成 2
       const isIncomeType = ['REVENUE', 'INTEREST', 'INPUT', 'OUTPUT'].includes(trade_type);
 
       // 變數用途說明：數值轉換與防呆處理變數
@@ -276,7 +277,7 @@ module.exports = async function handler(req, res) {
           // 變數用途說明：subtotal 未扣除稅費之成交金額 (單價 * 股數)
           const subtotal = numPrice * numShares;
           if (trade_type === 'BUY') {
-          // [2026-10-15] fix: 台股買入沒有手續費與交易稅的情況，仍需加上 numFee 與 numTax
+            // [2026-10-15] fix: 台股買入沒有手續費與交易稅的情況，仍需加上 numFee 與 numTax
             computedNetTotal = subtotal + numFee + numTax;
           } else if (trade_type === 'SELL') {
             computedNetTotal = subtotal - numFee - numTax;
@@ -338,7 +339,7 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ success: false, message: '缺少交易ID、標的代碼、日期或交易型態等必填欄位！' });
       }
 
-      // 2026.10.08 fix: 納入 INPUT 與 OUTPUT，固定歸屬第 0 回合 (同 POST)
+      // [2026-10-08] fix: 納入 INPUT 與 OUTPUT，固定歸屬第 0 回合 (同 POST)
       const isIncomeType = ['REVENUE', 'INTEREST', 'INPUT', 'OUTPUT'].includes(trade_type);
 
       let numPrice = Number(price);

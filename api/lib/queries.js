@@ -3,8 +3,8 @@
 /**
  * =========================================================================
  * 2. 主儀表板相關查詢 (DASHBOARD_QUERIES)
- *    重點：市場別僅存在於 stock_comp。
- *    所有出入金與股票交易一律透過 INNER JOIN stock_comp 嚴格限定 c.market_type = $2，
+ *    重點：市場別主檔為 stock_market，標的物 market_id 存在於 stock_comp。
+ *    所有出入金與股票交易一律透過 INNER JOIN stock_comp 嚴格限定 c.market_id = $2，
  *    徹底杜絕台美股幣別混算。
  * =========================================================================
  */
@@ -13,24 +13,40 @@ const DASHBOARD_QUERIES = {
    * [2026-10-06] 異動說明
    * 目的：查詢使用者在 stock_comp 資料表中存在標的代碼 (stock_id) 的所有不重複市場別
    * 實作說明：以 stock_id 為條件 (排除空值) 並使用 DISTINCT market_type，提供前端市場下拉選單動態選項
+   * 
+   * [2026-10-20] 重構說明
+   * 目的：改由市場別維度主檔 (stock_market) 取得完整的市場清單，避免依賴 stock_comp 進行掃描
    * 參數：
    *   $1: userId (使用者識別碼)
    */
   GET_DISTINCT_MARKETS_BY_STOCK: `
-    SELECT DISTINCT 
-      market_type
-    FROM public.stock_comp
-    WHERE user_id = $1 
-      AND stock_id IS NOT NULL 
-      AND TRIM(stock_id) <> ''
-    ORDER BY market_type ASC;
+    SELECT 
+      market_id,
+      market_name
+    FROM public.stock_market
+    WHERE user_id = $1
+    ORDER BY market_id ASC;
+  `,
+
+  /**
+   * 新增使用者自訂市場別
+   * 參數：
+   *   $1: userId (使用者識別碼)
+   *   $2: market_id (市場代碼，如 TW, US)
+   *   $3: market_name (市場顯示名稱，如 台股, 美股)
+   */
+  INSERT_STOCK_MARKET: `
+    INSERT INTO public.stock_market (
+      user_id, market_id, market_name
+    ) VALUES ($1, $2, $3)
+    RETURNING *;
   `,
 
   /**
    * 儀表板 KPI 指標彙總 (入金合計、利息合計、現金餘額、交易淨損益)
    * 參數：
    *   $1: userId (使用者識別碼)
-   *   $2: market_type ('TW' 或 'US')
+   *   $2: market_id ('TW' 或 'US')
    * 
    * 業務說明：
    * 1. 透過 INNER JOIN stock_comp，只挑選屬於當前市場 (TW/US) 的所有交易與出入金紀錄。
@@ -75,14 +91,14 @@ const DASHBOARD_QUERIES = {
     FROM public.trade_store t
     INNER JOIN public.stock_comp c 
       ON t.stock_id = c.stock_id AND t.user_id = c.user_id
-    WHERE t.user_id = $1 AND c.market_type = $2;
+    WHERE t.user_id = $1 AND c.market_id = $2;
   `,
 
   /**
    * 儀表板近期交易流水帳
    * 參數：
    *   $1: userId (使用者識別碼)
-   *   $2: market_type ('TW' 或 'US')
+   *   $2: market_id ('TW' 或 'US')
    * 
    * [2026-10-09] 異動說明：
    * 目的：配合前端新增分頁功能 (全部/10/20/50/100)，移除 LIMIT 10 限制
@@ -109,7 +125,7 @@ const DASHBOARD_QUERIES = {
     INNER JOIN public.stock_comp c 
     ON t.stock_id = c.stock_id AND t.user_id = c.user_id
     WHERE   t.user_id = $1 
-        AND c.market_type = $2
+        AND c.market_id = $2
         AND ($3::text IS NULL OR t.trade_type::text = $3) --列舉轉TXT否則不能用
         AND ($4::text IS NULL OR t.stock_id = $4)
         AND ($5::text IS NULL OR c.stock_name ILIKE '%' || $5 || '%')
@@ -131,14 +147,14 @@ const TRADING_QUERIES = {
    * 1. 取得使用者在當前市場的標的清單 (下拉選單來源)
    * 參數：
    *   $1: userId
-   *   $2: market_type ('TW' 或 'US')
+   *   $2: market_id ('TW' 或 'US')
    */
   GET_STOCKS_FROM_COMP: `
     SELECT 
       stock_id, 
       stock_name
     FROM public.stock_comp
-    WHERE user_id = $1 AND market_type = $2
+    WHERE user_id = $1 AND market_id = $2
     GROUP BY stock_id, stock_name
     ORDER BY stock_id ASC;
   `,

@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 取得使用者資訊與初始市場環境
   // 變數用途說明：username 使用者登入帳號名稱；market 預設或上次選取的市場環境代碼
-  // 2026.10.08 feat: 移除市場別預設 TW (requireAuth 已確保有市場別)
+  // [2026-10-08] feat: 移除市場別預設 TW (requireAuth 已確保有市場別)
   const { username = '', market = '' } = window.ClientAuth ? window.ClientAuth.getSessionInfo() : {};
 
   /**
@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentActiveMarket = String(market).toUpperCase();
   let isMarketDropdownReady = false;
 
-  // 2026.10.08 feat: 幣別符號一律使用 $，不再依市場區分
+  // [2026-10-08] feat: 幣別符號一律使用 $，不再依市場區分
   const CURRENCY_SYMBOL = '$';
 
   /**
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
   }
 
-  // 2026.10.09 feat: 分頁控制介面 DOM 快取 (頂部與底部)
+  // [2026-10-09] feat: 分頁控制介面 DOM 快取 (頂部與底部)
   // 變數用途說明：selectPageSize 頂部每頁筆數下拉選單；btnPrevPage 頂部上一頁按鈕；btnNextPage 頂部下一頁按鈕；pageIndicator 頂部頁碼提示文字；countBadgeTop 頂部總筆數標籤
   const selectPageSize = document.getElementById('select-page-size');
   const btnPrevPage = document.getElementById('btn-prev-page');
@@ -83,8 +83,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const countBadgeBottom = document.getElementById('ledger-count-bottom');
 
   // 變數用途說明：TYPE_CONFIG 定義各交易類別在表格上的中文顯示文字與徽章樣式類別
-  // 2026.10.07 異動說明：將 INTEREST 類別的中文顯示文字由「利息」改為「銀行利息」
-  // 2026.10.07 異動說明：出入金改為使用 badge-input 與 badge-output 樣式
+  // [2026-10-07] 異動說明：將 INTEREST 類別的中文顯示文字由「利息」改為「銀行利息」
+  // [2026-10-07] 異動說明：出入金改為使用 badge-input 與 badge-output 樣式
   const TYPE_CONFIG = {
     INPUT: { label: '入金', badgeClass: 'badge-input' },
     OUTPUT: { label: '出金', badgeClass: 'badge-output' },
@@ -107,6 +107,65 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   /**
+   * [2026-10-20] 異動說明
+   * 目的：彈窗切換顯示/隱藏輔助函式
+   * 變數用途說明：
+   * 1. modalEl: 目標彈窗 DOM 元素
+   * 2. show: 布林值，true 顯示，false 隱藏
+   */
+  const toggleModal = (modalEl, show) => {
+    if (!modalEl) return;
+    modalEl.classList.toggle('hidden', !show);
+    modalEl.classList.toggle('flex', show);
+  };
+
+  /**
+   * [2026-10-20] 異動說明
+   * 目的：抽成彈窗共用 Toast 提示處理函式 (比照 tradinglog.js 規格)
+   * 變數用途說明：
+   * 1. toastEl: 目標 Toast DOM 元素
+   * 2. message: 顯示的訊息字串
+   * 3. isSuccess: 是否為成功樣式 (true: 綠色, false: 紅色)
+   * 4. duration: 停留時間 (毫秒)
+   * 5. onComplete: 提示倒數結束後的 callback
+   */
+  const showModalToast = (toastEl, message, isSuccess = true, duration = 1500, onComplete = null) => {
+    if (!toastEl) return;
+
+    toastEl.textContent = message;
+    toastEl.classList.remove(
+      'bg-emerald-950/95', 'border-emerald-500/70', 'text-emerald-300',
+      'bg-red-950/95', 'border-red-500/70', 'text-red-300',
+      'hidden'
+    );
+
+    if (isSuccess) {
+      toastEl.classList.add('bg-emerald-950/95', 'border-emerald-500/70', 'text-emerald-300');
+    } else {
+      toastEl.classList.add('bg-red-950/95', 'border-red-500/70', 'text-red-300');
+    }
+
+    setTimeout(() => {
+      toastEl.classList.add('hidden');
+      if (typeof onComplete === 'function') {
+        onComplete();
+      }
+    }, duration);
+  };
+
+  /**
+   * [2026-10-20] 異動說明
+   * 目的：共用統一成功提示字詞處理函式，一律顯示「✓ 新增成功」
+   * 變數用途說明：
+   * 1. toastEl: 目標 Toast DOM 元素
+   * 2. duration: 停留時間 (毫秒)
+   * 3. onComplete: 倒數完的回呼函式
+   */
+  const showSuccessToast = (toastEl, duration = 1500, onComplete = null) => {
+    showModalToast(toastEl, '✓ 新增成功', true, duration, onComplete);
+  };
+
+  /**
    * [2026-10-06] 異動說明
    * 目的：初始化頂部市場下拉選單 (只建立一次)
    * 實作說明：動態建立 option 選項，並綁定 change 事件即時同步 Session 與重新拉取數據
@@ -117,7 +176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const selectMarket = document.getElementById('select-market');
     if (!selectMarket || isMarketDropdownReady) return;
 
-    // 變數用途說明：validMarkets 正規化後的市場代碼陣列 (轉大寫)，2026.10.08 feat: 完全來自後端資料庫，不再寫死 TW/US
+    // 變數用途說明：validMarkets 正規化後的市場代碼陣列 (轉大寫)，[2026-10-08] feat: 完全來自後端資料庫，不再寫死 TW/US
     const validMarkets = (Array.isArray(marketList) ? marketList : [])
       .map(m => String(m).trim().toUpperCase());
 
@@ -152,7 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         sessionStorage.setItem('stockweb_session_market', currentActiveMarket);
       }
 
-      // 2026.10.09 fix: 發送請求前立即鎖定，載入完畢後解除鎖定，避免請求期間被重複點擊
+      // [2026-10-09] fix: 發送請求前立即鎖定，載入完畢後解除鎖定，避免請求期間被重複點擊
       selectMarket.disabled = true;
       try {
         await loadDashboardData(currentActiveMarket);
@@ -162,7 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     isMarketDropdownReady = true;
-    //2026.10.09：標的資料全部塞入完畢後，解除禁用，避免破圖
+    // [2026-10-09]：標的資料全部塞入完畢後，解除禁用，避免破圖
     selectMarket.disabled = false;
   }
 
@@ -183,8 +242,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (serverStatus) serverStatus.textContent = '載入中...';
 
       // 變數用途說明：res 發送至後端 summary API 之 fetch 回應物件
-      // 2026.10.08 feat: 改用 authFetch 帶 Clerk Token
-      // 2026.10.13 feat: URL 串接 extraQueryString 搜尋參數
+      // [2026-10-08] feat: 改用 authFetch 帶 Clerk Token
+      // [2026-10-13] feat: URL 串接 extraQueryString 搜尋參數
       const res = await window.ClientAuth.authFetch(`/api/dashboard/summary?market=${encodeURIComponent(targetMarket)}${extraQueryString}`);
 
       if (res.status === 401) {
@@ -201,7 +260,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 變數用途說明：summary 財務彙總數據；recentLogs 最近 10 筆流水明細；availableMarkets 資料庫市場清單
       const { summary = {}, recentLogs = [], availableMarkets = [] } = result.data || {};
       globalRecentLogs = recentLogs;
-      currentPage = 1; // 2026.10.09 feat: 切換市場或搜尋重新拉取數據時，重設頁碼為第 1 頁
+      currentPage = 1; // [2026-10-09] feat: 切換市場或搜尋重新拉取數據時，重設頁碼為第 1 頁
 
       if (!isMarketDropdownReady) {
         initMarketSelect(availableMarkets);
@@ -294,7 +353,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const isAll = pageSizeSetting === 'ALL';
     const pageSizeNum = isAll ? totalCount : parseInt(pageSizeSetting, 10);
-    const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalCount / pageSizeNum));
+    const totalPages = isAll ? 1 : Math.ceil(totalCount / pageSizeNum);
 
     // 當前頁碼邊界檢查
     if (currentPage > totalPages) currentPage = totalPages;
@@ -375,7 +434,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // =========================================================================
-  // 2026.10.09 feat: 分頁事件監聽處理函式（頂部與底部共用）
+  // [2026-10-09] feat: 分頁事件監聽處理函式（頂部與底部共用）
   // =========================================================================
   // 變數用途說明：changePageSize 處理每頁筆數變更之函式
   const changePageSize = (newSize) => {
@@ -392,10 +451,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  // 變數用途說明：goToNextPage 處理前往下一頁之函式
+// 變數用途說明：goToNextPage 處理前往下一頁之函式
   const goToNextPage = () => {
     const isAll = pageSizeSetting === 'ALL';
     const pageSizeNum = isAll ? globalRecentLogs.length : parseInt(pageSizeSetting, 10);
+    // 修正：移除結尾多餘的右括號 )
     const totalPages = isAll ? 1 : Math.ceil(globalRecentLogs.length / pageSizeNum);
 
     if (currentPage < totalPages) {
@@ -558,6 +618,127 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     elWithInt.textContent = formatAmount(sumWithInterest, true);
     elWithInt.className = `font-bold ${sumWithInterest >= 0 ? 'text-profit' : 'text-loss'}`;
+  }
+
+  // =========================================================================
+  // [2026-10-20] 異動說明：新增市場別維護開窗與互動邏輯 (比照 tradinglog.js 規格)
+  // =========================================================================
+  // 變數用途說明：快取市場開窗與內部元件 DOM
+  const modalMarket = document.getElementById('modal-market');
+  const marketToast = document.getElementById('market-toast');
+  const inputNewMarketType = document.getElementById('input-new-market-type');
+  const btnOpenMarketModal = document.getElementById('btn-open-market-modal');
+  const btnCloseMarketModal = document.getElementById('btn-close-market-modal');
+  const btnSubmitMarket = document.getElementById('btn-submit-market');
+  const btnSubmitMarketContinue = document.getElementById('btn-submit-market-continue');
+
+  // 開啟市場彈窗
+  if (btnOpenMarketModal) {
+    btnOpenMarketModal.onclick = () => {
+      if (inputNewMarketType) inputNewMarketType.value = '';
+      if (marketToast) marketToast.classList.add('hidden');
+      toggleModal(modalMarket, true);
+      if (inputNewMarketType) inputNewMarketType.focus();
+    };
+  }
+
+  // 關閉市場彈窗
+  if (btnCloseMarketModal) {
+    btnCloseMarketModal.onclick = () => toggleModal(modalMarket, false);
+  }
+
+  /**
+   * [2026-10-20] 異動說明
+   * 目的：送出市場維護表單資料，支援「儲存並關閉」或「儲存並繼續新增」
+   * 變數用途說明：
+   * 1. keepOpen: 布林值，true 儲存後保持彈窗繼續新增，false 儲存後關閉
+   * 2. newMarket: 格式化後之市場代碼大寫字串
+   */
+  async function submitMarketForm(keepOpen = false) {
+    const newMarket = inputNewMarketType?.value?.trim().toUpperCase();
+
+    if (!newMarket) {
+      showModalToast(marketToast, '✕ 請填寫市場代碼！', false, 2000);
+      if (inputNewMarketType) inputNewMarketType.focus();
+      return;
+    }
+
+    try {
+      // 變數用途說明：res 呼叫後端建立/維護市場 API 之回應物件
+      // [2026-10-20] refactor: 比照 tradinglog 模式，整合呼叫 /api/dashboard/summary (POST)，避免產生 404 孤島端點
+      // (作廢) [2026-10-20] 原呼叫端點：/api/trading/addmarket
+      const res = await window.ClientAuth.authFetch('/api/dashboard/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          market_id: newMarket,
+          market_name: newMarket
+        })
+      });
+
+      const result = await res.json();
+      if (!result.success) {
+        showModalToast(marketToast, `✕ ${result.message || '新增失敗'}`, false, 2000);
+        return;
+      }
+
+      // 成功後處理：依 keepOpen 決定提示與開窗收合
+      if (keepOpen) {
+        if (inputNewMarketType) {
+          inputNewMarketType.value = '';
+          inputNewMarketType.focus();
+        }
+        showSuccessToast(marketToast, 1500);
+      } else {
+        showSuccessToast(marketToast, 800, () => {
+          toggleModal(modalMarket, false);
+          if (inputNewMarketType) inputNewMarketType.value = '';
+        });
+      }
+
+      // 同步更新當前市場，並動態將新市場加入頂部下拉選單
+      currentActiveMarket = newMarket;
+      if (window.ClientAuth && typeof window.ClientAuth.setMarket === 'function') {
+        window.ClientAuth.setMarket(currentActiveMarket);
+      } else {
+        sessionStorage.setItem('stockweb_session_market', currentActiveMarket);
+      }
+
+      const selectMarket = document.getElementById('select-market');
+      if (selectMarket) {
+        let exists = false;
+        for (let i = 0; i < selectMarket.options.length; i++) {
+          if (selectMarket.options[i].value === newMarket) {
+            exists = true;
+            break;
+          }
+        }
+        if (!exists) {
+          const opt = document.createElement('option');
+          opt.value = newMarket;
+          opt.textContent = newMarket;
+          opt.className = 'bg-gray-800 text-white';
+          selectMarket.appendChild(opt);
+        }
+        selectMarket.value = newMarket;
+      }
+
+      // 重新載入最新市場資料
+      await loadDashboardData(currentActiveMarket);
+
+    } catch (err) {
+      showModalToast(marketToast, `✕ 新增失敗: ${err.message}`, false, 2000);
+    }
+  }
+
+  // 綁定市場開窗「儲存並關閉」按鈕事件
+  if (btnSubmitMarket) {
+    btnSubmitMarket.onclick = () => submitMarketForm(false);
+  }
+
+  // 綁定市場開窗「儲存並繼續新增」按鈕事件
+  if (btnSubmitMarketContinue) {
+    btnSubmitMarketContinue.onclick = () => submitMarketForm(true);
   }
 
   // 初始載入：抓取當前市場數據
