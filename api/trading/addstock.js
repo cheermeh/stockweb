@@ -25,10 +25,10 @@ module.exports = async function handler(req, res) {
   // 變數用途說明：userId 儲存當前使用者唯一識別代碼
   const userId = sessionUser.userId;
 
-  // [2026-10-20] 異動說明：優先讀取 market_id，向下相容前端傳入之 market_type
+  // [2026-10-20] 異動說明：優先讀取 market_id，向下相容前端傳入之 market_type(作廢)
   // (作廢) [2026-10-08] feat: Token 不含市場別，改讀前端傳入的 market_type，缺少時一律視為錯誤
   // 變數用途說明：marketId 儲存前端傳入之市場代碼 (例如 'TW', 'US')
-  const marketId = String((req.body || {}).market_id || (req.body || {}).market_type || '').trim().toUpperCase();
+  const marketId = String((req.body || {}).market_id || '').trim().toUpperCase();
   if (!marketId) {
     return res.status(400).json({ success: false, message: '缺少市場別 (market_id)！' });
   }

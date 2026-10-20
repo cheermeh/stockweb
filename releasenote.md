@@ -24,3 +24,4 @@
 # release note: V 3.0.0
 1. 架設CLI開發環境
 2. 建立市場別新增功能
+3. 重構DB(拆三個TABLE)

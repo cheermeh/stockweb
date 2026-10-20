@@ -66,14 +66,28 @@ module.exports = async function handler(req, res) {
         query(DASHBOARD_QUERIES.GET_DISTINCT_MARKETS_BY_STOCK, [userId])
       ]);
 
+// 變數用途說明：stats 儲存資料庫 KPI 指標查詢 (GET_SUMMARY_METRICS) 回傳之第一列數據物件，若無資料則為空物件[cite: 17]
       const stats = summaryResult.rows[0] || {};
+
+      // 變數用途說明：totalDeposit 當前市場累計淨入金總額 (入金 - 出金)
       const totalDeposit = Number(stats.total_deposit || 0);
+
+      // 變數用途說明：totalInterest 當前市場累計被動收益利息 (股利配息 + 銀行利息)
       const totalInterest = Number(stats.total_interest || 0);
+
+      // 變數用途說明：currentCash 當前市場帳戶之可用現金餘額 [(入金 + 賣出 + 利息) - (出金 + 買進)]
       const currentCash = Number(stats.current_cash || 0);
+
+      // 變數用途說明：tradeNetPnl 當前市場買賣交易之淨損益 (賣出收付淨額 - 買進收付淨額)
       const tradeNetPnl = Number(stats.trade_net_pnl || 0);
+
+      // 變數用途說明：expectedReturnWithInterest 期望回收總額 (累計淨入金 + 累計收益利息)
       const expectedReturnWithInterest = totalDeposit + totalInterest;
 
+      // 變數用途說明：pnlIncludingInterest 總體投資損益含息 (買賣交易淨損益 + 累計收益利息)
       const pnlIncludingInterest = tradeNetPnl + totalInterest;
+
+      // 變數用途說明：pnlExcludingInterest 波段投資損益不含息 (純買賣交易淨損益)
       const pnlExcludingInterest = tradeNetPnl;
 
       // [2026-10-20] 異動說明：配合 stock_market 主檔改動，改取 market_id 作為可用市場陣列
@@ -110,8 +124,8 @@ module.exports = async function handler(req, res) {
   // =========================================================================
   if (req.method === 'POST') {
     try {
-      // 變數用途說明：marketId 取得市場代碼 (相容 market_id 或 market_type，強制大寫)
-      const marketId = String((req.body || {}).market_id || (req.body || {}).market_type || '').trim().toUpperCase();
+      // 變數用途說明：marketId 取得市場代碼 (相容 market_id，強制大寫)
+      const marketId = String((req.body || {}).market_id || '').trim().toUpperCase();
       // 變數用途說明：marketName 取得市場顯示名稱 (未填則預設為代碼)
       const marketName = String((req.body || {}).market_name || marketId).trim();
 
