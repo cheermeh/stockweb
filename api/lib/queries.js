@@ -10,7 +10,7 @@
  */
 const DASHBOARD_QUERIES = {
   /**
-   * [2026-10-06] 異動說明
+   * [2026-10-06] 異動說明(已作廢)
    * 目的：查詢使用者在 stock_comp 資料表中存在標的代碼 (stock_id) 的所有不重複市場別
    * 實作說明：以 stock_id 為條件 (排除空值) 並使用 DISTINCT market_type，提供前端市場下拉選單動態選項
    * 
