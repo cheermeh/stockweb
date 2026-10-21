@@ -25,3 +25,8 @@
 1. 架設CLI開發環境
 2. 建立市場別新增功能
 3. 重構DB(拆三個TABLE)
+
+4. # release note: V 3.1.0
+1. 移除GEMINI CLI設定
+2. Dashboard增加編輯備註功能
+3. Dashboard標的顯示中文名稱
