@@ -437,7 +437,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('[TradingLog Load Error]:', err);
       // 變數用途說明：tbody 表格主體 DOM 元素
       const tbody = document.getElementById('trade-log-body');
-      if (tbody) tbody.innerHTML = `<tr><td colspan="10" class="text-center py-6 text-red-400">載入失敗: ${err.message}</td></tr>`;
+      if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="text-center py-6 text-red-400">載入失敗，請稍後再試</td></tr>';
       updatePaginationControls(0, 1, 1);
     }
   }
@@ -506,7 +506,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // 渲染資料列：第一欄為自動累加序號 (由 1 開始累算)
-    tbody.innerHTML = currentRows.map((log, index) => {
+    // [2026-10-21] 使用文字節點顯示交易資料，避免動態 HTML 注入
+    // [2026-10-21] 暫存資料列後一次更新表格
+    const rows = document.createDocumentFragment();
+    currentRows.forEach((log, index) => {
       // 變數用途說明：serialNumber 自動累加計算所得之該筆紀錄絕對序號
       const serialNumber = startIndex + index + 1; // 序號計算：(當前頁碼 - 1) * 每頁筆數 + 當頁索引 + 1
       // 變數用途說明：typeConf 該筆紀錄對應之交易類別中文標籤與樣式物件
@@ -514,26 +517,39 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 變數用途說明：isIncome 判斷該交易類別是否屬於正向資金流入
       const isIncome = ['SELL', 'REVENUE', 'INTEREST'].includes(log.trade_type);
 
-      return `
-        <tr>
-          <td class="px-3 py-3 text-center text-gray-400 font-mono text-xs">${serialNumber}</td>
-          <td class="px-4 py-3">${log.trade_date ? log.trade_date.slice(0, 10) : '-'}</td>
-          <td class="px-4 py-3"><span class="badge ${typeConf.class}">${typeConf.label} (R${log.round})</span></td>
-          <td class="px-4 py-3 text-right">${Number(log.price || 0).toLocaleString()}</td>
-          <td class="px-4 py-3 text-right">${Number(log.shares || 0).toLocaleString()}</td>
-          <td class="px-4 py-3 text-right text-gray-400">${Number(log.fee || 0).toLocaleString()}</td>
-          <td class="px-4 py-3 text-right text-gray-400">${Number(log.tax || 0).toLocaleString()}</td>
-          <td class="px-4 py-3 text-right font-medium ${isIncome ? 'text-profit' : 'text-loss'}">
-            ${isIncome ? '+' : '-'}${currencySymbol}${Math.abs(Number(log.net_total || 0)).toLocaleString()}
-          </td>
-          <td class="px-4 py-3 text-gray-400">${log.note || ''}</td>
-          <td class="px-4 py-3 text-center">
-            <button type="button" class="btn-edit text-blue-400 hover:text-blue-300 mr-2.5 text-xs font-medium" data-id="${log.trade_id}">編輯</button>
-            <button type="button" class="btn-delete text-gray-500 hover:text-red-400 text-xs font-medium" data-id="${log.trade_id}">刪除</button>
-          </td>
-        </tr>
+      // [2026-10-21] 建立固定結構資料列，動態欄位以文字方式填入
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td class="px-3 py-3 text-center text-gray-400 font-mono text-xs js-serial"></td>
+        <td class="px-4 py-3 js-date"></td>
+        <td class="px-4 py-3"><span class="badge js-type"></span></td>
+        <td class="px-4 py-3 text-right js-price"></td>
+        <td class="px-4 py-3 text-right js-shares"></td>
+        <td class="px-4 py-3 text-right text-gray-400 js-fee"></td>
+        <td class="px-4 py-3 text-right text-gray-400 js-tax"></td>
+        <td class="px-4 py-3 text-right font-medium js-net-total"></td>
+        <td class="px-4 py-3 text-gray-400 js-note"></td>
+        <td class="px-4 py-3 text-center">
+          <button type="button" class="btn-edit text-blue-400 hover:text-blue-300 mr-2.5 text-xs font-medium">編輯</button>
+          <button type="button" class="btn-delete text-gray-500 hover:text-red-400 text-xs font-medium">刪除</button>
+        </td>
       `;
-    }).join('');
+      row.querySelector('.js-serial').textContent = serialNumber;
+      row.querySelector('.js-date').textContent = log.trade_date ? log.trade_date.slice(0, 10) : '-';
+      row.querySelector('.js-type').textContent = `${typeConf.label} (R${log.round})`;
+      row.querySelector('.js-type').classList.add(typeConf.class);
+      row.querySelector('.js-price').textContent = Number(log.price || 0).toLocaleString();
+      row.querySelector('.js-shares').textContent = Number(log.shares || 0).toLocaleString();
+      row.querySelector('.js-fee').textContent = Number(log.fee || 0).toLocaleString();
+      row.querySelector('.js-tax').textContent = Number(log.tax || 0).toLocaleString();
+      row.querySelector('.js-net-total').textContent = `${isIncome ? '+' : '-'}${currencySymbol}${Math.abs(Number(log.net_total || 0)).toLocaleString()}`;
+      row.querySelector('.js-net-total').classList.add(isIncome ? 'text-profit' : 'text-loss');
+      row.querySelector('.js-note').textContent = log.note || '';
+      row.querySelector('.btn-edit').dataset.id = String(log.trade_id);
+      row.querySelector('.btn-delete').dataset.id = String(log.trade_id);
+      rows.appendChild(row);
+    });
+    tbody.replaceChildren(rows);
 
     // 重新綁定當頁按鈕的編輯與刪除事件
     bindTableRowEvents();
