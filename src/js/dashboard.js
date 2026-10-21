@@ -82,6 +82,47 @@ document.addEventListener('DOMContentLoaded', async () => {
   const pageIndicatorBottom = document.getElementById('page-indicator-bottom');
   const countBadgeBottom = document.getElementById('ledger-count-bottom');
 
+  /**
+   * [2026-10-21] 異動說明
+   * 目的：快取交易明細編輯開窗 DOM 元素 (比照 tradinglog.js 規格)
+   * 變數用途說明：
+   * 1. modalTrade: 交易明細彈窗外層容器
+   * 2. modalTradeTitle: 交易明細彈窗標題
+   * 3. tradeToast: 交易彈窗浮動提示列
+   * 4. btnCloseTradeModal: 關閉交易明細彈窗按鈕
+   * 5. btnSubmitTrade: 送出交易修改按鈕
+   * 6. inputTradeId: 隱藏之交易記錄 ID 輸入框
+   * 7. inputStockId: 標的代碼輸入框 (唯讀)
+   * 8. inputRound: 回合整數輸入框 (唯讀)
+   * 9. inputTradeDate: 交易日期選擇器 (唯讀)
+   * 10. inputTradeType: 交易型態下拉選單 (唯讀)
+   * 11. inputPrice: 單價輸入框 (唯讀)
+   * 12. inputShares: 股數輸入框 (唯讀)
+   * 13. inputFee: 手續費輸入框 (唯讀)
+   * 14. inputTax: 證券交易稅輸入框 (唯讀)
+   * 15. wrapNetTotal: 實收入帳外層區塊
+   * 16. inputNetTotal: 實收入帳輸入框 (唯讀)
+   * 17. inputNote: 備註輸入框 (唯一允許修改)
+   */
+  const modalTrade = document.getElementById('modal-add-trade');
+  const modalTradeTitle = document.getElementById('modal-trade-title');
+  const tradeToast = document.getElementById('trade-toast');
+  const btnCloseTradeModal = document.getElementById('btn-close-trade-modal');
+  const btnSubmitTrade = document.getElementById('btn-submit-trade');
+
+  const inputTradeId = document.getElementById('input-trade-id');
+  const inputStockId = document.getElementById('input-stock-id');
+  const inputRound = document.getElementById('input-round');
+  const inputTradeDate = document.getElementById('input-trade-date');
+  const inputTradeType = document.getElementById('input-trade-type');
+  const inputPrice = document.getElementById('input-price');
+  const inputShares = document.getElementById('input-shares');
+  const inputFee = document.getElementById('input-fee');
+  const inputTax = document.getElementById('input-tax');
+  const wrapNetTotal = document.getElementById('wrap-net-total');
+  const inputNetTotal = document.getElementById('input-net-total');
+  const inputNote = document.getElementById('input-note');
+
   // 變數用途說明：TYPE_CONFIG 定義各交易類別在表格上的中文顯示文字與徽章樣式類別
   // [2026-10-07] 異動說明：將 INTEREST 類別的中文顯示文字由「利息」改為「銀行利息」
   // [2026-10-07] 異動說明：出入金改為使用 badge-input 與 badge-output 樣式
@@ -96,7 +137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 變數用途說明：isMasked 布林值，標記當前儀表板金額是否處於隱藏遮罩狀態
   let isMasked = false;
-  // 變數用途說明：globalRecentLogs 陣列，暫存自後端拉取的最近 10 筆流水帳，供切換遮罩時無損重繪
+  // 變數用途說明：globalRecentLogs 陣列，暫存自後端拉取的最近流水帳，供切換遮罩與編輯比對使用
   let globalRecentLogs = [];
 
   // 變數用途說明：formatAmount 函式，將數值格式化為含貨幣符號、千分位或隱藏星號之字串
@@ -155,14 +196,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /**
    * [2026-10-20] 異動說明
-   * 目的：共用統一成功提示字詞處理函式，一律顯示「✓ 新增成功」
+   * 目的：共用統一成功提示字詞處理函式
    * 變數用途說明：
    * 1. toastEl: 目標 Toast DOM 元素
    * 2. duration: 停留時間 (毫秒)
    * 3. onComplete: 倒數完的回呼函式
+   * 4. message: 顯示的提示字串 (預設為 '✓ 新增成功')
    */
-  const showSuccessToast = (toastEl, duration = 1500, onComplete = null) => {
-    showModalToast(toastEl, '✓ 新增成功', true, duration, onComplete);
+  const showSuccessToast = (toastEl, duration = 1500, onComplete = null, message = '✓ 新增成功') => {
+    showModalToast(toastEl, message, true, duration, onComplete);
   };
 
   /**
@@ -257,7 +299,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (serverStatus) serverStatus.textContent = '連線正常';
 
-      // 變數用途說明：summary 財務彙總數據；recentLogs 最近 10 筆流水明細；availableMarkets 資料庫市場清單
+      // 變數用途說明：summary 財務彙總數據；recentLogs 最近流水明細；availableMarkets 資料庫市場清單
       const { summary = {}, recentLogs = [], availableMarkets = [] } = result.data || {};
       globalRecentLogs = recentLogs;
       currentPage = 1; // [2026-10-09] feat: 切換市場或搜尋重新拉取數據時，重設頁碼為第 1 頁
@@ -330,6 +372,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   /**
    * [2026-10-09] 異動說明
    * 目的：渲染收支流水明細清單，並依當前分頁設定進行陣列切片及自動累加序號
+   * [2026-10-21] 異動說明：
+   * 增加最右側操作欄位 (編輯備註與刪除按鈕)
    * 變數用途說明：
    * 1. ledgerBody: 表格內容 tbody 元素
    * 2. totalCount: 流水紀錄總筆數
@@ -346,7 +390,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const totalCount = globalRecentLogs.length;
     if (totalCount === 0) {
-      ledgerBody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">尚無任何交易流水記錄</td></tr>';
+      ledgerBody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">尚無任何交易流水記錄</td></tr>';
       updatePaginationControls(0, 1, 1);
       return;
     }
@@ -373,8 +417,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       const netAmount = Number(item.net_total || 0);
       // 變數用途說明：displayDate 格式化後之 YYYY-MM-DD 交易日期
       const displayDate = item.trade_date ? item.trade_date.slice(0, 10) : '-';
-      // 變數用途說明：displayStock 標的代碼文字 (出入金顯示交割帳戶)
-      const displayStock = item.stock_id || (['INPUT', 'OUTPUT'].includes(item.trade_type) ? '交割帳戶' : '-');
+      
+      /**
+       * [2026-10-21] 異動說明
+       * 目的：標的呈現格式嚴格要求為 STOCK_ID-STOCK_NAME；沒有 NAME 則直接呈現 ID (不需出現 -)
+       * 變數用途說明：
+       * 1. rawStockId: 原始股票代碼字串
+       * 2. rawStockName: 原始股票名稱字串
+       * 3. displayStock: 組裝標的代碼與標的名稱之最終顯示文字
+       */
+      let displayStock = '-';
+      if (['INPUT', 'OUTPUT'].includes(item.trade_type)) {
+        displayStock = '交割帳戶';
+      } else {
+        const rawStockId = String(item.stock_id || '').trim();
+        const rawStockName = String(item.stock_name || '').trim();
+
+        if (rawStockId && rawStockName) {
+          displayStock = `${rawStockId}-${rawStockName}`;
+        } else if (rawStockId) {
+          displayStock = rawStockId;
+        }
+      }
 
       return `
         <tr class="hover:bg-gray-800/30 transition-colors">
@@ -385,11 +449,179 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td class="px-6 py-4 text-right">${isIncome ? formatAmount(netAmount) : '-'}</td>
           <td class="px-6 py-4 text-right">${!isIncome ? formatAmount(netAmount) : '-'}</td>
           <td class="px-6 py-4 text-gray-400">${item.note || ''}</td>
+          <td class="px-4 py-4 text-center">
+            <button type="button" class="btn-edit text-blue-400 hover:text-blue-300 mr-2.5 text-xs font-medium" data-id="${item.trade_id}">編輯</button>
+            <button type="button" class="btn-delete text-gray-500 hover:text-red-400 text-xs font-medium" data-id="${item.trade_id}">刪除</button>
+          </td>
         </tr>
       `;
     }).join('');
 
+    // [2026-10-21] feat: 綁定明細操作按鈕 (編輯/刪除) 事件
+    bindTableRowEvents();
+
     updatePaginationControls(totalCount, currentPage, totalPages);
+  }
+
+  /**
+   * [2026-10-21] 異動說明
+   * 目的：為表格內的「編輯」與「刪除」按鈕綁定操作事件
+   * 規則：Dashboard 僅允許編輯備註說明，其他欄位全數設為唯讀帶入
+   * 變數用途說明：
+   * 1. targetLog: 比對出之目標交易紀錄物件
+   * 2. isIncome: 判斷是否為純金流或被動收益
+   */
+  function bindTableRowEvents() {
+    const ledgerBody = document.getElementById('ledger-body');
+    if (!ledgerBody) return;
+
+    // 1. 綁定編輯按鈕
+    ledgerBody.querySelectorAll('.btn-edit').forEach((btn) => {
+      btn.onclick = () => {
+        const targetLog = globalRecentLogs.find((item) => String(item.trade_id) === String(btn.dataset.id));
+        if (!targetLog) return;
+
+        if (inputTradeId) inputTradeId.value = targetLog.trade_id;
+        if (modalTradeTitle) modalTradeTitle.textContent = '編輯交易備註';
+        if (tradeToast) tradeToast.classList.add('hidden');
+
+        // 標的呈現帶入
+        if (inputStockId) {
+          inputStockId.value = targetLog.stock_id || '';
+        }
+
+        if (inputTradeDate) {
+          inputTradeDate.value = targetLog.trade_date ? targetLog.trade_date.slice(0, 10) : '';
+        }
+
+        if (inputTradeType) {
+          inputTradeType.value = targetLog.trade_type || 'BUY';
+        }
+
+        // 判斷交易類型切換實收區塊
+        const isIncome = ['REVENUE', 'INTEREST', 'INPUT', 'OUTPUT'].includes(targetLog.trade_type);
+        if (isIncome) {
+          if (wrapNetTotal) wrapNetTotal.classList.remove('hidden');
+          if (inputRound) inputRound.value = '0';
+          if (inputPrice) inputPrice.value = '0';
+          if (inputShares) inputShares.value = '0';
+          if (inputFee) inputFee.value = '0';
+          if (inputTax) inputTax.value = '0';
+          if (inputNetTotal) inputNetTotal.value = Math.abs(Number(targetLog.net_total || 0));
+        } else {
+          if (wrapNetTotal) wrapNetTotal.classList.add('hidden');
+          if (inputRound) inputRound.value = targetLog.round !== undefined ? targetLog.round : '0';
+          if (inputPrice) inputPrice.value = targetLog.price || '';
+          if (inputShares) inputShares.value = targetLog.shares || '';
+          if (inputFee) inputFee.value = targetLog.fee || '';
+          if (inputTax) inputTax.value = targetLog.tax || '';
+          if (inputNetTotal) inputNetTotal.value = '';
+        }
+
+        // 備註欄位賦值並自動聚焦
+        if (inputNote) {
+          inputNote.value = targetLog.note || '';
+          setTimeout(() => {
+            inputNote.focus();
+            inputNote.select();
+          }, 50);
+        }
+
+        toggleModal(modalTrade, true);
+      };
+    });
+
+    // 2. 綁定刪除按鈕
+    ledgerBody.querySelectorAll('.btn-delete').forEach((btn) => {
+      btn.onclick = async () => {
+        if (!confirm('確定要刪除這筆交易記錄嗎？此操作將無法復原。')) return;
+        try {
+          // 變數用途說明：res 呼叫現有 detail 刪除 API 之回應物件
+          const res = await window.ClientAuth.authFetch(`/api/trading/detail?trade_id=${encodeURIComponent(btn.dataset.id)}`, { method: 'DELETE' });
+          // 變數用途說明：result 刪除請求回傳之 JSON 物件
+          const result = await res.json();
+          if (!result.success) throw new Error(result.message);
+
+          // 重新整理儀表板數據
+          await loadDashboardData(currentActiveMarket);
+        } catch (err) {
+          alert(`刪除失敗: ${err.message}`);
+        }
+      };
+    });
+  }
+
+  /**
+   * [2026-10-21] 異動說明
+   * 目的：送出交易明細備註修改至後端，其他欄位完全保持資料庫原始數值不變
+   * 變數用途說明：
+   * 1. trade_id: 欲修改之交易識別碼
+   * 2. targetLog: 比對原始快取所得之完整交易記錄物件
+   * 3. updatedNote: 使用者輸入之最新備註字串
+   * 4. payload: 送交後端 PUT 請求之資料本體物件
+   */
+  async function submitTradeForm() {
+    const trade_id = inputTradeId?.value?.trim();
+    if (!trade_id) {
+      alert('缺少交易記錄 ID，無法進行編輯！');
+      return;
+    }
+
+    // 找出原始資料紀錄，維持原欄位數值送出
+    const targetLog = globalRecentLogs.find((item) => String(item.trade_id) === String(trade_id));
+    if (!targetLog) {
+      alert('找不到該筆交易原始紀錄！');
+      return;
+    }
+
+    const updatedNote = inputNote?.value?.trim() || '';
+
+    // 組裝 Payload，除 note 外其餘一律忠實使用原始紀錄數值
+    const payload = {
+      trade_id: targetLog.trade_id,
+      stock_id: targetLog.stock_id,
+      round: targetLog.round !== undefined ? targetLog.round : 0,
+      trade_date: targetLog.trade_date ? targetLog.trade_date.slice(0, 10) : '',
+      trade_type: targetLog.trade_type,
+      price: targetLog.price || 0,
+      shares: targetLog.shares || 0,
+      fee: targetLog.fee || 0,
+      tax: targetLog.tax || 0,
+      net_total: targetLog.net_total !== undefined ? targetLog.net_total : undefined,
+      note: updatedNote
+    };
+
+    try {
+      // 變數用途說明：res 發送至 detail API 更新交易記錄之 fetch 回應物件
+      const res = await window.ClientAuth.authFetch('/api/trading/detail', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      // 變數用途說明：result 更新請求回傳結果
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message);
+
+      // 重新載入儀表板最新數據
+      await loadDashboardData(currentActiveMarket);
+
+      // 顯示編輯成功提示並於 0.9 秒後關閉彈窗
+      showSuccessToast(tradeToast, 900, () => {
+        toggleModal(modalTrade, false);
+      }, '✓ 編輯成功');
+    } catch (err) {
+      showModalToast(tradeToast, `✕ 更新失敗: ${err.message}`, false, 2000);
+    }
+  }
+
+  // 綁定編輯彈窗關閉按鈕
+  if (btnCloseTradeModal) {
+    btnCloseTradeModal.onclick = () => toggleModal(modalTrade, false);
+  }
+
+  // 綁定編輯彈窗儲存修改按鈕
+  if (btnSubmitTrade) {
+    btnSubmitTrade.onclick = () => submitTradeForm();
   }
 
   /**
@@ -451,11 +683,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-// 變數用途說明：goToNextPage 處理前往下一頁之函式
+  // 變數用途說明：goToNextPage 處理前往下一頁之函式
   const goToNextPage = () => {
     const isAll = pageSizeSetting === 'ALL';
     const pageSizeNum = isAll ? globalRecentLogs.length : parseInt(pageSizeSetting, 10);
-    // 修正：移除結尾多餘的右括號 )
     const totalPages = isAll ? 1 : Math.ceil(globalRecentLogs.length / pageSizeNum);
 
     if (currentPage < totalPages) {
