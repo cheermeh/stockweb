@@ -437,7 +437,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('[TradingLog Load Error]:', err);
       // 變數用途說明：tbody 表格主體 DOM 元素
       const tbody = document.getElementById('trade-log-body');
-      // [2026-10-22] 欄數由 10 調整為 11 (新增最後異動時間)
+      // [2026-10-22] 跨欄數調整為 11 (含最後異動時間)
       if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="text-center py-6 text-red-400">載入失敗，請稍後再試</td></tr>';
       updatePaginationControls(0, 1, 1);
     }
@@ -446,6 +446,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   /**
    * [2026-10-09] 異動說明
    * 目的：依據當前分頁與每頁筆數，渲染歷史交易明細流水帳表格（含最左側自動計算之序號欄位）
+
+   * [2026-10-22] 異動說明：操作欄位之後新增最後異動時間 (mtdt)，呼叫 ClientAuth.formatDateTime 動態轉換在地時區
    * 變數說明：
    * 1. stockId: 當前選取的標的代碼
    * 2. round: 當前選取的回合
@@ -463,7 +465,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 檢查條件：未選擇標的
     if (!stockId) {
-      // [2026-10-22] 欄數由 10 調整為 11 (新增最後異動時間)
+      // [2026-10-22] 跨欄數調整為 11
       tbody.innerHTML = '<tr><td colspan="11" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td></tr>';
       updatePaginationControls(0, 1, 1);
       return;
@@ -471,7 +473,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 檢查條件：未選擇回合
     if (round === '' || round === null || round === undefined) {
-      // [2026-10-22] 欄數由 10 調整為 11 (新增最後異動時間)
+      // [2026-10-22] 跨欄數調整為 11
       tbody.innerHTML = '<tr><td colspan="11" class="text-center py-8 text-gray-500">請選擇特定回合以檢視該回合交易流水帳明細</td></tr>';
       updatePaginationControls(0, 1, 1);
       return;
@@ -480,7 +482,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 檢查條件：該回合無任何明細紀錄
     const totalCount = currentLogsCache.length;
     if (totalCount === 0) {
-      // [2026-10-22] 欄數由 10 調整為 11 (新增最後異動時間)
+      // [2026-10-22] 跨欄數調整為 11
       tbody.innerHTML = '<tr><td colspan="11" class="text-center py-8 text-gray-500">該回合尚無任何交易流水記錄</td></tr>';
       updatePaginationControls(0, 1, 1);
       return;
@@ -489,7 +491,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 依據每頁筆數計算總頁數與資料切片
     const isAll = pageSizeSetting === 'ALL';
     const pageSizeNum = isAll ? totalCount : parseInt(pageSizeSetting, 10);
-    const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalCount / pageSizeNum));
+    const totalPages = isAll ? 1 : Math.ceil(totalCount / pageSizeNum);
 
     // 當前頁碼防呆邊界檢查
     if (currentPage > totalPages) currentPage = totalPages;
@@ -511,7 +513,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 渲染資料列：第一欄為自動累加序號 (由 1 開始累算)
     // [2026-10-21] 使用文字節點顯示交易資料，避免動態 HTML 注入
-    // [2026-10-21] 暫存資料列後一次更新表格
     const rows = document.createDocumentFragment();
     currentRows.forEach((log, index) => {
       // 變數用途說明：serialNumber 自動累加計算所得之該筆紀錄絕對序號
@@ -520,6 +521,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const typeConf = TYPE_MAP[log.trade_type] || { label: log.trade_type, class: 'badge-buy' };
       // 變數用途說明：isIncome 判斷該交易類別是否屬於正向資金流入
       const isIncome = ['SELL', 'REVENUE', 'INTEREST'].includes(log.trade_type);
+
+      // [2026-10-22] 異動說明：使用共用函式依使用者在地時區動態轉換最後異動時間
+      const displayMtdt = window.ClientAuth && typeof window.ClientAuth.formatDateTime === 'function'
+        ? window.ClientAuth.formatDateTime(log.mtdt)
+        : (log.mtdt || '-');
 
       // [2026-10-21] 建立固定結構資料列，動態欄位以文字方式填入
       const row = document.createElement('tr');
@@ -537,7 +543,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           <button type="button" class="btn-edit text-blue-400 hover:text-blue-300 mr-2.5 text-xs font-medium">編輯</button>
           <button type="button" class="btn-delete text-gray-500 hover:text-red-400 text-xs font-medium">刪除</button>
         </td>
-        <td class="px-4 py-3 text-gray-400 font-mono text-xs js-mtdt"></td>
+        <!-- [2026-10-22] 異動欄位：操作之後新增最後異動時間 (動態轉換本地時區) -->
+        <td class="px-4 py-3 text-gray-400 font-mono text-xs whitespace-nowrap js-mtdt"></td>
       `;
       row.querySelector('.js-serial').textContent = serialNumber;
       row.querySelector('.js-date').textContent = log.trade_date ? log.trade_date.slice(0, 10) : '-';
@@ -550,8 +557,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       row.querySelector('.js-net-total').textContent = `${isIncome ? '+' : '-'}${currencySymbol}${Math.abs(Number(log.net_total || 0)).toLocaleString()}`;
       row.querySelector('.js-net-total').classList.add(isIncome ? 'text-profit' : 'text-loss');
       row.querySelector('.js-note').textContent = log.note || '';
-      // [2026-10-22] 最後異動時間，無資料顯示 -
-      row.querySelector('.js-mtdt').textContent = log.mtdt || '-';
+      row.querySelector('.js-mtdt').textContent = displayMtdt;
       row.querySelector('.btn-edit').dataset.id = String(log.trade_id);
       row.querySelector('.btn-delete').dataset.id = String(log.trade_id);
       rows.appendChild(row);

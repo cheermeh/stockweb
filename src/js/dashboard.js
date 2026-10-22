@@ -375,7 +375,8 @@ document.addEventListener('DOMContentLoaded', async () => {
    * [2026-10-21] 異動說明：
    * 1. 標的呈現格式改為 STOCK_ID-STOCK_NAME；若無名稱則直接呈現 STOCK_ID (不出現 -)；出入金顯示交割帳戶
    * 2. 增加最右側操作欄位 (編輯備註與刪除按鈕)
-   * [2026-10-22] 異動說明：最後欄位新增最後異動時間 (mtdt)
+   
+   * [2026-10-22] 異動說明：呼叫 ClientAuth.formatDateTime 將 mtdt 轉為使用者本地時區 yyyy/mm/dd 24hh:mm
    * 變數用途說明：
    * 1. ledgerBody: 表格內容 tbody 元素
    * 2. totalCount: 流水紀錄總筆數
@@ -442,8 +443,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
 
-      // [2026-10-22] 異動說明：取得格式化後之最後異動時間 mtdt
-      const displayMtdt = item.mtdt || '-';
+      // [2026-10-22] 異動說明：使用共用函式依使用者在地時區動態轉換最後異動時間
+      const displayMtdt = window.ClientAuth && typeof window.ClientAuth.formatDateTime === 'function'
+        ? window.ClientAuth.formatDateTime(item.mtdt)
+        : (item.mtdt || '-');
 
       return `
         <tr class="hover:bg-gray-800/30 transition-colors">
@@ -458,7 +461,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <button type="button" class="btn-edit text-blue-400 hover:text-blue-300 mr-2.5 text-xs font-medium" data-id="${item.trade_id}">編輯</button>
             <button type="button" class="btn-delete text-gray-500 hover:text-red-400 text-xs font-medium" data-id="${item.trade_id}">刪除</button>
           </td>
-          <!-- [2026-10-22] 異動欄位：操作之後新增最後異動時間 -->
+          <!-- [2026-10-22] 異動欄位：操作之後新增最後異動時間 (動態轉換本地時區) -->
           <td class="px-6 py-4 text-gray-400 font-mono text-xs whitespace-nowrap">${displayMtdt}</td>
         </tr>
       `;

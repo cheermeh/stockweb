@@ -89,13 +89,12 @@ const DASHBOARD_QUERIES = {
    * 目的：增加搜尋功能，允許前端依據交易類別、標的代碼、標的名稱、起訖日期及備註進行篩選(改WHERE子句)
    * 
    * [2026-10-22] 異動說明：
-   * 目的：查詢欄位新增 c.stock_name 以及格式化後的最後異動時間 mtdt (YYYY/MM/DD HH24:MI)
+   * 目的：移除所有 TO_CHAR，一律直接讀取原始欄位名稱 trade_date 與 mtdt，由前端依使用者所在地時區動態轉換
    */
   GET_RECENT_LOGS: `
     SELECT 
       t.trade_id,
-      -- 強制轉為純文字 YYYY-MM-DD，杜絕時差偏差造成日期少一天
-      TO_CHAR(t.trade_date, 'YYYY-MM-DD') AS trade_date,
+      t.trade_date,
       t.stock_id,
       c.stock_name,
       t.round,
@@ -107,8 +106,7 @@ const DASHBOARD_QUERIES = {
       t.net_total,
       t.note,
       t.crtdt,
-      -- [2026-10-22] 依需求將 mtdt 格式化為 yyyy/mm/dd 24hh:mm
-      TO_CHAR(t.mtdt, 'YYYY/MM/DD HH24:MI') AS mtdt
+      t.mtdt
     FROM public.trade_store t
     INNER JOIN public.stock_comp c 
     ON t.stock_id = c.stock_id AND t.user_id = c.user_id
@@ -277,8 +275,8 @@ const TRADING_QUERIES = {
    *   $1: userId
    *   $2: stockId (標的代碼)
    *   $3: rounds 陣列 ($3::int[])
-   * 說明：trade_date 強制使用 TO_CHAR 轉為 YYYY-MM-DD 字串
-   * [2026-10-22] 異動說明：查詢欄位新增格式化後的最後異動時間 mtdt (YYYY/MM/DD HH24:MI)
+   * 
+   * [2026-10-22] 移除所有 TO_CHAR，一律直接讀取原始欄位名稱 trade_date 與 mtdt
    */
   GET_TRADE_LOGS_BY_ROUNDS: `
     SELECT 
@@ -286,7 +284,7 @@ const TRADING_QUERIES = {
       user_id,
       stock_id,
       round,
-      TO_CHAR(trade_date, 'YYYY-MM-DD') AS trade_date,
+      trade_date,
       trade_type, 
       price,
       shares,
@@ -295,8 +293,7 @@ const TRADING_QUERIES = {
       net_total,
       note,
       crtdt,
-      -- [2026-10-22] 依需求將 mtdt 格式化為 yyyy/mm/dd 24hh:mm
-      TO_CHAR(mtdt, 'YYYY/MM/DD HH24:MI') AS mtdt
+      mtdt
     FROM public.trade_store
     WHERE user_id = $1 AND stock_id = $2 AND round = ANY($3::int[])
     ORDER BY trade_date DESC, crtdt DESC;

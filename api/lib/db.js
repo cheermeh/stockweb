@@ -31,8 +31,7 @@ function getPool() {
 
     pool = new Pool({
       connectionString: cleanConnectionString,
-      // [2026-10-22] 異動說明：設定資料庫 session 預設時區為台北時區 (+8)，解決 TO_CHAR 時差少 8 小時問題
-      options: '-c timezone=Asia/Taipei',
+
       ssl: caCert
         ? {
             rejectUnauthorized: true,
