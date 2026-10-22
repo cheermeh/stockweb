@@ -437,7 +437,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('[TradingLog Load Error]:', err);
       // 變數用途說明：tbody 表格主體 DOM 元素
       const tbody = document.getElementById('trade-log-body');
-      if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="text-center py-6 text-red-400">載入失敗，請稍後再試</td></tr>';
+      // [2026-10-22] 欄數由 10 調整為 11 (新增最後異動時間)
+      if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="text-center py-6 text-red-400">載入失敗，請稍後再試</td></tr>';
       updatePaginationControls(0, 1, 1);
     }
   }
@@ -462,14 +463,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 檢查條件：未選擇標的
     if (!stockId) {
-      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td></tr>';
+      // [2026-10-22] 欄數由 10 調整為 11 (新增最後異動時間)
+      tbody.innerHTML = '<tr><td colspan="11" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td></tr>';
       updatePaginationControls(0, 1, 1);
       return;
     }
 
     // 檢查條件：未選擇回合
     if (round === '' || round === null || round === undefined) {
-      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">請選擇特定回合以檢視該回合交易流水帳明細</td></tr>';
+      // [2026-10-22] 欄數由 10 調整為 11 (新增最後異動時間)
+      tbody.innerHTML = '<tr><td colspan="11" class="text-center py-8 text-gray-500">請選擇特定回合以檢視該回合交易流水帳明細</td></tr>';
       updatePaginationControls(0, 1, 1);
       return;
     }
@@ -477,7 +480,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 檢查條件：該回合無任何明細紀錄
     const totalCount = currentLogsCache.length;
     if (totalCount === 0) {
-      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">該回合尚無任何交易流水記錄</td></tr>';
+      // [2026-10-22] 欄數由 10 調整為 11 (新增最後異動時間)
+      tbody.innerHTML = '<tr><td colspan="11" class="text-center py-8 text-gray-500">該回合尚無任何交易流水記錄</td></tr>';
       updatePaginationControls(0, 1, 1);
       return;
     }
@@ -533,6 +537,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <button type="button" class="btn-edit text-blue-400 hover:text-blue-300 mr-2.5 text-xs font-medium">編輯</button>
           <button type="button" class="btn-delete text-gray-500 hover:text-red-400 text-xs font-medium">刪除</button>
         </td>
+        <td class="px-4 py-3 text-gray-400 font-mono text-xs js-mtdt"></td>
       `;
       row.querySelector('.js-serial').textContent = serialNumber;
       row.querySelector('.js-date').textContent = log.trade_date ? log.trade_date.slice(0, 10) : '-';
@@ -545,6 +550,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       row.querySelector('.js-net-total').textContent = `${isIncome ? '+' : '-'}${currencySymbol}${Math.abs(Number(log.net_total || 0)).toLocaleString()}`;
       row.querySelector('.js-net-total').classList.add(isIncome ? 'text-profit' : 'text-loss');
       row.querySelector('.js-note').textContent = log.note || '';
+      // [2026-10-22] 最後異動時間，無資料顯示 -
+      row.querySelector('.js-mtdt').textContent = log.mtdt || '-';
       row.querySelector('.btn-edit').dataset.id = String(log.trade_id);
       row.querySelector('.btn-delete').dataset.id = String(log.trade_id);
       rows.appendChild(row);

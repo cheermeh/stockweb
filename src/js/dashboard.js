@@ -373,7 +373,9 @@ document.addEventListener('DOMContentLoaded', async () => {
    * [2026-10-09] 異動說明
    * 目的：渲染收支流水明細清單，並依當前分頁設定進行陣列切片及自動累加序號
    * [2026-10-21] 異動說明：
-   * 增加最右側操作欄位 (編輯備註與刪除按鈕)
+   * 1. 標的呈現格式改為 STOCK_ID-STOCK_NAME；若無名稱則直接呈現 STOCK_ID (不出現 -)；出入金顯示交割帳戶
+   * 2. 增加最右側操作欄位 (編輯備註與刪除按鈕)
+   * [2026-10-22] 異動說明：最後欄位新增最後異動時間 (mtdt)
    * 變數用途說明：
    * 1. ledgerBody: 表格內容 tbody 元素
    * 2. totalCount: 流水紀錄總筆數
@@ -390,7 +392,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const totalCount = globalRecentLogs.length;
     if (totalCount === 0) {
-      ledgerBody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">尚無任何交易流水記錄</td></tr>';
+      ledgerBody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-gray-500">尚無任何交易流水記錄</td></tr>';
       updatePaginationControls(0, 1, 1);
       return;
     }
@@ -406,10 +408,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const startIndex = (currentPage - 1) * pageSizeNum;
     const currentRows = isAll ? globalRecentLogs : globalRecentLogs.slice(startIndex, startIndex + pageSizeNum);
 
-    // [2026-10-21] 使用文字節點顯示交易資料，避免動態 HTML 注入
-    // [2026-10-21] 暫存資料列後一次更新表格
-    const rows = document.createDocumentFragment();
-    currentRows.forEach((item, index) => {
+    ledgerBody.innerHTML = currentRows.map((item, index) => {
       // 序號計算：(當前頁碼 - 1) * 每頁筆數 + 當頁索引 + 1
       const serialNumber = startIndex + index + 1;
       // 變數用途說明：typeConf 該筆紀錄對應之交易類別中文標籤與 CSS 樣式
@@ -443,35 +442,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
 
-      // [2026-10-21] 建立固定結構資料列，動態欄位以文字方式填入
-      const row = document.createElement('tr');
-      row.className = 'hover:bg-gray-800/30 transition-colors';
-      row.innerHTML = `
-        <td class="px-4 py-4 text-center text-gray-400 font-mono text-xs js-serial"></td>
-        <td class="px-6 py-4 js-date"></td>
-        <td class="px-6 py-4 font-mono font-medium text-white js-stock"></td>
-        <td class="px-6 py-4"><span class="badge js-type"></span></td>
-        <td class="px-6 py-4 text-right js-income"></td>
-        <td class="px-6 py-4 text-right js-expense"></td>
-        <td class="px-6 py-4 text-gray-400 js-note"></td>
-        <td class="px-4 py-4 text-center">
-          <button type="button" class="btn-edit text-blue-400 hover:text-blue-300 mr-2.5 text-xs font-medium">編輯</button>
-          <button type="button" class="btn-delete text-gray-500 hover:text-red-400 text-xs font-medium">刪除</button>
-        </td>
+      // [2026-10-22] 異動說明：取得格式化後之最後異動時間 mtdt
+      const displayMtdt = item.mtdt || '-';
+
+      return `
+        <tr class="hover:bg-gray-800/30 transition-colors">
+          <td class="px-4 py-4 text-center text-gray-400 font-mono text-xs">${serialNumber}</td>
+          <td class="px-6 py-4">${displayDate}</td>
+          <td class="px-6 py-4 font-mono font-medium text-white">${displayStock}</td>
+          <td class="px-6 py-4"><span class="badge ${typeConf.badgeClass}">${typeConf.label}</span></td>
+          <td class="px-6 py-4 text-right">${isIncome ? formatAmount(netAmount) : '-'}</td>
+          <td class="px-6 py-4 text-right">${!isIncome ? formatAmount(netAmount) : '-'}</td>
+          <td class="px-6 py-4 text-gray-400">${item.note || ''}</td>
+          <td class="px-4 py-4 text-center">
+            <button type="button" class="btn-edit text-blue-400 hover:text-blue-300 mr-2.5 text-xs font-medium" data-id="${item.trade_id}">編輯</button>
+            <button type="button" class="btn-delete text-gray-500 hover:text-red-400 text-xs font-medium" data-id="${item.trade_id}">刪除</button>
+          </td>
+          <!-- [2026-10-22] 異動欄位：操作之後新增最後異動時間 -->
+          <td class="px-6 py-4 text-gray-400 font-mono text-xs whitespace-nowrap">${displayMtdt}</td>
+        </tr>
       `;
-      row.querySelector('.js-serial').textContent = serialNumber;
-      row.querySelector('.js-date').textContent = displayDate;
-      row.querySelector('.js-stock').textContent = displayStock;
-      row.querySelector('.js-type').textContent = typeConf.label;
-      row.querySelector('.js-type').classList.add(typeConf.badgeClass);
-      row.querySelector('.js-income').textContent = isIncome ? formatAmount(netAmount) : '-';
-      row.querySelector('.js-expense').textContent = !isIncome ? formatAmount(netAmount) : '-';
-      row.querySelector('.js-note').textContent = item.note || '';
-      row.querySelector('.btn-edit').dataset.id = String(item.trade_id);
-      row.querySelector('.btn-delete').dataset.id = String(item.trade_id);
-      rows.appendChild(row);
-    });
-    ledgerBody.replaceChildren(rows);
+    }).join('');
 
     // [2026-10-21] feat: 綁定明細操作按鈕 (編輯/刪除) 事件
     bindTableRowEvents();
@@ -897,6 +888,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   /**
    * [2026-10-20] 異動說明
    * 目的：送出市場維護表單資料，支援「儲存並關閉」或「儲存並繼續新增」
+   * [2026-10-22] 異動說明：改為呼叫獨立端點 /api/dashboard/addmarket
    * 變數用途說明：
    * 1. keepOpen: 布林值，true 儲存後保持彈窗繼續新增，false 儲存後關閉
    * 2. newMarket: 格式化後之市場代碼大寫字串
@@ -912,9 +904,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       // 變數用途說明：res 呼叫後端建立/維護市場 API 之回應物件
-      // [2026-10-20] refactor: 比照 tradinglog 模式，整合呼叫 /api/dashboard/summary (POST)，避免產生 404 孤島端點
-      // (作廢) [2026-10-20] 原呼叫端點：/api/trading/addmarket
-      const res = await window.ClientAuth.authFetch('/api/dashboard/summary', {
+      // (作廢) [2026-10-20] 原呼叫端點：/api/dashboard/summary (POST)
+      // [2026-10-22] refactor: 依規範呼叫獨立端點 /api/dashboard/addmarket
+      const res = await window.ClientAuth.authFetch('/api/dashboard/addmarket', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

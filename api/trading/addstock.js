@@ -71,12 +71,13 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // 4. 執行新增寫入 (欄位順序對齊實體結構：user_id, market_id, stock_id, stock_name)
+    // 4. 執行新增寫入 (欄位順序對齊實體結構：user_id, market_id, stock_id, stock_name, crtdt, mtdt)
     // [2026-10-20] 異動說明：欄位由 market_type 改為 market_id
     // (作廢) 舊 SQL：INSERT INTO public.stock_comp (user_id, stock_id, stock_name, market_type)
+    // [2026-10-22] 異動說明：新增時 crtdt 與 mtdt 一併設定為 NOW()
     const insertSql = `
-      INSERT INTO public.stock_comp (user_id, market_id, stock_id, stock_name)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO public.stock_comp (user_id, market_id, stock_id, stock_name, crtdt, mtdt)
+      VALUES ($1, $2, $3, $4, NOW(), NOW())
       RETURNING stock_id, stock_name, market_id;
     `;
     // 變數用途說明：insertResult 新增資料庫執行結果
