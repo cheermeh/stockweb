@@ -33,3 +33,7 @@
 
 # release note: V 3.1.1
 1. 加強新增及編輯時的XSS安全性
+
+2. # release note: V 3.1.2
+1. 新增最後修改時間 (UI/DB)
+2. 時間呈現全部使用CLINET SIDE
