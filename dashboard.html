@@ -270,17 +270,23 @@
               <!-- [2026-10-09] feat: 新增最左側序號欄位，寬度固定並置中呈現 -->
               <th class="px-4 py-3 text-center w-16">序號</th>
               <th class="px-6 py-3">交易日期</th>
-              <th class="px-6 py-3">標的代碼</th>
+              <!-- [2026-10-21] 異動說明：標題由「標的代碼」改為「標的」 -->
+              <th class="px-6 py-3">標的</th>
               <th class="px-6 py-3">交易類別</th>
               <th class="px-6 py-3 text-right">進款 (Net+)</th>
               <th class="px-6 py-3 text-right">出款 (Net-)</th>
               <th class="px-6 py-3">備註說明</th>
+              <!-- [2026-10-22] 補上缺少的操作表頭欄位 -->
+              <th class="px-4 py-3 text-center">操作</th>
+              <!-- [2026-10-22] 將 mtdt 新增在 dashboard 的最後欄位 (操作之後) -->
+              <th class="px-6 py-3">最後異動時間</th>
             </tr>
           </thead>
           <tbody id="ledger-body" class="divide-y divide-gray-800">
             <tr>
-              <!-- [2026-10-09] feat: 配合新增序號欄位，跨欄數由 6 調整為 7 -->
-              <td colspan="7" class="text-center py-8 text-gray-500">
+              <!-- (作廢) [2026-10-09] feat: 配合新增序號欄位，跨欄數由 6 調整為 7 -->
+              <!-- [2026-10-22] 跨欄數由 7 調整為 9 (含操作與最後異動時間) -->
+              <td colspan="9" class="text-center py-8 text-gray-500">
                 載入資料庫紀錄中...
               </td>
             </tr>
@@ -321,7 +327,119 @@
   </main>
 
   <!-- ========================================================================= -->
-  <!-- [2026-10-20] 彈窗：新增市場別維護彈窗 (比照 tradinglog 標的維護彈窗結構) -->
+  <!-- [2026-10-21] 彈窗：編輯交易備註彈窗 (僅允許修改備註，其餘欄位鎖定唯讀) -->
+  <!-- ========================================================================= -->
+  <div id="modal-add-trade"
+    class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="relative bg-gray-800 border border-gray-700 rounded-xl w-full max-w-md p-6 space-y-4">
+      <div class="flex justify-between items-center border-b border-gray-700 pb-3">
+        <h3 id="modal-trade-title" class="font-bold text-white">編輯交易備註</h3>
+        <button id="btn-close-trade-modal" type="button" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+
+      <!-- 編輯成功/失敗浮動提示列 (預設 hidden) -->
+      <div id="trade-toast"
+        class="hidden absolute top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-emerald-950/95 border border-emerald-500/70 text-emerald-300 text-xs font-medium shadow-lg z-10 pointer-events-none transition-all">
+        ✓ 編輯成功
+      </div>
+
+      <form id="form-trade" class="space-y-3">
+        <!-- 隱藏欄位：儲存欲編輯的 trade_id -->
+        <input type="hidden" id="input-trade-id" value="">
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-gray-400">標的</label>
+            <input type="text" id="input-stock-id" readonly tabindex="-1"
+              class="w-full mt-1 bg-gray-950 border border-gray-800 rounded px-3 py-1.5 text-gray-400 uppercase text-sm cursor-not-allowed opacity-75 focus:outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-gray-400">回合 (Round)</label>
+            <input type="number" id="input-round" readonly tabindex="-1"
+              class="w-full mt-1 bg-gray-950 border border-gray-800 rounded px-3 py-1.5 text-gray-400 text-sm cursor-not-allowed opacity-75 focus:outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-gray-400">交易日期</label>
+            <input type="date" id="input-trade-date" readonly tabindex="-1"
+              class="w-full mt-1 bg-gray-950 border border-gray-800 rounded px-3 py-1.5 text-gray-400 text-sm cursor-not-allowed opacity-75 focus:outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-gray-400">交易型態</label>
+            <select id="input-trade-type" disabled tabindex="-1"
+              class="w-full mt-1 bg-gray-950 border border-gray-800 rounded px-3 py-1.5 text-gray-400 text-sm cursor-not-allowed opacity-75 focus:outline-none">
+              <option value="BUY">買進 (BUY)</option>
+              <option value="SELL">賣出 (SELL)</option>
+              <option value="REVENUE">股息 (REVENUE)</option>
+              <option value="INTEREST">銀行利息 (INTEREST)</option>
+              <option value="INPUT">入金 (INPUT)</option>
+              <option value="OUTPUT">出金 (OUTPUT)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-gray-400">單價</label>
+            <input type="number" step="0.0001" id="input-price" readonly tabindex="-1"
+              class="w-full mt-1 bg-gray-950 border border-gray-800 rounded px-3 py-1.5 text-gray-400 text-sm cursor-not-allowed opacity-75 focus:outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-gray-400">股數</label>
+            <input type="number" id="input-shares" readonly tabindex="-1"
+              class="w-full mt-1 bg-gray-950 border border-gray-800 rounded px-3 py-1.5 text-gray-400 text-sm cursor-not-allowed opacity-75 focus:outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-gray-400">手續費</label>
+            <input type="number" id="input-fee" readonly tabindex="-1"
+              class="w-full mt-1 bg-gray-950 border border-gray-800 rounded px-3 py-1.5 text-gray-400 text-sm cursor-not-allowed opacity-75 focus:outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-gray-400">證券交易稅</label>
+            <input type="number" id="input-tax" readonly tabindex="-1"
+              class="w-full mt-1 bg-gray-950 border border-gray-800 rounded px-3 py-1.5 text-gray-400 text-sm cursor-not-allowed opacity-75 focus:outline-none">
+          </div>
+        </div>
+
+        <!-- 實收/收付淨額區塊 (純金流或收益時顯示，唯讀鎖定) -->
+        <div id="wrap-net-total" class="hidden">
+          <label class="text-xs text-gray-400 font-medium">實收入帳金額 (收付淨額)</label>
+          <input type="number" step="0.01" id="input-net-total" readonly tabindex="-1"
+            class="w-full mt-1 bg-gray-950 border border-gray-800 rounded px-3 py-1.5 text-gray-400 font-bold text-sm cursor-not-allowed opacity-75 focus:outline-none">
+        </div>
+
+        <!-- 備註說明：DASHBOARD 唯一允許異動之欄位 -->
+        <div>
+          <label class="text-xs text-blue-400 font-medium">備註說明 (允許修改)</label>
+          <input type="text" id="input-note" placeholder="請輸入備註說明"
+            class="w-full mt-1 bg-gray-900 border border-blue-500/70 rounded px-3 py-1.5 text-white text-sm focus:outline-none focus:border-blue-400">
+        </div>
+
+        <!-- 送出修改按鈕 -->
+        <div class="pt-2 flex items-center">
+          <button type="button" id="btn-submit-trade"
+            class="w-full bg-blue-600 hover:bg-blue-500 py-2 rounded-lg text-white font-medium text-sm transition">
+            儲存修改
+          </button>
+        </div>
+
+        <!-- [2026-10-21] feat: 依需求在最下方加入提示小字 -->
+        <div class="text-center pt-1">
+          <p class="text-xs text-gray-500">
+            ＊儀表板僅提供修改備註，若要修改交易明細請至「個股交易紀錄」頁面進行維護。
+          </p>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- [2026-10-20] 彈窗：新增市場別維護彈窗 -->
   <!-- ========================================================================= -->
   <div id="modal-market"
     class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">

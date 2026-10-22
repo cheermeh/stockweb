@@ -66,7 +66,7 @@ module.exports = async function handler(req, res) {
         query(DASHBOARD_QUERIES.GET_DISTINCT_MARKETS_BY_STOCK, [userId])
       ]);
 
-// 變數用途說明：stats 儲存資料庫 KPI 指標查詢 (GET_SUMMARY_METRICS) 回傳之第一列數據物件，若無資料則為空物件[cite: 17]
+      // 變數用途說明：stats 儲存資料庫 KPI 指標查詢 (GET_SUMMARY_METRICS) 回傳之第一列數據物件，若無資料則為空物件
       const stats = summaryResult.rows[0] || {};
 
       // 變數用途說明：totalDeposit 當前市場累計淨入金總額 (入金 - 出金)
@@ -119,59 +119,7 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // =========================================================================
-  // 2. POST：新增自訂市場別 (stock_market 主檔維護，比照 trading/detail.js 多動詞架構)
-  // =========================================================================
-  if (req.method === 'POST') {
-    try {
-      // 變數用途說明：marketId 取得市場代碼 (相容 market_id，強制大寫)
-      const marketId = String((req.body || {}).market_id || '').trim().toUpperCase();
-      // 變數用途說明：marketName 取得市場顯示名稱 (未填則預設為代碼)
-      const marketName = String((req.body || {}).market_name || marketId).trim();
-
-      // 欄位格式檢查
-      if (!marketId) {
-        return res.status(400).json({ success: false, message: '市場代碼 (market_id) 為必填欄位！' });
-      }
-
-      // 檢查市場別是否已存在 (以 user_id 與 market_id 為判斷基準)
-      const checkSql = `
-        SELECT market_id 
-        FROM public.stock_market 
-        WHERE user_id = $1 AND market_id = $2
-        LIMIT 1;
-      `;
-      // 變數用途說明：checkResult 市場存在性檢查查詢結果
-      const checkResult = await query(checkSql, [userId, marketId]);
-
-      if (checkResult.rows.length > 0) {
-        return res.status(409).json({ 
-          success: false, 
-          message: `市場代碼 [${marketId}] 已存在於清單中，未執行任何變更！` 
-        });
-      }
-
-      // 寫入 stock_market 主檔
-      // 變數用途說明：insertResult 新增市場資料庫執行結果
-      const insertResult = await query(DASHBOARD_QUERIES.INSERT_STOCK_MARKET, [userId, marketId, marketName]);
-
-      return res.status(201).json({
-        success: true,
-        message: `市場 [${marketId}] 新增成功`,
-        data: insertResult.rows[0]
-      });
-
-    } catch (err) {
-      console.error('[Dashboard Summary POST Error]:', err);
-      return res.status(500).json({ 
-        success: false, 
-        message: '伺服器新增市場別失敗', 
-        error: err.message 
-      });
-    }
-  }
-
-  // 若非 GET 或 POST 則拒絕
-  res.setHeader('Allow', ['GET', 'POST']);
+  // (作廢) [2026-10-22] 異動說明：原 POST 新增市場功能已獨立至 /api/dashboard/addmarket.js，此處僅保留純 GET 查詢業務
+  res.setHeader('Allow', ['GET']);
   return res.status(405).json({ success: false, message: 'Method Not Allowed' });
 };

@@ -10,10 +10,6 @@
  */
 const DASHBOARD_QUERIES = {
   /**
-   * [2026-10-06] 異動說明(已作廢)
-   * 目的：查詢使用者在 stock_comp 資料表中存在標的代碼 (stock_id) 的所有不重複市場別
-   * 實作說明：以 stock_id 為條件 (排除空值) 並使用 DISTINCT market_type，提供前端市場下拉選單動態選項
-   * 
    * [2026-10-20] 重構說明
    * 目的：改由市場別維度主檔 (stock_market) 取得完整的市場清單，避免依賴 stock_comp 進行掃描
    * 參數：
@@ -26,20 +22,6 @@ const DASHBOARD_QUERIES = {
     FROM public.stock_market
     WHERE user_id = $1
     ORDER BY market_id ASC;
-  `,
-
-  /**
-   * 新增使用者自訂市場別
-   * 參數：
-   *   $1: userId (使用者識別碼)
-   *   $2: market_id (市場代碼，如 TW, US)
-   *   $3: market_name (市場顯示名稱，如 台股, 美股)
-   */
-  INSERT_STOCK_MARKET: `
-    INSERT INTO public.stock_market (
-      user_id, market_id, market_name
-    ) VALUES ($1, $2, $3)
-    RETURNING *;
   `,
 
   /**
@@ -105,13 +87,16 @@ const DASHBOARD_QUERIES = {
    * 
    * [2026-10-13] 異動說明：
    * 目的：增加搜尋功能，允許前端依據交易類別、標的代碼、標的名稱、起訖日期及備註進行篩選(改WHERE子句)
+   * 
+  
+   * [2026-10-22] 異動說明：移除所有 TO_CHAR，一律直接讀取原始欄位名稱 trade_date 與 mtdt，由前端依使用者所在地時區動態轉換
    */
   GET_RECENT_LOGS: `
     SELECT 
       t.trade_id,
-      -- 強制轉為純文字 YYYY-MM-DD，杜絕時差偏差造成日期少一天
-      TO_CHAR(t.trade_date, 'YYYY-MM-DD') AS trade_date,
+      t.trade_date,
       t.stock_id,
+      c.stock_name,
       t.round,
       t.trade_type,
       t.price,
@@ -120,7 +105,8 @@ const DASHBOARD_QUERIES = {
       t.tax,
       t.net_total,
       t.note,
-      t.crtdt
+      t.crtdt,
+      t.mtdt
     FROM public.trade_store t
     INNER JOIN public.stock_comp c 
     ON t.stock_id = c.stock_id AND t.user_id = c.user_id
@@ -289,7 +275,8 @@ const TRADING_QUERIES = {
    *   $1: userId
    *   $2: stockId (標的代碼)
    *   $3: rounds 陣列 ($3::int[])
-   * 說明：trade_date 強制使用 TO_CHAR 轉為 YYYY-MM-DD 字串
+
+   * [2026-10-22] 移除所有 TO_CHAR，一律直接讀取原始欄位名稱 trade_date 與 mtdt
    */
   GET_TRADE_LOGS_BY_ROUNDS: `
     SELECT 
@@ -297,7 +284,7 @@ const TRADING_QUERIES = {
       user_id,
       stock_id,
       round,
-      TO_CHAR(trade_date, 'YYYY-MM-DD') AS trade_date,
+      trade_date,
       trade_type, 
       price,
       shares,
@@ -305,7 +292,8 @@ const TRADING_QUERIES = {
       tax,
       net_total,
       note,
-      crtdt
+      crtdt,
+      mtdt
     FROM public.trade_store
     WHERE user_id = $1 AND stock_id = $2 AND round = ANY($3::int[])
     ORDER BY trade_date DESC, crtdt DESC;
@@ -316,12 +304,13 @@ const TRADING_QUERIES = {
    * 參數：
    *   $1: user_id, $2: stock_id, $3: round, $4: trade_date, $5: trade_type,
    *   $6: price, $7: shares, $8: fee, $9: tax, $10: net_total, $11: note
+   * [2026-10-22] 異動說明：新增時 crtdt 與 mtdt 一併設定為 NOW()
    */
   INSERT_TRADE_LOG: `
     INSERT INTO public.trade_store (
       user_id, stock_id, round, trade_date, trade_type, 
-      price, shares, fee, tax, net_total, note
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      price, shares, fee, tax, net_total, note, crtdt, mtdt
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
     RETURNING *;
   `,
 
@@ -331,6 +320,7 @@ const TRADING_QUERIES = {
    *   $1: stock_id, $2: round, $3: trade_date, $4: trade_type,
    *   $5: price, $6: shares, $7: fee, $8: tax, $9: net_total, $10: note,
    *   $11: trade_id, $12: user_id
+   * [2026-10-22] 異動說明：更新時設定 mtdt 為 NOW()
    */
   UPDATE_TRADE_LOG: `
     UPDATE public.trade_store
@@ -344,7 +334,8 @@ const TRADING_QUERIES = {
       fee = $7,
       tax = $8,
       net_total = $9,
-      note = $10
+      note = $10,
+      mtdt = NOW()
     WHERE trade_id = $11 AND user_id = $12
     RETURNING *;
   `,

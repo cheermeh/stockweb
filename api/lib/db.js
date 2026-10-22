@@ -31,6 +31,7 @@ function getPool() {
 
     pool = new Pool({
       connectionString: cleanConnectionString,
+
       ssl: caCert
         ? {
             rejectUnauthorized: true,

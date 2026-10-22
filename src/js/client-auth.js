@@ -103,6 +103,30 @@ async function authFetch(url, options = {}) {
   return fetch(url, { ...options, headers });
 }
 
+/**
+ * [2026-10-22] 異動說明
+ * 目的：抽成全站共用時間格式化函式，將資料庫原生 UTC 時間字串轉為使用者在地時區之 yyyy/mm/dd 24hh:mm
+ * 變數說明：
+ * 1. dateVal: 輸入之日期時間物件或字串
+ * 2. d: 解析所得之 JavaScript Date 實例
+ * 3. yyyy, mm, dd, hh, mi: 使用者本地時區之年月日與24小時制時分
+ * @param {string|Date} dateVal - 資料庫回傳的時間值
+ * @returns {string} 格式化後的在地時間字串 (如 2026/10/22 14:30)，若無效則回傳 '-'
+ */
+function formatDateTime(dateVal) {
+  if (!dateVal) return '-';
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return '-';
+
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+
+  return `${yyyy}/${mm}/${dd} ${hh}:${mi}`;
+}
+
 // ==========================================
 // 長時間無操作自動登出功能 (Idle Timer)
 // ==========================================
@@ -199,5 +223,6 @@ window.ClientAuth = {
   setMarket, // [2026-10-06] 匯出市場更新函式
   requireAuth,
   authFetch, // 2026.10.08 feat: 匯出帶 Clerk Token 的 fetch
-  logout
+  logout,
+  formatDateTime // [2026-10-22] feat: 匯出共用在地時區時間格式化函式
 };
