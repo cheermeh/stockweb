@@ -444,11 +444,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /**
-   * [2026-10-09] 異動說明
-   * 目的：依據當前分頁與每頁筆數，渲染歷史交易明細流水帳表格（含最左側自動計算之序號欄位）
-
-   * [2026-10-22] 異動說明：操作欄位之後新增最後異動時間 (mtdt)，呼叫 ClientAuth.formatDateTime 動態轉換在地時區
-   * 變數說明：
+   * [2026-10-09] 依據當前分頁與每頁筆數，渲染歷史交易明細流水帳表格（含最左側自動計算之序號欄位）
+ 
+   * [2026-10-22] 操作欄位之後新增最後異動時間 (mtdt)，呼叫 ClientAuth.formatDateTime 動態轉換在地時區
    * 1. stockId: 當前選取的標的代碼
    * 2. round: 當前選取的回合
    * 3. totalCount: 當前回合總紀錄筆數

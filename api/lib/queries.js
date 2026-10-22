@@ -88,8 +88,8 @@ const DASHBOARD_QUERIES = {
    * [2026-10-13] 異動說明：
    * 目的：增加搜尋功能，允許前端依據交易類別、標的代碼、標的名稱、起訖日期及備註進行篩選(改WHERE子句)
    * 
-   * [2026-10-22] 異動說明：
-   * 目的：移除所有 TO_CHAR，一律直接讀取原始欄位名稱 trade_date 與 mtdt，由前端依使用者所在地時區動態轉換
+  
+   * [2026-10-22] 異動說明：移除所有 TO_CHAR，一律直接讀取原始欄位名稱 trade_date 與 mtdt，由前端依使用者所在地時區動態轉換
    */
   GET_RECENT_LOGS: `
     SELECT 
@@ -275,7 +275,7 @@ const TRADING_QUERIES = {
    *   $1: userId
    *   $2: stockId (標的代碼)
    *   $3: rounds 陣列 ($3::int[])
-   * 
+
    * [2026-10-22] 移除所有 TO_CHAR，一律直接讀取原始欄位名稱 trade_date 與 mtdt
    */
   GET_TRADE_LOGS_BY_ROUNDS: `

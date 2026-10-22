@@ -370,14 +370,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /**
-   * [2026-10-09] 異動說明
-   * 目的：渲染收支流水明細清單，並依當前分頁設定進行陣列切片及自動累加序號
-   * [2026-10-21] 異動說明：
+   * [2026-10-09] 渲染收支流水明細清單，並依當前分頁設定進行陣列切片及自動累加序號
+   * [2026-10-21] 
    * 1. 標的呈現格式改為 STOCK_ID-STOCK_NAME；若無名稱則直接呈現 STOCK_ID (不出現 -)；出入金顯示交割帳戶
    * 2. 增加最右側操作欄位 (編輯備註與刪除按鈕)
-   
-   * [2026-10-22] 異動說明：呼叫 ClientAuth.formatDateTime 將 mtdt 轉為使用者本地時區 yyyy/mm/dd 24hh:mm
-   * 變數用途說明：
+   * 
+   * [2026-10-22] 
+   * 0. 呼叫 ClientAuth.formatDateTime 將 mtdt 轉為使用者本地時區 yyyy/mm/dd 24hh:mm
    * 1. ledgerBody: 表格內容 tbody 元素
    * 2. totalCount: 流水紀錄總筆數
    * 3. isAll: 是否選擇全部顯示
@@ -892,7 +891,6 @@ document.addEventListener('DOMContentLoaded', async () => {
    * [2026-10-20] 異動說明
    * 目的：送出市場維護表單資料，支援「儲存並關閉」或「儲存並繼續新增」
    * [2026-10-22] 異動說明：改為呼叫獨立端點 /api/dashboard/addmarket
-   * 變數用途說明：
    * 1. keepOpen: 布林值，true 儲存後保持彈窗繼續新增，false 儲存後關閉
    * 2. newMarket: 格式化後之市場代碼大寫字串
    */
