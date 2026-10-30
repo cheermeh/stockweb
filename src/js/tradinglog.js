@@ -31,6 +31,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 變數用途說明：currentSuggestedRound 後端計算建議開立的下一個回合編號
   let currentSuggestedRound = '0';
 
+  /**
+   * [2026-10-30] 異動說明
+   * 目的：
+   * 1. availableStocksCache 快取可用標的清單
+   * 2. isDataLoading 防呆旗標：標記母頁面交易與回合資料是否正在非同步載入中
+   * 3. pendingOpenModal 排隊旗標：若使用者在載入中點擊新增，等載入完畢自動開窗，不需點二次
+   */
+  // 變數用途說明：availableStocksCache 儲存目前市場所有可供選擇的標的快取清單
+  let availableStocksCache = [];
+  // 變數用途說明：isDataLoading 布林旗標，標記母頁面交易與回合資料是否正在非同步載入中
+  let isDataLoading = false;
+  // 變數用途說明：pendingOpenModal 布林旗標，標記是否有排隊等待載入完成後自動展開的新增開窗請求
+  let pendingOpenModal = false;
+
   // =========================================================================
   // DOM 元素快取宣告
   // =========================================================================
@@ -45,6 +59,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 變數用途說明：快取交易明細表單內各輸入元件 DOM
   const inputTradeId = document.getElementById('input-trade-id');
+  // [2026-10-30] 說明：inputStockId 於 HTML 已由文字輸入框改為下拉選單元素 (<select>)
   const inputStockId = document.getElementById('input-stock-id');
   const inputRound = document.getElementById('input-round');
   const inputTradeDate = document.getElementById('input-trade-date');
@@ -138,12 +153,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     showModalToast(toastEl, message, true, duration, onComplete);
   };
 
-  // (作廢) [2026-10-09] feat: 分頁控制介面 DOM 元素快取宣告 (已改為下方 [2026-10-10] 的 class 選取陣列)
-  // const selectPageSize = document.getElementById('select-page-size');
-  // const btnPrevPage = document.getElementById('btn-prev-page');
-  // const btnNextPage = document.getElementById('btn-next-page');
-  // const pageIndicator = document.getElementById('page-indicator');
-
   /**
    * [2026-10-10] 異動說明
    * 目的：分頁控制介面 DOM 元素快取宣告 (改用 class，支援多組分頁)
@@ -218,6 +227,91 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindStrictNumericFilter(inputNetTotal, true, 12);
 
   /**
+   * [2026-10-30] 異動說明
+   * 目的：渲染彈窗中的標的下拉選單選項
+   * 變數說明：
+   * 1. targetStockId: 預設選中的標的代碼
+   */
+  const renderModalStockOptions = (targetStockId = '') => {
+    if (!inputStockId) return;
+    inputStockId.innerHTML = '<option value="">-- 請選擇標的 --</option>';
+    availableStocksCache.forEach((s) => {
+      // 變數用途說明：opt 下拉選單 option 元素
+      const opt = document.createElement('option');
+      // 變數用途說明：sId 股票代號
+      const sId = typeof s === 'object' ? s.stock_id : s;
+      // 變數用途說明：sName 股票名稱
+      const sName = typeof s === 'object' ? s.stock_name : '';
+      opt.value = sId;
+      opt.textContent = sName ? `${sId}-${sName}` : sId;
+      if (sId === targetStockId) opt.selected = true;
+      inputStockId.appendChild(opt);
+    });
+  };
+
+  /**
+   * [2026-10-30] 異動說明 (方法一核心函式)
+   * 目的：直接自外層已渲染完成之 selectRound 下拉選單讀取「(進行中)」的回合數 (0 延遲且完全吻合母頁)
+   * 變數說明：
+   * 1. options: 外層回合選單的所有 HTMLOptionElement 陣列
+   * 2. activeOption: 找到包含 (進行中) 字樣的選項元素
+   */
+  const getActiveRoundFromSelectRoundDom = () => {
+    if (!selectRound || !selectRound.options || selectRound.options.length <= 1) {
+      return currentSuggestedRound !== '0' ? currentSuggestedRound : '1';
+    }
+
+    // 遍歷外層已渲染好的 option 尋找文字包含 "(進行中)" 的項目
+    const options = Array.from(selectRound.options);
+    const activeOption = options.find((opt) => opt.textContent && opt.textContent.includes('(進行中)'));
+
+    if (activeOption && activeOption.value) {
+      return String(activeOption.value);
+    }
+
+    // 若全部回合皆已結束，則優先回傳後端建議開立之新回合數
+    if (currentSuggestedRound !== '0' && currentSuggestedRound !== '') {
+      return currentSuggestedRound;
+    }
+
+    // 若無建議回合數，取最後一個回合值加 1
+    const validNumericRounds = options
+      .map((opt) => parseInt(opt.value, 10))
+      .filter((val) => !isNaN(val) && val > 0);
+
+    if (validNumericRounds.length > 0) {
+      const maxRound = Math.max(...validNumericRounds);
+      return String(maxRound + 1);
+    }
+
+    return '1';
+  };
+
+  /**
+   * [2026-10-30] 異動說明
+   * 目的：若使用者在開窗內切換不同於母頁的標的，同步切換母頁標的並抓取該新標的進行中回合
+   * 變數說明：
+   * 1. selectedStock: 開窗內新選取的標的代碼
+   */
+  if (inputStockId) {
+    inputStockId.addEventListener('change', async (e) => {
+      const selectedStock = e.target.value;
+      if (!selectedStock) return;
+
+      if (selectedStock === currentStock) {
+        if (inputRound) inputRound.value = getActiveRoundFromSelectRoundDom();
+      } else {
+        // 同步通知母頁載入該新標的，並保持在全部歷史 (currentRound = '')
+        currentStock = selectedStock;
+        currentRound = '';
+        syncUrl();
+        await loadTradingData(currentStock, currentRound);
+        if (inputRound) inputRound.value = getActiveRoundFromSelectRoundDom();
+      }
+    });
+  }
+
+  /**
    * [2026-10-07] 異動說明
    * 目的：切換交易型態時，更新開窗輸入欄位的啟用/停用與顯示狀態
    * 規則：交易型態為 INPUT (入金) 或 OUTPUT (出金) 時，規則比照 REVENUE / INTEREST 辦理
@@ -276,7 +370,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         inputRound.readOnly = false;
         inputRound.classList.remove('cursor-not-allowed', 'opacity-60');
         if (inputRound.value === '0') {
-          inputRound.value = currentSuggestedRound !== '0' ? currentSuggestedRound : '1';
+          // [2026-10-30] 解除唯讀時，即時帶回該標的進行中/建議回合數
+          inputRound.value = getActiveRoundFromSelectRoundDom();
         }
       }
 
@@ -297,10 +392,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (inputTradeDate) inputTradeDate.value = new Date().toISOString().slice(0, 10);
-  if (inputStockId) {
-    inputStockId.value = currentStock;
-    inputStockId.readOnly = true;
-  }
+  
   if (inputRound) {
     inputRound.value = currentRound || '0';
   }
@@ -320,11 +412,50 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /**
+   * [2026-10-30] 異動說明
+   * 目的：執行新增明細開窗的核心表單初始化動作 (支援主動開啟與排隊自動開啟)
+   */
+  const executeOpenAddTradeModal = () => {
+    if (inputTradeId) inputTradeId.value = '';
+    if (modalTitle) modalTitle.textContent = '新增交易明細';
+    if (btnSubmitTradeText) btnSubmitTradeText.textContent = '儲存並關閉';
+
+    if (btnSubmitTradeContinue) btnSubmitTradeContinue.classList.remove('hidden');
+    if (tradeToast) tradeToast.classList.add('hidden');
+
+    // 渲染開窗標的選單並解鎖
+    if (inputStockId) {
+      inputStockId.disabled = false;
+      renderModalStockOptions(currentStock);
+    }
+
+    if (inputTradeDate) inputTradeDate.value = new Date().toISOString().slice(0, 10);
+    if (inputTradeType) inputTradeType.value = 'BUY';
+
+    // 0 秒無延遲同步帶入：直接自外層已載入之 selectRound 讀取「進行中」回合數
+    if (inputRound) {
+      inputRound.value = getActiveRoundFromSelectRoundDom();
+    }
+
+    if (inputPrice) inputPrice.value = '';
+    if (inputShares) inputShares.value = '';
+    if (inputFee) inputFee.value = '';
+    if (inputTax) inputTax.value = '';
+    if (inputNetTotal) inputNetTotal.value = '';
+    if (inputNote) inputNote.value = '';
+
+    updateFormFieldsByTradeType();
+    toggleModal(modalTrade, true);
+  };
+
+  /**
    * [2026-10-06] 異動說明
    * 目的：載入指定市場與標的交易資訊
    * 實作說明：在 URL 帶上 market 參數，讓後端正確過濾當前市場的標的
    */
   async function loadTradingData(stockId, round) {
+    // [2026-10-30] 防呆機制：標註資料載入中
+    isDataLoading = true;
     try {
       // 變數用途說明：roundParam 經 URI 編碼後的指定回合查詢參數
       const roundParam = round !== '' && round !== null && round !== undefined ? encodeURIComponent(round) : '';
@@ -351,6 +482,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const { availableStocks = [], availableRounds = [], summary = {}, logs = [], suggestedRound } = result.data || {};
       currentSuggestedRound = suggestedRound !== undefined && suggestedRound !== null ? String(suggestedRound) : '0';
 
+      // [2026-10-30] feat: 快取可用標的清單，提供開窗下拉選單使用
+      availableStocksCache = Array.isArray(availableStocks) ? availableStocks : [];
+
       // (1) 渲染標的下拉選單
       if (selectStock) {
         selectStock.innerHTML = '<option value="">-- 請選擇標的 --</option>';
@@ -371,7 +505,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         selectStock.disabled = false;
       }
 
-      // (2) 渲染回合下拉選單
+      // (2) 渲染回合下拉選單 (依舊保持在全部歷史，未強制跳動)
       if (selectRound) {
         if (!stockId) {
           selectRound.innerHTML = '<option value="">-- 請先選擇標的 --</option>';
@@ -437,16 +571,31 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('[TradingLog Load Error]:', err);
       // 變數用途說明：tbody 表格主體 DOM 元素
       const tbody = document.getElementById('trade-log-body');
-      // [2026-10-22] 跨欄數調整為 11 (含最後異動時間)
-      if (tbody) tbody.innerHTML = '<tr><td colspan="11" class="text-center py-6 text-red-400">載入失敗，請稍後再試</td></tr>';
+      if (tbody) tbody.innerHTML = `<tr><td colspan="10" class="text-center py-6 text-red-400">載入失敗: ${err.message}</td></tr>`;
       updatePaginationControls(0, 1, 1);
+    } finally {
+      // [2026-10-30] 防呆機制解除：載入完成
+      isDataLoading = false;
+
+      // [2026-10-30] feat: 復原新增按鈕樣式與狀態
+      const btnOpenModalEl = document.getElementById('btn-open-modal');
+      if (btnOpenModalEl) {
+        btnOpenModalEl.textContent = '+ 新增交易記錄';
+        btnOpenModalEl.classList.remove('opacity-75', 'cursor-wait');
+      }
+
+      // [2026-10-30] feat: 若使用者剛才點擊了新增，等資料到位後「自動彈出開窗」，不需點擊第二次
+      if (pendingOpenModal) {
+        pendingOpenModal = false;
+        executeOpenAddTradeModal();
+      }
     }
   }
 
   /**
-   * [2026-10-09] 依據當前分頁與每頁筆數，渲染歷史交易明細流水帳表格（含最左側自動計算之序號欄位）
- 
-   * [2026-10-22] 操作欄位之後新增最後異動時間 (mtdt)，呼叫 ClientAuth.formatDateTime 動態轉換在地時區
+   * [2026-10-09] 異動說明
+   * 目的：依據當前分頁與每頁筆數，渲染歷史交易明細流水帳表格（含最左側自動計算之序號欄位）
+   * 變數說明：
    * 1. stockId: 當前選取的標的代碼
    * 2. round: 當前選取的回合
    * 3. totalCount: 當前回合總紀錄筆數
@@ -463,16 +612,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 檢查條件：未選擇標的
     if (!stockId) {
-      // [2026-10-22] 跨欄數調整為 11
-      tbody.innerHTML = '<tr><td colspan="11" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td></tr>';
       updatePaginationControls(0, 1, 1);
       return;
     }
 
     // 檢查條件：未選擇回合
     if (round === '' || round === null || round === undefined) {
-      // [2026-10-22] 跨欄數調整為 11
-      tbody.innerHTML = '<tr><td colspan="11" class="text-center py-8 text-gray-500">請選擇特定回合以檢視該回合交易流水帳明細</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">請選擇特定回合以檢視該回合交易流水帳明細</td></tr>';
       updatePaginationControls(0, 1, 1);
       return;
     }
@@ -480,8 +627,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 檢查條件：該回合無任何明細紀錄
     const totalCount = currentLogsCache.length;
     if (totalCount === 0) {
-      // [2026-10-22] 跨欄數調整為 11
-      tbody.innerHTML = '<tr><td colspan="11" class="text-center py-8 text-gray-500">該回合尚無任何交易流水記錄</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">該回合尚無任何交易流水記錄</td></tr>';
       updatePaginationControls(0, 1, 1);
       return;
     }
@@ -510,9 +656,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // 渲染資料列：第一欄為自動累加序號 (由 1 開始累算)
-    // [2026-10-21] 使用文字節點顯示交易資料，避免動態 HTML 注入
-    const rows = document.createDocumentFragment();
-    currentRows.forEach((log, index) => {
+    tbody.innerHTML = currentRows.map((log, index) => {
       // 變數用途說明：serialNumber 自動累加計算所得之該筆紀錄絕對序號
       const serialNumber = startIndex + index + 1; // 序號計算：(當前頁碼 - 1) * 每頁筆數 + 當頁索引 + 1
       // 變數用途說明：typeConf 該筆紀錄對應之交易類別中文標籤與樣式物件
@@ -520,47 +664,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 變數用途說明：isIncome 判斷該交易類別是否屬於正向資金流入
       const isIncome = ['SELL', 'REVENUE', 'INTEREST'].includes(log.trade_type);
 
-      // [2026-10-22] 異動說明：使用共用函式依使用者在地時區動態轉換最後異動時間
-      const displayMtdt = window.ClientAuth && typeof window.ClientAuth.formatDateTime === 'function'
-        ? window.ClientAuth.formatDateTime(log.mtdt)
-        : (log.mtdt || '-');
-
-      // [2026-10-21] 建立固定結構資料列，動態欄位以文字方式填入
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td class="px-3 py-3 text-center text-gray-400 font-mono text-xs js-serial"></td>
-        <td class="px-4 py-3 js-date"></td>
-        <td class="px-4 py-3"><span class="badge js-type"></span></td>
-        <td class="px-4 py-3 text-right js-price"></td>
-        <td class="px-4 py-3 text-right js-shares"></td>
-        <td class="px-4 py-3 text-right text-gray-400 js-fee"></td>
-        <td class="px-4 py-3 text-right text-gray-400 js-tax"></td>
-        <td class="px-4 py-3 text-right font-medium js-net-total"></td>
-        <td class="px-4 py-3 text-gray-400 js-note"></td>
-        <td class="px-4 py-3 text-center">
-          <button type="button" class="btn-edit text-blue-400 hover:text-blue-300 mr-2.5 text-xs font-medium">編輯</button>
-          <button type="button" class="btn-delete text-gray-500 hover:text-red-400 text-xs font-medium">刪除</button>
-        </td>
-        <!-- [2026-10-22] 異動欄位：操作之後新增最後異動時間 (動態轉換本地時區) -->
-        <td class="px-4 py-3 text-gray-400 font-mono text-xs whitespace-nowrap js-mtdt"></td>
+      return `
+        <tr>
+          <td class="px-3 py-3 text-center text-gray-400 font-mono text-xs">${serialNumber}</td>
+          <td class="px-4 py-3">${log.trade_date ? log.trade_date.slice(0, 10) : '-'}</td>
+          <td class="px-4 py-3"><span class="badge ${typeConf.class}">${typeConf.label} (R${log.round})</span></td>
+          <td class="px-4 py-3 text-right">${Number(log.price || 0).toLocaleString()}</td>
+          <td class="px-4 py-3 text-right">${Number(log.shares || 0).toLocaleString()}</td>
+          <td class="px-4 py-3 text-right text-gray-400">${Number(log.fee || 0).toLocaleString()}</td>
+          <td class="px-4 py-3 text-right text-gray-400">${Number(log.tax || 0).toLocaleString()}</td>
+          <td class="px-4 py-3 text-right font-medium ${isIncome ? 'text-profit' : 'text-loss'}">
+            ${isIncome ? '+' : '-'}${currencySymbol}${Math.abs(Number(log.net_total || 0)).toLocaleString()}
+          </td>
+          <td class="px-4 py-3 text-gray-400">${log.note || ''}</td>
+          <td class="px-4 py-3 text-center">
+            <button type="button" class="btn-edit text-blue-400 hover:text-blue-300 mr-2.5 text-xs font-medium" data-id="${log.trade_id}">編輯</button>
+            <button type="button" class="btn-delete text-gray-500 hover:text-red-400 text-xs font-medium" data-id="${log.trade_id}">刪除</button>
+          </td>
+        </tr>
       `;
-      row.querySelector('.js-serial').textContent = serialNumber;
-      row.querySelector('.js-date').textContent = log.trade_date ? log.trade_date.slice(0, 10) : '-';
-      row.querySelector('.js-type').textContent = `${typeConf.label} (R${log.round})`;
-      row.querySelector('.js-type').classList.add(typeConf.class);
-      row.querySelector('.js-price').textContent = Number(log.price || 0).toLocaleString();
-      row.querySelector('.js-shares').textContent = Number(log.shares || 0).toLocaleString();
-      row.querySelector('.js-fee').textContent = Number(log.fee || 0).toLocaleString();
-      row.querySelector('.js-tax').textContent = Number(log.tax || 0).toLocaleString();
-      row.querySelector('.js-net-total').textContent = `${isIncome ? '+' : '-'}${currencySymbol}${Math.abs(Number(log.net_total || 0)).toLocaleString()}`;
-      row.querySelector('.js-net-total').classList.add(isIncome ? 'text-profit' : 'text-loss');
-      row.querySelector('.js-note').textContent = log.note || '';
-      row.querySelector('.js-mtdt').textContent = displayMtdt;
-      row.querySelector('.btn-edit').dataset.id = String(log.trade_id);
-      row.querySelector('.btn-delete').dataset.id = String(log.trade_id);
-      rows.appendChild(row);
-    });
-    tbody.replaceChildren(rows);
+    }).join('');
 
     // 重新綁定當頁按鈕的編輯與刪除事件
     bindTableRowEvents();
@@ -568,14 +691,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 更新分頁按鈕狀態與頁碼顯示
     updatePaginationControls(totalCount, currentPage, totalPages);
   }
-
-  // (作廢) [2026-10-09] 異動說明 (已改為 [2026-10-10] 支援 class 多組同步邏輯)
-  // 目的：更新分頁指示器文字與切換按鈕的啟用/停用樣式
-  // 變數說明：
-  // 1. totalCount: 總筆數
-  // 2. current: 當前頁碼
-  // 3. totalPages: 總頁數
-  // function updatePaginationControls(totalCount, current, totalPages) { ... }
 
   /**
    * [2026-10-10] 異動說明
@@ -639,9 +754,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         // [2026-10-13] 編輯模式時確保提示條處於隱藏狀態
         if (tradeToast) tradeToast.classList.add('hidden');
 
+        // [2026-10-30] 編輯模式下填入標的選單，並鎖定標的禁止變更以維護資料一致性
         if (inputStockId) {
-          inputStockId.value = targetLog.stock_id || currentStock;
-          inputStockId.readOnly = true;
+          const editStockId = targetLog.stock_id || currentStock;
+          renderModalStockOptions(editStockId);
+          inputStockId.disabled = true;
         }
 
         if (inputTradeDate) inputTradeDate.value = targetLog.trade_date ? targetLog.trade_date.slice(0, 10) : '';
@@ -686,11 +803,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       };
     });
   }
-
-  // (作廢) [2026-10-09] feat: 監聽分頁操作控制元件事件 (已改為 [2026-10-10] class 陣列綁定)
-  // if (selectPageSize) { ... }
-  // if (btnPrevPage) { ... }
-  // if (btnNextPage) { ... }
 
   // =========================================================================
   // [2026-10-10] feat: 監聽分頁操作控制元件事件 (針對 class 多組元件綁定)
@@ -739,7 +851,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (selectStock) {
     selectStock.onchange = (e) => {
       currentStock = e.target.value;
-      currentRound = '';
+      currentRound = ''; // 保持停在全部歷史
       syncUrl();
       loadTradingData(currentStock, currentRound);
     };
@@ -759,41 +871,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (btnOpenModal) {
     btnOpenModal.onclick = () => {
-      if (!currentStock) {
-        alert('請先在上方選單選擇「標的」，再新增交易明細！');
-        if (selectStock) selectStock.focus();
+      // [2026-10-30] 若資料仍在載入，給予按鈕載入提示並啟動排隊，載入完成後會自動開窗
+      if (isDataLoading) {
+        pendingOpenModal = true;
+        btnOpenModal.textContent = '載入中...';
+        btnOpenModal.classList.add('opacity-75', 'cursor-wait');
         return;
       }
-      if (inputTradeId) inputTradeId.value = '';
-      if (modalTitle) modalTitle.textContent = '新增交易明細';
-      if (btnSubmitTradeText) btnSubmitTradeText.textContent = '儲存並關閉';
 
-      /**
-       * [2026-10-12] 異動說明
-       * 目的：在新增模式下，確保「儲存並繼續新增」按鈕正常顯示
-       */
-      if (btnSubmitTradeContinue) btnSubmitTradeContinue.classList.remove('hidden');
-
-      // [2026-10-13] 開啟時重設隱藏浮動提示條
-      if (tradeToast) tradeToast.classList.add('hidden');
-
-      if (inputStockId) {
-        inputStockId.value = currentStock;
-        inputStockId.readOnly = true;
-      }
-
-      if (inputTradeDate) inputTradeDate.value = new Date().toISOString().slice(0, 10);
-      if (inputTradeType) inputTradeType.value = 'BUY';
-      if (inputRound) inputRound.value = currentSuggestedRound !== '0' ? currentSuggestedRound : '1';
-      if (inputPrice) inputPrice.value = '';
-      if (inputShares) inputShares.value = '';
-      if (inputFee) inputFee.value = '';
-      if (inputTax) inputTax.value = '';
-      if (inputNetTotal) inputNetTotal.value = '';
-      if (inputNote) inputNote.value = '';
-
-      updateFormFieldsByTradeType();
-      toggleModal(modalTrade, true);
+      // 若未在載入狀態，直接正常開窗
+      executeOpenAddTradeModal();
     };
   }
 
@@ -939,9 +1026,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const result = await res.json();
       if (!result.success) throw new Error(result.message);
 
-      // 重新整理資料庫與流水帳數據
+      // [2026-10-30] 若開窗選定的標的與目前母頁不同，同步更新母頁狀態，並保持檢視當前回合
       currentStock = stock_id.toUpperCase();
-      loadTradingData(currentStock, currentRound);
+      currentRound = String(round);
+      syncUrl();
+      await loadTradingData(currentStock, currentRound);
 
       /**
        * [2026-10-15] 異動說明
@@ -955,9 +1044,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (inputNetTotal) inputNetTotal.value = '';
         if (inputNote) inputNote.value = '';
 
-        // [2026-10-15] fix: 連續新增時，將開窗回合數同步更新為後端最新建議回合 (如平倉後自動 +1)
+        // [2026-10-30] fix: 連續新增時，自外層刷新後之選單即時更新回合
         if (inputRound && !isIncomeType) {
-          inputRound.value = currentSuggestedRound !== '0' ? currentSuggestedRound : '1';
+          inputRound.value = getActiveRoundFromSelectRoundDom();
         }
 
         // 浮現成功提示條並於 1.5 秒後自動隱藏 (保持開窗)
