@@ -149,15 +149,12 @@
               <th class="px-4 py-3 text-right">收付淨額</th>
               <th class="px-4 py-3">備註說明</th>
               <th class="px-4 py-3 text-center">操作</th>
-              <!-- [2026-10-22] 新增最後異動時間欄位 -->
-              <th class="px-4 py-3">最後異動時間</th>
             </tr>
           </thead>
           <tbody id="trade-log-body" class="divide-y divide-gray-800">
             <tr>
               <!-- 欄位擴充為 10 欄，colspan 調整為 10 -->
-              <!-- [2026-10-22] 跨欄數由 10 調整為 11 -->
-              <td colspan="11" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td>
+              <td colspan="10" class="text-center py-8 text-gray-500">請先由上方選單選擇標的代碼</td>
             </tr>
           </tbody>
         </table>
@@ -219,9 +216,15 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-gray-400">標的代碼</label>
-            <!-- 嚴格保留：從外面代入，禁止手動輸入 -->
+            <!-- (作廢) [2026-10-30] 原由外層唯讀代入，易導致標的與回合不同步
             <input type="text" id="input-stock-id" required readonly
               class="w-full mt-1 bg-gray-950 border border-gray-700/60 rounded px-3 py-1.5 text-gray-300 uppercase text-sm cursor-not-allowed opacity-75 focus:outline-none">
+            -->
+            <!-- [2026-10-30] feat: 改為下拉選單，選取標的後自動帶出該標的最新進行中回合數 -->
+            <select id="input-stock-id" required
+              class="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-white text-sm focus:outline-none focus:border-blue-500 disabled:bg-gray-950 disabled:cursor-not-allowed disabled:opacity-75">
+              <option value="">-- 請選擇標的 --</option>
+            </select>
           </div>
           <div>
             <label class="text-xs text-gray-400">回合 (Round)</label>
