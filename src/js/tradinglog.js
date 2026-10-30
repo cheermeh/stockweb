@@ -287,9 +287,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     return '1';
   };
 
+  // 變數用途說明：btnSubmitTrade 送出交易表單按鈕
+  const btnSubmitTrade = document.getElementById('btn-submit-trade');
+
   /**
    * [2026-10-30] 異動說明
-   * 目的：若使用者在開窗內切換不同於母頁的標的，同步切換母頁標的並抓取該新標的進行中回合
+   * 目的：若使用者在開窗內切換標的，在尚未取得最新回合數前進入 LOADING 鎖定，載入完成後再解鎖
    * 變數說明：
    * 1. selectedStock: 開窗內新選取的標的代碼
    */
@@ -298,15 +301,38 @@ document.addEventListener('DOMContentLoaded', async () => {
       const selectedStock = e.target.value;
       if (!selectedStock) return;
 
+      // 若選回母頁當前標的，直接吃母頁快取，0 秒即時帶出
       if (selectedStock === currentStock) {
         if (inputRound) inputRound.value = getActiveRoundFromSelectRoundDom();
-      } else {
+        return;
+      }
+
+      // [2026-10-30] 切換新標的：進入 LOADING 狀態，暫時鎖定欄位與按鈕
+      if (inputRound) {
+        inputRound.type = 'text'; // 暫時轉為文字型態以顯示提示字
+        inputRound.value = '載入中...';
+        inputRound.disabled = true;
+        inputRound.classList.add('cursor-wait', 'opacity-60');
+      }
+      if (btnSubmitTrade) btnSubmitTrade.disabled = true;
+      if (btnSubmitTradeContinue) btnSubmitTradeContinue.disabled = true;
+
+      try {
         // 同步通知母頁載入該新標的，並保持在全部歷史 (currentRound = '')
         currentStock = selectedStock;
         currentRound = '';
         syncUrl();
         await loadTradingData(currentStock, currentRound);
-        if (inputRound) inputRound.value = getActiveRoundFromSelectRoundDom();
+      } finally {
+        // 載入完成，恢復數字型態並填入抓取到的最新回合數
+        if (inputRound) {
+          inputRound.type = 'number';
+          inputRound.disabled = false;
+          inputRound.classList.remove('cursor-wait', 'opacity-60');
+          inputRound.value = getActiveRoundFromSelectRoundDom();
+        }
+        if (btnSubmitTrade) btnSubmitTrade.disabled = false;
+        if (btnSubmitTradeContinue) btnSubmitTradeContinue.disabled = false;
       }
     });
   }
@@ -434,6 +460,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 0 秒無延遲同步帶入：直接自外層已載入之 selectRound 讀取「進行中」回合數
     if (inputRound) {
+      inputRound.type = 'number';
+      inputRound.disabled = false;
+      inputRound.classList.remove('cursor-wait', 'opacity-60');
       inputRound.value = getActiveRoundFromSelectRoundDom();
     }
 
@@ -887,9 +916,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (btnCloseModal) {
     btnCloseModal.onclick = () => toggleModal(modalTrade, false);
   }
-
-  // 變數用途說明：btnSubmitTrade 送出交易表單按鈕
-  const btnSubmitTrade = document.getElementById('btn-submit-trade');
 
   /**
    * [2026-10-12] 異動說明
