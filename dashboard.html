@@ -26,6 +26,7 @@
 <body class="bg-gray-900 text-gray-100 min-h-screen">
   <!-- 頂部導航列 -->
   <header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur px-6 py-4 flex justify-between items-center">
+    <!-- 左側：品牌標題、市場與帳號膠囊、連線狀態 -->
     <div class="flex items-center gap-3">
       <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
         <span class="text-blue-500">StockWeb</span> 儀表板
@@ -62,7 +63,13 @@
       </span>
     </div>
 
+    <!-- 右側功能操作區 -->
     <div class="flex items-center gap-3">
+      <!-- [2026-11-03] feat: 新增返回最新消息看板按鈕，對齊系統功能列風格 -->
+      <a href="newsboard.html"
+        class="px-3.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 text-sm font-medium transition shadow-sm">
+        最新消息
+      </a>
       <!-- [2026-10-20] feat: 新增市場別按鈕，放置於功能列最左側，樣式比照 tradinglog 標的維護按鈕 -->
       <button id="btn-open-market-modal" type="button"
         class="px-3.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 text-sm font-medium transition shadow-sm">
