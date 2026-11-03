@@ -28,7 +28,8 @@ async function exchangeAndRedirect(selectedMarket) {
     sessionStorage.setItem('stockweb_session_market', finalMarket);
   }
 
-  window.location.replace('dashboard.html');
+  // [2026-11-03] feat: 登入成功後導向新聞看板頁面
+  window.location.replace('newsboard.html');
 }
 
 // 核心登入處理邏輯
