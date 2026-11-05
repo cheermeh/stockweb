@@ -75,7 +75,13 @@
     <!-- 說明標題列 -->
     <div class="flex flex-wrap justify-between items-center gap-2">
       <div>
-        <h2 class="text-lg font-bold text-white tracking-tight">Announcement</h2>
+        <!-- [2026-11-05] feat: 標題後方附加最新取得時間顯示 -->
+        <h2 class="text-lg font-bold text-white tracking-tight">
+          Announcement
+          <span class="text-xs font-normal text-gray-400 ml-1">
+            (最新取得時間: <span id="latest-crtdt-display" class="font-mono text-gray-300">--</span>)
+          </span>
+        </h2>
         <p class="text-xs text-gray-400 mt-0.5">依據目前設定追蹤之標的，列出今日 (含) 以後即將除權除息之排程日程</p>
       </div>
     </div>
