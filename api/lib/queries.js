@@ -26,6 +26,7 @@ const DASHBOARD_QUERIES = {
 
   /**
    * 儀表板 KPI 指標彙總 (入金合計、利息合計、現金餘額、交易淨損益)
+   * 參數：
    *   $1: userId (使用者識別碼)
    *   $2: market_id ('TW' 或 'US')
    * 
@@ -77,6 +78,7 @@ const DASHBOARD_QUERIES = {
 
   /**
    * 儀表板近期交易流水帳
+   * 參數：
    *   $1: userId (使用者識別碼)
    *   $2: market_id ('TW' 或 'US')
    * 
@@ -129,6 +131,7 @@ const DASHBOARD_QUERIES = {
 const NEWSBOARD_QUERIES = {
   /**
    * 1. 查詢使用者在指定市場開啟追蹤(news_flag='Y')的標的
+   * 參數：
    *   $1: userId (使用者識別碼)
    *   $2: market_id ('TW' 或 'US')
    */
@@ -142,6 +145,7 @@ const NEWSBOARD_QUERIES = {
 
   /**
    * 2. 檢查指定市場與日期是否已有快取資料 (含無資料標記列)
+   * 參數：
    *   $1: market_id ('TW' 或 'US')
    *   $2: fetch_date (YYYY-MM-DD)
    */
@@ -155,6 +159,7 @@ const NEWSBOARD_QUERIES = {
 
   /**
    * 3. 批次寫入指定市場當日快取資料
+   * 參數：
    *   $1: market_id ('TW' 或 'US')
    *   $2: fetch_date (YYYY-MM-DD)
    *   $3: jsonb 陣列資料
@@ -180,6 +185,7 @@ const NEWSBOARD_QUERIES = {
 
   /**
    * 4. 新增當日快取完成標記列 (ex_date 為 NULL)
+   * 參數：
    *   $1: market_id ('TW' 或 'US')
    *   $2: fetch_date (YYYY-MM-DD)
    */
@@ -195,11 +201,12 @@ const NEWSBOARD_QUERIES = {
 
   /**
    * 5. 讀取指定市場與日期的快取資料列 (排除標記列)
+   * 參數：
    *   $1: market_id ('TW' 或 'US')
    *   $2: fetch_date (YYYY-MM-DD)
    *   $3: userId (使用者識別碼)
    * 
-   * [2026-11-05] 異動說明：SELECT 加入 n.crtdt，供前端取得最新寫入時間
+   * [2026-11-05] 異動說明：以 TO_CHAR 直接取出格式化時間字串 (YYYY-MM-DD HH24:MI:SS)
    */
   GET_CACHED_NEWS_ROWS: `
     SELECT
@@ -209,7 +216,7 @@ const NEWSBOARD_QUERIES = {
       COALESCE(n.pay_date::text, '-') AS pay_date,
       COALESCE(NULLIF(TRIM(n.cash_dividend), ''), '待公告') AS cash_dividend,
       COALESCE(NULLIF(TRIM(n.stock_dividend), ''), '-') AS stock_dividend,
-      n.crtdt
+      TO_CHAR(n.crtdt, 'YYYY-MM-DD HH24:MI:SS') AS crtdt
     FROM stock_news n
     INNER JOIN stock_comp c
       ON c.stock_id = n.stock_id
@@ -248,6 +255,7 @@ const TRADING_QUERIES = {
 
   /**
    * 2. 取得該標的所有回合清單與各回合持股剩餘量 (供回合下拉選單呈現進行狀態)
+   * 參數：
    *   $1: userId
    *   $2: stockId (標的代碼)
    */
@@ -269,6 +277,7 @@ const TRADING_QUERIES = {
 
   /**
    * 3. 查詢標的「最新回合」持股餘額 (用於判斷是否需要自動建議開立下一回合)
+   * 參數：
    *   $1: userId
    *   $2: stockId (標的代碼)
    */
@@ -298,6 +307,7 @@ const TRADING_QUERIES = {
 
   /**
    * 4. 查詢該標的「全歷史」累計部位與 5 大指標 (未選擇特定回合時使用)
+   * 參數：
    *   $1: userId
    *   $2: stockId (標的代碼)
    */
@@ -338,6 +348,7 @@ const TRADING_QUERIES = {
 
   /**
    * 5. 彙總「指定回合」波段部位與指標 (下拉選單選定特定 round 時使用)
+   * 參數：
    *   $1: userId
    *   $2: stockId (標的代碼)
    *   $3: rounds 陣列 ($3::int[])，支援整數 0, 1, 2...
@@ -368,6 +379,7 @@ const TRADING_QUERIES = {
 
   /**
    * 6. 依回合集合查詢交易流水帳明細 (選取特定回合時載入表格清單)
+   * 參數：
    *   $1: userId
    *   $2: stockId (標的代碼)
    *   $3: rounds 陣列 ($3::int[])
@@ -397,10 +409,10 @@ const TRADING_QUERIES = {
 
   /**
    * 7. 新增單筆交易流水明細 (維持原生 trade_store 11 欄結構，無 market_type 欄位)
+   * 參數：
    *   $1: user_id, $2: stock_id, $3: round, $4: trade_date, $5: trade_type,
    *   $6: price, $7: shares, $8: fee, $9: tax, $10: net_total, $11: note
-   * 
-   *   [2026-10-22] 異動說明：新增時 crtdt 與 mtdt 一併設定為 NOW()
+   * [2026-10-22] 異動說明：新增時 crtdt 與 mtdt 一併設定為 NOW()
    */
   INSERT_TRADE_LOG: `
     INSERT INTO public.trade_store (
@@ -412,16 +424,9 @@ const TRADING_QUERIES = {
 
   /**
    * 8. 更新單筆交易流水明細 (依據 trade_id 與 user_id 雙重條件驗證保護)
-   *   $1: stock_id, 
-   *   $2: round, 
-   *   $3: trade_date, 
-   *   $4: trade_type,
-   *   $5: price, 
-   *   $6: shares, 
-   *   $7: fee, 
-   *   $8: tax, 
-   *   $9: net_total, 
-   *   $10: note,
+   * 參數：
+   *   $1: stock_id, $2: round, $3: trade_date, $4: trade_type,
+   *   $5: price, $6: shares, $7: fee, $8: tax, $9: net_total, $10: note,
    *   $11: trade_id, $12: user_id
    * [2026-10-22] 異動說明：更新時設定 mtdt 為 NOW()
    */
@@ -445,8 +450,8 @@ const TRADING_QUERIES = {
 
   /**
    * 9. 刪除單筆交易流水明細 (限制只能刪除所屬使用者的紀錄)
-   *    $1: trade_id, 
-   *    $2: user_id
+   * 參數：
+   *   $1: trade_id, $2: user_id
    */
   DELETE_TRADE_LOG: `
     DELETE FROM public.trade_store

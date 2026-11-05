@@ -86,9 +86,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (serverStatus) serverStatus.textContent = '連線正常';
 
-    // [2026-11-05] feat: 渲染資料庫落地的最新取得時間 (crtdt)
+    // [2026-11-05] feat: 渲染資料庫最新取得時間 (SQL 格式化字串直出，不作多餘轉換)
     if (latestCrtdtDisplay) {
-      latestCrtdtDisplay.textContent = formatDateTime(result.latestCrtdt);
+      latestCrtdtDisplay.textContent = result.latestCrtdt || '--';
     }
 
     // 變數用途說明：dividendList 符合追蹤條件之除權息資料陣列
@@ -191,33 +191,6 @@ function calculateLastBuyDate(exDateStr) {
   const resDay = String(targetDate.getDate()).padStart(2, '0');
 
   return `${resYear}-${resMonth}-${resDay}`;
-}
-
-/**
- * [2026-11-05] feat: 將 ISO 時間字串轉為本地 YYYY-MM-DD HH:mm:ss 格式
- * @param {string|null} isoStr - ISO 時間字串
- * @returns {string} - 格式化後的本地日期時間字串，無效時回傳 '--'
- */
-function formatDateTime(isoStr) {
-  if (!isoStr) return '--';
-  // 變數用途說明：d 依據傳入之 ISO 字串建立之 Date 物件
-  const d = new Date(isoStr);
-  if (isNaN(d.getTime())) return '--';
-
-  // 變數用途說明：year 西元年 4 碼
-  const year = d.getFullYear();
-  // 變數用途說明：month 月份 2 碼 (補零)
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  // 變數用途說明：day 日期 2 碼 (補零)
-  const day = String(d.getDate()).padStart(2, '0');
-  // 變數用途說明：hours 小時 2 碼 (補零)
-  const hours = String(d.getHours()).padStart(2, '0');
-  // 變數用途說明：minutes 分鐘 2 碼 (補零)
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  // 變數用途說明：seconds 秒數 2 碼 (補零)
-  const seconds = String(d.getSeconds()).padStart(2, '0');
-
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
 /**

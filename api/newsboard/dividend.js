@@ -187,10 +187,8 @@ module.exports = async function handler(req, res) {
     // 變數用途說明：cachedNewsResult 取回 stock_news 當日快取清單的查詢結果
     const cachedNewsResult = await query(NEWSBOARD_QUERIES.GET_CACHED_NEWS_ROWS, [targetMarket, todayDateStr, userId]);
 
-    // 變數用途說明：latestCrtdt 取得當日快取資料庫寫入之建立時間 (轉為 ISO 字串或 null)
-    const latestCrtdt = cachedNewsResult.rows.length > 0 && cachedNewsResult.rows[0].crtdt
-      ? new Date(cachedNewsResult.rows[0].crtdt).toISOString()
-      : null;
+    // 變數用途說明：latestCrtdt 取得當日快取資料庫寫入之建立時間字串 (已由 SQL 格式化為 YYYY-MM-DD HH:mm:ss)
+    const latestCrtdt = cachedNewsResult.rows[0]?.crtdt || null;
 
     // 變數用途說明：filteredList 儲存 SQL 已過濾完成之最終陣列，直接轉為前端回傳格式
     const filteredList = cachedNewsResult.rows.map((row) => ({
