@@ -125,7 +125,112 @@ const DASHBOARD_QUERIES = {
 
 /**
  * =========================================================================
- * 3. 個股交易明細與波段查詢 (TRADING_QUERIES)
+ * 3. [2026-11-05] 新聞看板相關查詢 (NEWSBOARD_QUERIES)
+ * =========================================================================
+ */
+const NEWSBOARD_QUERIES = {
+  /**
+   * 1. 查詢使用者在指定市場開啟追蹤(news_flag='Y')的標的
+   * 參數：
+   *   $1: userId (使用者識別碼)
+   *   $2: market_id ('TW' 或 'US')
+   */
+  GET_TRACKED_STOCKS: `
+    SELECT stock_id, stock_name 
+    FROM STOCK_COMP 
+    WHERE user_id = $1 
+      AND market_id = $2 
+      AND news_flag = 'Y'
+  `,
+
+  /**
+   * 2. 檢查指定市場與日期是否已有快取資料 (含無資料標記列)
+   * 參數：
+   *   $1: market_id ('TW' 或 'US')
+   *   $2: fetch_date (YYYY-MM-DD)
+   */
+  CHECK_CACHE_EXISTS: `
+    SELECT 1
+    FROM stock_news
+    WHERE market_id = $1
+      AND fetch_date = $2
+    LIMIT 1
+  `,
+
+  /**
+   * 3. 批次寫入指定市場當日快取資料
+   * 參數：
+   *   $1: market_id ('TW' 或 'US')
+   *   $2: fetch_date (YYYY-MM-DD)
+   *   $3: jsonb 陣列資料
+   */
+  INSERT_CACHE_ROWS: `
+    INSERT INTO stock_news (
+      market_id, fetch_date, stock_id, stock_name, ex_date, pay_date, cash_dividend, stock_dividend, crtdt
+    )
+    SELECT
+      $1, $2, src.stock_id, src.stock_name, src.ex_date, src.pay_date, src.cash_dividend, src.stock_dividend, NOW()
+    FROM jsonb_to_recordset($3::jsonb) AS src(
+      stock_id TEXT,
+      stock_name TEXT,
+      ex_date DATE,
+      pay_date DATE,
+      cash_dividend TEXT,
+      stock_dividend TEXT
+    )
+    ON CONFLICT (market_id, fetch_date, stock_id, ex_date)
+    WHERE ex_date IS NOT NULL
+    DO NOTHING
+  `,
+
+  /**
+   * 4. 新增當日快取完成標記列 (ex_date 為 NULL)
+   * 參數：
+   *   $1: market_id ('TW' 或 'US')
+   *   $2: fetch_date (YYYY-MM-DD)
+   */
+  INSERT_CACHE_MARKER: `
+    INSERT INTO stock_news (
+      market_id, fetch_date, stock_id, stock_name, ex_date, pay_date, cash_dividend, stock_dividend, crtdt
+    )
+    VALUES ($1, $2, NULL, NULL, NULL, NULL, NULL, NULL, NOW())
+    ON CONFLICT (market_id, fetch_date)
+    WHERE ex_date IS NULL
+    DO NOTHING
+  `,
+
+  /**
+   * 5. 讀取指定市場與日期的快取資料列 (排除標記列)
+   * 參數：
+   *   $1: market_id ('TW' 或 'US')
+   *   $2: fetch_date (YYYY-MM-DD)
+   *   $3: userId (使用者識別碼)
+   */
+  GET_CACHED_NEWS_ROWS: `
+    SELECT
+      n.stock_id,
+      COALESCE(NULLIF(TRIM(c.stock_name), ''), NULLIF(TRIM(n.stock_name), ''), n.stock_id) AS stock_name,
+      n.ex_date,
+      COALESCE(n.pay_date::text, '-') AS pay_date,
+      COALESCE(NULLIF(TRIM(n.cash_dividend), ''), '待公告') AS cash_dividend,
+      COALESCE(NULLIF(TRIM(n.stock_dividend), ''), '-') AS stock_dividend
+    FROM stock_news n
+    INNER JOIN stock_comp c
+      ON c.stock_id = n.stock_id
+     AND c.user_id = $3
+     AND c.market_id = $1
+     AND c.news_flag = 'Y'
+    WHERE n.market_id = $1
+      AND n.fetch_date = $2
+      AND n.ex_date IS NOT NULL
+      AND n.ex_date >= $2
+    ORDER BY n.ex_date ASC, n.stock_id ASC
+  `
+};
+
+/**
+ * =========================================================================
+ * 4. 個股交易明細與波段查詢 (TRADING_QUERIES)
  * =========================================================================
  */
 const TRADING_QUERIES = {
@@ -354,5 +459,6 @@ const TRADING_QUERIES = {
 
 module.exports = {
   DASHBOARD_QUERIES,
+  NEWSBOARD_QUERIES,
   TRADING_QUERIES
 };
