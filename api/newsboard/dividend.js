@@ -53,7 +53,7 @@ module.exports = async function handler(req, res) {
 
     // 若使用者在此市場無設定任何開啟追蹤的標的，直接回傳空陣列，不發送外部網路請求
     if (dbResult.rows.length === 0) {
-      return res.status(200).json({ success: true, data: [] });
+      return res.status(200).json({ success: true, latestCrtdt: null, data: [] });
     }
 
     // [2026-11-05] feat: market+date 命中快取時直接讀取 stock_news，避免重複呼叫外部 API
@@ -187,6 +187,11 @@ module.exports = async function handler(req, res) {
     // 變數用途說明：cachedNewsResult 取回 stock_news 當日快取清單的查詢結果
     const cachedNewsResult = await query(NEWSBOARD_QUERIES.GET_CACHED_NEWS_ROWS, [targetMarket, todayDateStr, userId]);
 
+    // 變數用途說明：latestCrtdt 取得當日快取資料庫寫入之建立時間 (轉為 ISO 字串或 null)
+    const latestCrtdt = cachedNewsResult.rows.length > 0 && cachedNewsResult.rows[0].crtdt
+      ? new Date(cachedNewsResult.rows[0].crtdt).toISOString()
+      : null;
+
     // 變數用途說明：filteredList 儲存 SQL 已過濾完成之最終陣列，直接轉為前端回傳格式
     const filteredList = cachedNewsResult.rows.map((row) => ({
       stockId: row.stock_id,
@@ -199,6 +204,7 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
+      latestCrtdt: latestCrtdt,
       data: filteredList
     });
 

@@ -23,6 +23,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 變數用途說明：btnLogout 點擊登出的按鈕 DOM 元素
   const btnLogout = document.getElementById('btn-logout');
 
+  // 變數用途說明：latestCrtdtDisplay 標題列顯示最新取得時間的 DOM 元素
+  const latestCrtdtDisplay = document.getElementById('latest-crtdt-display');
   // 變數用途說明：loadingMsg 顯示「載入中」提示的 DOM 元素
   const loadingMsg = document.getElementById('loading-msg');
   // 變數用途說明：emptyMsg 顯示「無最新消息」提示的 DOM 元素
@@ -84,6 +86,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (serverStatus) serverStatus.textContent = '連線正常';
 
+    // [2026-11-05] feat: 渲染資料庫落地的最新取得時間 (crtdt)
+    if (latestCrtdtDisplay) {
+      latestCrtdtDisplay.textContent = formatDateTime(result.latestCrtdt);
+    }
+
     // 變數用途說明：dividendList 符合追蹤條件之除權息資料陣列
     const dividendList = result.data || [];
 
@@ -116,7 +123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 變數用途說明：safePayDate 經過防 XSS 跳脫後的股利發放日期字串
         const safePayDate = escapeHtml(item.payDate || '-');
 
-        // [2026-11-03] fix: 統一除權息日期的樣式為正常灰字 (不加粗、不使用 font-mono)，並將發放日移至最後一欄
+        // [2026-11-03] fix: 統一除權息日期的樣式為正常灰字 (不加粗、不使用 font-mono)，發放日置於最後一欄且無值 '-' 時置中
         return `  
           <tr class="hover:bg-gray-800/30 transition-colors">
             <td class="px-6 py-4 font-mono font-medium text-white">${safeStockId}</td>
@@ -184,6 +191,33 @@ function calculateLastBuyDate(exDateStr) {
   const resDay = String(targetDate.getDate()).padStart(2, '0');
 
   return `${resYear}-${resMonth}-${resDay}`;
+}
+
+/**
+ * [2026-11-05] feat: 將 ISO 時間字串轉為本地 YYYY-MM-DD HH:mm:ss 格式
+ * @param {string|null} isoStr - ISO 時間字串
+ * @returns {string} - 格式化後的本地日期時間字串，無效時回傳 '--'
+ */
+function formatDateTime(isoStr) {
+  if (!isoStr) return '--';
+  // 變數用途說明：d 依據傳入之 ISO 字串建立之 Date 物件
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return '--';
+
+  // 變數用途說明：year 西元年 4 碼
+  const year = d.getFullYear();
+  // 變數用途說明：month 月份 2 碼 (補零)
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  // 變數用途說明：day 日期 2 碼 (補零)
+  const day = String(d.getDate()).padStart(2, '0');
+  // 變數用途說明：hours 小時 2 碼 (補零)
+  const hours = String(d.getHours()).padStart(2, '0');
+  // 變數用途說明：minutes 分鐘 2 碼 (補零)
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  // 變數用途說明：seconds 秒數 2 碼 (補零)
+  const seconds = String(d.getSeconds()).padStart(2, '0');
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
 /**
