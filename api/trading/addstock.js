@@ -35,7 +35,8 @@ module.exports = async function handler(req, res) {
 
   try {
     // 變數用途說明：解構前端傳入之標的代碼與標的名稱
-    const { stock_id, stock_name } = req.body || {};
+    // [2026-11-05] feat: 解構 news_flag 欄位
+    const { stock_id, stock_name, news_flag } = req.body || {};
 
     // 2. 欄位格式檢查
     // [2026-10-12] feat: 標的名稱改為選填
@@ -50,6 +51,9 @@ module.exports = async function handler(req, res) {
     const cleanStockId = String(stock_id).trim().toUpperCase();
     // 變數用途說明：cleanStockName 清理後之標的顯示名稱
     const cleanStockName = String(stock_name || '').trim();
+    // [2026-11-05] feat: 確保 news_flag 為 'Y' 或預設為 'N'
+    // 變數用途說明：cleanNewsFlag 處理後確認之是否顯示除權息新聞旗標
+    const cleanNewsFlag = String(news_flag || 'N').trim().toUpperCase() === 'Y' ? 'Y' : 'N';
 
     // 3. 檢查標的是否已存在 (依複合主鍵 user_id, market_id, stock_id 為判斷基準)
     // [2026-10-20] 異動說明：加入 market_id 條件，精確判斷同一市場內是否重複
@@ -75,13 +79,15 @@ module.exports = async function handler(req, res) {
     // [2026-10-20] 異動說明：欄位由 market_type 改為 market_id
     // (作廢) 舊 SQL：INSERT INTO public.stock_comp (user_id, stock_id, stock_name, market_type)
     // [2026-10-22] 異動說明：新增時 crtdt 與 mtdt 一併設定為 NOW()
+    // [2026-11-05] feat: 於 INSERT 語句中加入 news_flag 欄位與變數綁定
     const insertSql = `
-      INSERT INTO public.stock_comp (user_id, market_id, stock_id, stock_name, crtdt, mtdt)
-      VALUES ($1, $2, $3, $4, NOW(), NOW())
-      RETURNING stock_id, stock_name, market_id;
+      INSERT INTO public.stock_comp (user_id, market_id, stock_id, stock_name, news_flag, crtdt, mtdt)
+      VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+      RETURNING stock_id, stock_name, market_id, news_flag;
     `;
     // 變數用途說明：insertResult 新增資料庫執行結果
-    const insertResult = await query(insertSql, [userId, marketId, cleanStockId, cleanStockName]);
+    // [2026-11-05] feat: 將 cleanNewsFlag 帶入 $5 參數中
+    const insertResult = await query(insertSql, [userId, marketId, cleanStockId, cleanStockName, cleanNewsFlag]);
 
     return res.status(201).json({
       success: true,
