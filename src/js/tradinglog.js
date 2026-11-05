@@ -78,6 +78,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const modalStock = document.getElementById('modal-stock-comp');
   const inputNewStockId = document.getElementById('input-new-stock-id');
   const inputNewStockName = document.getElementById('input-new-stock-name');
+  
+  // [2026-11-05] feat: 宣告顯示除權息新聞勾選欄位
+  // 變數用途說明：inputNewStockNewsFlag 標的維護彈窗中是否顯示新聞之 checkbox
+  const inputNewStockNewsFlag = document.getElementById('input-new-stock-news-flag');
 
   /**
    * [2026-10-12] 異動說明
@@ -1125,6 +1129,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnOpenStockModal.onclick = () => {
       if (inputNewStockId) inputNewStockId.value = '';
       if (inputNewStockName) inputNewStockName.value = '';
+      
+      // [2026-11-05] feat: 開啟彈窗時，預設不勾選顯示新聞
+      if (inputNewStockNewsFlag) inputNewStockNewsFlag.checked = false;
+      
       // [2026-10-13] 開啟時重設隱藏標的提示條
       if (stockToast) stockToast.classList.add('hidden');
       toggleModal(modalStock, true);
@@ -1147,6 +1155,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 變數用途說明：stock_id 使用者輸入之新標的代碼；stock_name 使用者輸入之新標的名稱
     const stock_id = inputNewStockId?.value?.trim();
     const stock_name = inputNewStockName?.value?.trim();
+    
+    // [2026-11-05] feat: 取得顯示除權息新聞勾選狀態
+    // 變數用途說明：news_flag 儲存是否顯示除權息新聞的旗標字串 ('Y' 或 'N')
+    const news_flag = inputNewStockNewsFlag?.checked ? 'Y' : 'N';
 
     // [2026-10-12] feat: 標的名稱改為選填
     if (!stock_id) {
@@ -1165,7 +1177,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         body: JSON.stringify({
           stock_id,
           stock_name,
-          market_id: currentMarket
+          market_id: currentMarket,
+          // [2026-11-05] feat: 將 news_flag 加入 payload 中
+          news_flag
         })
       });
       // 變數用途說明：result 標的新增執行結果 JSON 物件
@@ -1211,7 +1225,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentStock = stock_id.toUpperCase();
       currentRound = '';
       syncUrl();
-      // [2026-10-15] fix: 連續新增時，將開窗回合數同步更新為後端最新建議回合 (如平倉後自動 +1)
+      // [2026-10-15] fix: 連續新增時，將開窗回合數同步更新為後端最新建議回合 (如平平倉後自動 +1)
       await loadTradingData(currentStock, currentRound);
     } catch (err) {
       /**
