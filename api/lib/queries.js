@@ -206,11 +206,12 @@ const NEWSBOARD_QUERIES = {
    *   $2: fetch_date (YYYY-MM-DD)
    *   $3: userId (使用者識別碼)
    * 
-   * [2026-11-05] 異動說明：以 TO_CHAR 直接取出格式化時間字串 (YYYY-MM-DD HH24:MI:SS)
+   * [2026-11-05] 作廢：以 TO_CHAR 直接取出格式化時間字串 (YYYY-MM-DD HH24:MI:SS)
    * [2026-11-06] 異動說明：改為直接取出 crtdt 原始時間戳，前端再轉換為使用者本地時區
+   * [2026-11-06] 原僅支援 ex_date >= 今天，改為支援除息後至發放日期間仍可查詢，並以 DISTINCT ON 排除跨日重複資料
    */
   GET_CACHED_NEWS_ROWS: `
-    SELECT
+    SELECT DISTINCT ON (n.stock_id, n.ex_date)
       n.stock_id,
       COALESCE(NULLIF(TRIM(c.stock_name), ''), NULLIF(TRIM(n.stock_name), ''), n.stock_id) AS stock_name,
       n.ex_date,
@@ -225,10 +226,9 @@ const NEWSBOARD_QUERIES = {
      AND c.market_id = $1
      AND c.news_flag = 'Y'
     WHERE n.market_id = $1
-      AND n.fetch_date = $2
       AND n.ex_date IS NOT NULL
-      AND n.ex_date >= $2
-    ORDER BY n.ex_date ASC, n.stock_id ASC
+      AND COALESCE(n.pay_date, n.ex_date) >= $2
+    ORDER BY n.stock_id ASC, n.ex_date ASC, n.fetch_date DESC
   `
 };
 
