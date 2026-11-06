@@ -207,6 +207,7 @@ const NEWSBOARD_QUERIES = {
    *   $3: userId (使用者識別碼)
    * 
    * [2026-11-05] 異動說明：以 TO_CHAR 直接取出格式化時間字串 (YYYY-MM-DD HH24:MI:SS)
+   * [2026-11-06] 異動說明：改為直接取出 crtdt 原始時間戳，前端再轉換為使用者本地時區
    */
   GET_CACHED_NEWS_ROWS: `
     SELECT
@@ -216,7 +217,7 @@ const NEWSBOARD_QUERIES = {
       COALESCE(n.pay_date::text, '-') AS pay_date,
       COALESCE(NULLIF(TRIM(n.cash_dividend), ''), '待公告') AS cash_dividend,
       COALESCE(NULLIF(TRIM(n.stock_dividend), ''), '-') AS stock_dividend,
-      TO_CHAR(n.crtdt, 'YYYY-MM-DD HH24:MI:SS') AS crtdt
+      n.crtdt
     FROM stock_news n
     INNER JOIN stock_comp c
       ON c.stock_id = n.stock_id

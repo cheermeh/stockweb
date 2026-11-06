@@ -86,9 +86,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (serverStatus) serverStatus.textContent = '連線正常';
 
-    // [2026-11-05] feat: 渲染資料庫最新取得時間 (SQL 格式化字串直出，不作多餘轉換)
+    // [2026-11-06] feat: 渲染資料庫最新取得時間，由前端轉為使用者本地時區 (比照 dashboard.js mtdt 作法)
     if (latestCrtdtDisplay) {
-      latestCrtdtDisplay.textContent = result.latestCrtdt || '--';
+      const displayCrtdt = window.ClientAuth && typeof window.ClientAuth.formatDateTime === 'function'
+        ? window.ClientAuth.formatDateTime(result.latestCrtdt)
+        : (result.latestCrtdt || '--');
+      latestCrtdtDisplay.textContent = displayCrtdt;
     }
 
     // 變數用途說明：dividendList 符合追蹤條件之除權息資料陣列
