@@ -126,16 +126,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 變數用途說明：safePayDate 經過防 XSS 跳脫後的股利發放日期字串
         const safePayDate = escapeHtml(item.payDate || '-');
 
-        // [2026-11-03] fix: 統一除權息日期的樣式為正常灰字 (不加粗、不使用 font-mono)，發放日置於最後一欄且無值 '-' 時置中
+        // [2026-11-06] 表格全欄位字體大小與樣式完全對齊除權息日期，移除 font-mono 與 font-medium)
         return `  
           <tr class="hover:bg-gray-800/30 transition-colors">
-            <td class="px-6 py-4 font-mono font-medium text-white">${safeStockId}</td>
-            <td class="px-6 py-4 text-gray-300">${safeStockName}</td>
-            <td class="px-6 py-4 font-mono text-gray-300">${safeLastBuyDate}</td>
-            <td class="px-6 py-4 text-gray-300">${safeExDate}</td>
-            <td class="px-6 py-4 text-right text-gray-300">${safeCashDiv}</td>
-            <td class="px-6 py-4 text-gray-300 ${safeStockDiv === '-' ? 'text-center' : 'text-right'}">${safeStockDiv}</td>
-            <td class="px-6 py-4 text-gray-300 font-mono ${safePayDate === '-' ? 'text-center' : ''}">${safePayDate}</td>
+            <td class="px-6 py-4 font-semibold text-gray-300">${safeStockId}</td>
+            <td class="px-6 py-4 font-semibold text-gray-300">${safeStockName}</td>
+            <td class="px-6 py-4 font-semibold text-gray-300">${safeLastBuyDate}</td>
+            <td class="px-6 py-4 font-semibold text-gray-300">${safeExDate}</td>
+            <td class="px-6 py-4 font-semibold text-right text-gray-300">${safeCashDiv}</td>
+            <td class="px-6 py-4 font-semibold text-right text-gray-300">${safeStockDiv}</td>
+            <td class="px-6 py-4 font-semibold text-gray-300 ${safePayDate === '-' ? 'text-center' : ''}">${safePayDate}</td>
           </tr>
         `;
       }).join('');
