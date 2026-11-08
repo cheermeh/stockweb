@@ -66,10 +66,9 @@ module.exports = async function handler(req, res) {
       const marketNewsRows = [];
 
       // =========================================================================
-      // 分支 A: 台股市場 (TW) - 串接證交所 OpenAPI (已作廢：改為串接 MoneyDJ 除權除息表端點)
+      // 分支 A: 台股市場 (TW) - 由MoneyDJ 除權除息表端點
       // =========================================================================
       if (targetMarket === 'TW') {
-        // 4. 呼叫證交所 OpenAPI：上市股票除權除息預告表全集 (涵蓋個股與上市 ETF) (已作廢)
         // 變數用途說明：moneydjApiUrl 儲存 MoneyDJ 除權除息表資料來源網址
         const moneydjApiUrl = 'https://kgiweb.moneydj.com/b2brwdCommon/jsondata/63/56/6c/twstockdata.xdjjson?x=afterhours-bulletin0001';
 
@@ -131,62 +130,63 @@ module.exports = async function handler(req, res) {
       }
 
       // =========================================================================
-      // [2026-11-03] feat: 分支 B: 美股市場 (US) - 改用免費版 Dividend Calendar 端點避免 403
+      // [2026-11-08] feat: 分支 B: 美股市場 (US) - 改由 Alpha Vantage 取得美股除息資料
       // =========================================================================
       else if (targetMarket === 'US') {
-        // 變數用途說明：finnhubApiKey 從環境變數取得 Finnhub 金鑰
-        const finnhubApiKey = process.env.FINNHUB_API_KEY;
-        if (!finnhubApiKey) {
-          return res.status(500).json({ success: false, message: '伺服器未設定 FINNHUB_API_KEY' });
+        // 變數用途說明：alphaApiKey 從環境變數取得 Alpha Vantage 金鑰
+        const alphaApiKey = process.env.ALPHA_VANTAGE_API_KEY;
+        if (!alphaApiKey) {
+          return res.status(500).json({ success: false, message: '伺服器未設定 ALPHA_VANTAGE_API_KEY' });
         }
 
-        // 變數用途說明：
-        // futureDate: 以今日為基準往後推算 60 天之 Date 物件，覆蓋未來除息日程
-        const futureDate = new Date(`${todayDateStr}T00:00:00Z`);
-        futureDate.setUTCDate(futureDate.getUTCDate() + 60);
-        // 變數用途說明：futureDateStr 60 天後之西元日期字串 (YYYY-MM-DD)
-        const futureDateStr = futureDate.toISOString().split('T')[0];
+        // 依據使用者追蹤的標的，逐一呼叫 Alpha Vantage API
+        for (const row of dbResult.rows) {
+          // 變數用途說明：symbol 美股標的代號
+          const symbol = String(row.stock_id || '').trim();
+          if (!symbol) continue;
 
-        // 變數用途說明：calendarUrl Finnhub 免費版除息行事曆端點 (支援 from 與 to 區間)
-        const calendarUrl = `https://finnhub.io/api/v1/calendar/dividend?from=${encodeURIComponent(todayDateStr)}&to=${encodeURIComponent(futureDateStr)}&token=${encodeURIComponent(finnhubApiKey)}`;
-        // 變數用途說明：finnhubResponse 發送至 Finnhub 之 fetch 回應物件
-        const finnhubResponse = await fetch(calendarUrl);
+          // 變數用途說明：alphaUrl Alpha Vantage 取得歷史配息資料端點
+          const alphaUrl = `https://www.alphavantage.co/query?function=DIVIDENDS&symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(alphaApiKey)}`;
+          const alphaResponse = await fetch(alphaUrl);
 
-        if (!finnhubResponse.ok) {
-          console.error(`[Finnhub Error]: 行事曆請求失敗，狀態碼: ${finnhubResponse.status}`);
-          return res.status(502).json({ success: false, message: `Finnhub API 回傳錯誤碼: ${finnhubResponse.status}` });
-        }
-
-        // 變數用途說明：calendarResult Finnhub 回傳之 JSON 物件 (結構包含 dividendCalendar 陣列)
-        const calendarResult = await finnhubResponse.json();
-        // 變數用途說明：calendarEvents 除息事件清單陣列
-        const calendarEvents = Array.isArray(calendarResult.dividendCalendar) ? calendarResult.dividendCalendar : [];
-
-        for (const event of calendarEvents) {
-          // 變數用途說明：symbol 美股標的代號 (例如 'QQQI', 'T')
-          const symbol = String(event.symbol || '').trim();
-          // 變數用途說明：exDateStr Finnhub 日曆回傳之除息日 (YYYY-MM-DD，欄位名為 date)
-          const exDateStr = event.date ? String(event.date).trim() : '';
-          if (!symbol || !exDateStr || exDateStr < todayDateStr) {
+          if (!alphaResponse.ok) {
+            console.error(`[Alpha Vantage Error]: 請求失敗，狀態碼: ${alphaResponse.status}, 標的: ${symbol}`);
             continue;
           }
 
-          // 變數用途說明：cashAmount 現金股利金額字串
-          const cashAmount = event.amount !== undefined && event.amount !== null
-            ? String(event.amount)
-            : '待公告';
-          // [2026-11-03] feat: 取得 Finnhub 日曆中自帶之股利發放日 (payDate)
-          // 變數用途說明：payDateStr 股利發放日字串，若無則回傳空值 (寫入資料庫可為 null)
-          const payDateStr = event.payDate ? String(event.payDate).trim() : '';
+          const alphaResult = await alphaResponse.json();
+          // 變數用途說明：dividendList 儲存該標的從以前到現在的配息陣列 (欄位名為 data)
+          const dividendList = Array.isArray(alphaResult.data) ? alphaResult.data : [];
 
-          marketNewsRows.push({
-            stock_id: symbol,
-            stock_name: null,
-            ex_date: exDateStr,
-            pay_date: payDateStr || null,
-            cash_dividend: cashAmount,
-            stock_dividend: '-'
-          });
+          for (const event of dividendList) {
+            // 變數用途說明：exDateStr 取得除息日 (欄位名為 ex_dividend_date)
+            const exDateStr = event.ex_dividend_date ? String(event.ex_dividend_date).trim() : '';
+
+            // 嚴格比對：除權息日期必須存在且大於或等於今日
+            if (!exDateStr || exDateStr < todayDateStr) {
+              continue;
+            }
+
+            // 變數用途說明：cashAmount 現金股利金額
+            const cashAmount = event.amount !== undefined && event.amount !== null
+              ? String(event.amount)
+              : '待公告';
+
+            // 變數用途說明：payDateStr 股利發放日 (欄位名為 payment_date)
+            const payDateStr = event.payment_date ? String(event.payment_date).trim() : '';
+
+            marketNewsRows.push({
+              stock_id: symbol,
+              stock_name: null,
+              ex_date: exDateStr,
+              pay_date: payDateStr || null,
+              cash_dividend: cashAmount,
+              stock_dividend: '-'
+            });
+          }
+
+          // 延遲 1 秒，避免觸發 Alpha Vantage 免費版 API 速率限制
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 
@@ -199,11 +199,15 @@ module.exports = async function handler(req, res) {
       await query(NEWSBOARD_QUERIES.INSERT_CACHE_MARKER, [targetMarket, todayDateStr]);
     }
 
-    // 變數用途說明：cachedNewsResult 取回 stock_news 當日快取清單的查詢結果
+// 變數用途說明：cachedNewsResult 取回 stock_news 當日快取清單的查詢結果
     const cachedNewsResult = await query(NEWSBOARD_QUERIES.GET_CACHED_NEWS_ROWS, [targetMarket, todayDateStr, userId]);
 
-    // [2026-11-06] feat: latestCrtdt 取得當日快取資料庫寫入之建立時間 (ISO 格式，由前端轉換為使用者本地時區)
-    const latestCrtdt = cachedNewsResult.rows[0]?.crtdt || null;
+    // [2026-11-08] feat: 獨立查詢當日快取標記列，以取得最準確的資料庫更新時間
+    // 變數用途說明：markerResult 儲存標記列的查詢結果
+    const markerResult = await query(NEWSBOARD_QUERIES.GET_CACHE_MARKER_TIME, [targetMarket, todayDateStr]);
+
+    // [2026-11-08] feat: latestCrtdt 改由獨立查詢 markerResult 取得
+    const latestCrtdt = markerResult.rows[0]?.crtdt || null;
 
     // 變數用途說明：filteredList 儲存 SQL 已過濾完成之最終陣列，直接轉為前端回傳格式
     const filteredList = cachedNewsResult.rows.map((row) => ({
