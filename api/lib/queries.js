@@ -158,6 +158,21 @@ const NEWSBOARD_QUERIES = {
   `,
 
   /**
+   * 2. [2026-11-08] feat: 取得當日快取標記列的建立時間 (用以準確顯示畫面的最新取得時間)
+   * 參數：
+   *   $1: market_id ('TW' 或 'US')
+   *   $2: fetch_date (YYYY-MM-DD)
+   */
+  GET_CACHE_MARKER_TIME: `
+    SELECT crtdt
+    FROM stock_news
+    WHERE market_id = $1
+      AND fetch_date = $2
+      AND ex_date IS NULL
+    LIMIT 1
+  `,
+
+  /**
    * 3. 批次寫入指定市場當日快取資料
    * 參數：
    *   $1: market_id ('TW' 或 'US')
