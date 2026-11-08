@@ -155,6 +155,13 @@ module.exports = async function handler(req, res) {
           }
 
           const alphaResult = await alphaResponse.json();
+
+          // [2026-11-08] feat: 攔截 Alpha Vantage 回傳 200 但實為次數超限或金鑰異常的狀況(待刪)
+          if (alphaResult['Information'] || alphaResult['Error Message']) {
+            console.error(`[Alpha Vantage 異常]: 標的 ${symbol} 取值失敗，API 回傳:`, alphaResult);
+            continue;
+          }
+          
           // 變數用途說明：dividendList 儲存該標的從以前到現在的配息陣列 (欄位名為 data)
           const dividendList = Array.isArray(alphaResult.data) ? alphaResult.data : [];
 
