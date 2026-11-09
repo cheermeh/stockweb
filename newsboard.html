@@ -32,10 +32,13 @@
       <!-- 市場與使用者身分展示膠囊 -->
       <div id="badge-market-container"
         class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-900/60 text-blue-300 border border-blue-700/50">
-        <!-- 1. Market: 當前登入市場代碼 -->
+        <!--[2026-11-09] feat: 將原純文字 span 調整為下拉選單固定 TW 與 US) -->
         <div class="flex items-center gap-1">
-          <span class="text-blue-400 font-semibold">Market:</span>
-          <span id="market-display" class="text-white font-semibold">載入中...</span>
+          <label for="market-select" class="text-blue-400 font-semibold cursor-pointer">Market:</label>
+          <select id="market-select" class="bg-blue-950 text-white font-semibold rounded px-1.5 py-0.5 border border-blue-700/60 focus:outline-none focus:ring-1 focus:ring-blue-400 text-xs">
+            <option value="TW">TW</option>
+            <option value="US">US</option>
+          </select>
         </div>
 
         <span class="text-blue-700/80">|</span>
