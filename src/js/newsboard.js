@@ -14,8 +14,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 變數用途說明：userDisplay 頂部導航列顯示使用者帳號名稱的 DOM 元素
   const userDisplay = document.getElementById('user-display');
-  // 變數用途說明：marketDisplay 頂部導航列顯示當前市場代碼的 DOM 元素
-  const marketDisplay = document.getElementById('market-display');
+  // (已作廢: [2026-11-09] 變數用途說明：marketDisplay 頂部導航列顯示當前市場代碼的 DOM 元素)
+  // [2026-11-09] feat: 變數用途說明：marketSelect 頂部導航列切換市場別的下拉選單 DOM 元素
+  const marketSelect = document.getElementById('market-select');
   // 變數用途說明：serverStatus 頂部導航列顯示連線狀態的 DOM 元素
   const serverStatus = document.getElementById('server-status');
   // 變數用途說明：btnGotoDashboard 點擊進入主儀表板的按鈕 DOM 元素
@@ -38,9 +39,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (userDisplay && username) {
     userDisplay.textContent = username;
   }
+  // (已作廢: [2026-11-09] 原文字 span marketDisplay 已刪除，改由下拉選單設定初始值)
   // 渲染當前市場別
-  if (marketDisplay && currentActiveMarket) {
-    marketDisplay.textContent = currentActiveMarket;
+  // [2026-11-09] feat: 將市場下拉選單初始值設定為使用者當前市場 (若為 US 則設為 US，其餘皆預設為 TW)
+  if (marketSelect) {
+    marketSelect.value = (currentActiveMarket === 'US') ? 'US' : 'TW';
   }
 
   // 綁定前往 Dashboard 點擊事件 (保持相同市場別)
@@ -63,94 +66,127 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
   }
 
-  // 3. 呼叫後端 API 載入除權息資料
-  try {
-    if (serverStatus) serverStatus.textContent = '載入中...';
+  // [2026-11-09] feat: 抽取除權息載入與渲染邏輯為共用函式，供頁面初始載入與下拉選單切換時調用
+  /**
+   * 呼叫後端 API 載入指定市場之除權息公告資料
+   * @param {string} targetMarket - 欲查詢的市場代碼 ('TW' 或 'US')
+   */
+  async function loadDividendNews(targetMarket) {
+    // 3. 呼叫後端 API 載入除權息資料
+    try {
+      // [2026-11-09] feat: 載入開始時鎖定市場下拉選單，未載入完成前禁止切換
+      if (marketSelect) marketSelect.disabled = true;
 
-    // 變數用途說明：apiEndpoint 後端除權息端點網址 (附帶動態 market 參數)
-    const apiEndpoint = `/api/newsboard/dividend?market=${encodeURIComponent(currentActiveMarket)}`;
-    // 變數用途說明：res 發送至後端 dividend API 之 fetch 回應物件 (由 authFetch 帶入 Clerk Token)
-    const res = await window.ClientAuth.authFetch(apiEndpoint);
+      if (serverStatus) serverStatus.textContent = '載入中...';
+      // [2026-11-09] feat: 切換市場時重設提示文字並隱藏舊表格與無資料狀態
+      if (loadingMsg) {
+        loadingMsg.textContent = '正在讀取最新除權息資料...';
+        loadingMsg.style.display = 'block';
+      }
+      if (emptyMsg) emptyMsg.style.display = 'none';
+      if (newsTable) newsTable.style.display = 'none';
+      if (newsBody) newsBody.innerHTML = '';
 
-    // 若 Token 失效回傳 401，觸發登出
-    if (res.status === 401) {
-      if (window.ClientAuth) window.ClientAuth.logout();
-      return;
-    }
+      // 變數用途說明：apiEndpoint 後端除權息端點網址 (附帶動態 market 參數)
+      const apiEndpoint = `/api/newsboard/dividend?market=${encodeURIComponent(targetMarket)}`;
+      // 變數用途說明：res 發送至後端 dividend API 之 fetch 回應物件 (由 authFetch 帶入 Clerk Token)
+      const res = await window.ClientAuth.authFetch(apiEndpoint);
 
-    // 變數用途說明：result 後端回傳之 JSON 解析物件
-    const result = await res.json();
-    if (!result.success) {
-      throw new Error(result.message || '取得除權息資料失敗');
-    }
+      // 若 Token 失效回傳 401，觸發登出
+      if (res.status === 401) {
+        if (window.ClientAuth) window.ClientAuth.logout();
+        return;
+      }
 
-    if (serverStatus) serverStatus.textContent = '連線正常';
+      // 變數用途說明：result 後端回傳之 JSON 解析物件
+      const result = await res.json();
+      if (!result.success) {
+        throw new Error(result.message || '取得除權息資料失敗');
+      }
 
-    // [2026-11-06] feat: 渲染資料庫最新取得時間，由前端轉為使用者本地時區 (比照 dashboard.js mtdt 作法)
-    if (latestCrtdtDisplay) {
-      const displayCrtdt = window.ClientAuth && typeof window.ClientAuth.formatDateTime === 'function'
-        ? window.ClientAuth.formatDateTime(result.latestCrtdt)
-        : (result.latestCrtdt || '--');
-      latestCrtdtDisplay.textContent = displayCrtdt;
-    }
+      if (serverStatus) serverStatus.textContent = '連線正常';
 
-    // 變數用途說明：dividendList 符合追蹤條件之除權息資料陣列
-    const dividendList = result.data || [];
+      // [2026-11-06] feat: 渲染資料庫最新取得時間，由前端轉為使用者本地時區 (比照 dashboard.js mtdt 作法)
+      if (latestCrtdtDisplay) {
+        const displayCrtdt = window.ClientAuth && typeof window.ClientAuth.formatDateTime === 'function'
+          ? window.ClientAuth.formatDateTime(result.latestCrtdt)
+          : (result.latestCrtdt || '--');
+        latestCrtdtDisplay.textContent = displayCrtdt;
+      }
 
-    // 關閉載入中文案
-    if (loadingMsg) loadingMsg.style.display = 'none';
+      // 變數用途說明：dividendList 符合追蹤條件之除權息資料陣列
+      const dividendList = result.data || [];
 
-    // 若無任何符合資料，顯示空狀態提示
-    if (dividendList.length === 0) {
-      if (emptyMsg) emptyMsg.style.display = 'block';
-      return;
-    }
+      // 關閉載入中文案
+      if (loadingMsg) loadingMsg.style.display = 'none';
 
-    // 4. 渲染除權息清單表格
-    if (newsBody) {
-      newsBody.innerHTML = dividendList.map((item) => {
-        // 變數用途說明：safeStockId 經過防 XSS 跳脫後的股票代碼
-        const safeStockId = escapeHtml(item.stockId);
-        // 變數用途說明：safeStockName 經過防 XSS 跳脫後的標的名稱
-        const safeStockName = escapeHtml(item.stockName);
-        // 變數用途說明：safeExDate 經過防 XSS 跳脫後的除權息日期 (YYYY-MM-DD)
-        const safeExDate = escapeHtml(item.exDate);
-        // [2026-11-03] feat: 計算最後買進日 (除息日 - 1 天)
-        // 變數用途說明：safeLastBuyDate 經過防 XSS 跳脫後的最後買進日期字串 (YYYY-MM-DD)
-        const safeLastBuyDate = escapeHtml(calculateLastBuyDate(item.exDate));
-        // 變數用途說明：safeCashDiv 經過防 XSS 跳脫後的現金股利
-        const safeCashDiv = escapeHtml(item.cashDividend);
-        // 變數用途說明：safeStockDiv 經過防 XSS 跳脫後的股票股利
-        const safeStockDiv = escapeHtml(item.stockDividend);
-        // [2026-11-03] feat: 經過防 XSS 跳脫後的股利發放日 (若為台股預設為 -，美股帶出 Finnhub 日曆資料)
-        // 變數用途說明：safePayDate 經過防 XSS 跳脫後的股利發放日期字串
-        const safePayDate = escapeHtml(item.payDate || '-');
+      // 若無任何符合資料，顯示空狀態提示
+      if (dividendList.length === 0) {
+        if (emptyMsg) emptyMsg.style.display = 'block';
+        return;
+      }
 
-        // [2026-11-06] 表格全欄位字體大小與樣式完全對齊除權息日期，移除 font-mono 與 font-medium)
-        return `  
-          <tr class="hover:bg-gray-800/30 transition-colors">
-            <td class="px-6 py-4 font-semibold text-gray-300">${safeStockId}</td>
-            <td class="px-6 py-4 font-semibold text-gray-300">${safeStockName}</td>
-            <td class="px-6 py-4 font-semibold text-gray-300">${safeLastBuyDate}</td>
-            <td class="px-6 py-4 font-semibold text-gray-300">${safeExDate}</td>
-            <td class="px-6 py-4 font-semibold text-right text-gray-300">${safeCashDiv}</td>
-            <td class="px-6 py-4 font-semibold text-right text-gray-300">${safeStockDiv}</td>
-            <td class="px-6 py-4 font-semibold text-gray-300 ${safePayDate === '-' ? 'text-center' : ''}">${safePayDate}</td>
-          </tr>
-        `;
-      }).join('');
-    }
+      // 4. 渲染除權息清單表格
+      if (newsBody) {
+        newsBody.innerHTML = dividendList.map((item) => {
+          // 變數用途說明：safeStockId 經過防 XSS 跳脫後的股票代碼
+          const safeStockId = escapeHtml(item.stockId);
+          // 變數用途說明：safeStockName 經過防 XSS 跳脫後的標的名稱
+          const safeStockName = escapeHtml(item.stockName);
+          // 變數用途說明：safeExDate 經過防 XSS 跳脫後的除權息日期 (YYYY-MM-DD)
+          const safeExDate = escapeHtml(item.exDate);
+          // [2026-11-03] feat: 計算最後買進日 (除息日 - 1 天)
+          // 變數用途說明：safeLastBuyDate 經過防 XSS 跳脫後的最後買進日期字串 (YYYY-MM-DD)
+          const safeLastBuyDate = escapeHtml(calculateLastBuyDate(item.exDate));
+          // 變數用途說明：safeCashDiv 經過防 XSS 跳脫後的現金股利
+          const safeCashDiv = escapeHtml(item.cashDividend);
+          // 變數用途說明：safeStockDiv 經過防 XSS 跳脫後的股票股利
+          const safeStockDiv = escapeHtml(item.stockDividend);
+          // [2026-11-03] feat: 經過防 XSS 跳脫後的股利發放日 (若為台股預設為 -，美股帶出 Finnhub 日曆資料)
+          // 變數用途說明：safePayDate 經過防 XSS 跳脫後的股利發放日期字串
+          const safePayDate = escapeHtml(item.payDate || '-');
 
-    // 顯示表格本體
-    if (newsTable) newsTable.style.display = 'table';
+          // [2026-11-06] 表格全欄位字體大小與樣式完全對齊除權息日期，移除 font-mono 與 font-medium)
+          return `  
+            <tr class="hover:bg-gray-800/30 transition-colors">
+              <td class="px-6 py-4 font-semibold text-gray-300">${safeStockId}</td>
+              <td class="px-6 py-4 font-semibold text-gray-300">${safeStockName}</td>
+              <td class="px-6 py-4 font-semibold text-gray-300">${safeLastBuyDate}</td>
+              <td class="px-6 py-4 font-semibold text-gray-300">${safeExDate}</td>
+              <td class="px-6 py-4 font-semibold text-right text-gray-300">${safeCashDiv}</td>
+              <td class="px-6 py-4 font-semibold text-right text-gray-300">${safeStockDiv}</td>
+              <td class="px-6 py-4 font-semibold text-gray-300 ${safePayDate === '-' ? 'text-center' : ''}">${safePayDate}</td>
+            </tr>
+          `;
+        }).join('');
+      }
 
-  } catch (err) {
-    console.error('[Newsboard Error]:', err);
-    if (serverStatus) serverStatus.textContent = '連線異常';
-    if (loadingMsg) {
-      loadingMsg.textContent = '載入除權息資料失敗，請重新整理重試。';
+      // 顯示表格本體
+      if (newsTable) newsTable.style.display = 'table';
+
+    } catch (err) {
+      console.error('[Newsboard Error]:', err);
+      if (serverStatus) serverStatus.textContent = '連線異常';
+      if (loadingMsg) {
+        loadingMsg.textContent = '載入除權息資料失敗，請重新整理重試。';
+      }
+    } finally {
+      // [2026-11-09] feat: 無論載入成功或失敗，結束後皆解除市場下拉選單鎖定狀態
+      if (marketSelect) marketSelect.disabled = false;
     }
   }
+
+  // [2026-11-09] feat: 綁定市場下拉選單變更事件，切換市場時代入新市場代碼自動重新載入新聞
+  if (marketSelect) {
+    marketSelect.addEventListener('change', (e) => {
+      // 變數用途說明：chosenMarket 儲存使用者於下拉選單切換選取之市場代碼字串 ('TW' 或 'US')
+      const chosenMarket = e.target.value;
+      loadDividendNews(chosenMarket);
+    });
+  }
+
+  // [2026-11-09] feat: 頁面初次載入時，直接依當前下拉選單之預設市場執行除權息公告載入
+  loadDividendNews(marketSelect ? marketSelect.value : currentActiveMarket);
 });
 
 /**
