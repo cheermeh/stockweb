@@ -453,10 +453,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (btnSubmitTradeContinue) btnSubmitTradeContinue.classList.remove('hidden');
     if (tradeToast) tradeToast.classList.add('hidden');
 
-    // 渲染開窗標的選單並解鎖
+    // [2026-11-10] 異動說明：修復初始化時下拉選單為空問題
+    // 目的：若 availableStocksCache 為空（頁面初始未指定 stock_id），則自頂部 selectStock 複製選項
+    // 變數說明：
+    // 1. option: 頂部導覽列 selectStock 下拉選單的各個 option 元素
+    // 2. newOption: 複製到開窗下拉選單的 option 元素
     if (inputStockId) {
       inputStockId.disabled = false;
-      renderModalStockOptions(currentStock);
+      if (availableStocksCache.length === 0 && selectStock && selectStock.options.length > 1) {
+        // [2026-11-10] 自頂部標的下拉選單複製選項到開窗下拉選單
+        inputStockId.innerHTML = '';
+        for (let i = 0; i < selectStock.options.length; i++) {
+          // [2026-11-10] option 儲存當前迭代的 selectStock 中 option 元素
+          const option = selectStock.options[i];
+          // [2026-11-10] newOption 新建立的 option 元素，用於複製到開窗下拉選單
+          const newOption = document.createElement('option');
+          newOption.value = option.value;
+          newOption.textContent = option.textContent;
+          if (selectStock.selectedIndex === i) newOption.selected = true;
+          inputStockId.appendChild(newOption);
+        }
+      } else {
+        renderModalStockOptions(currentStock);
+      }
     }
 
     if (inputTradeDate) inputTradeDate.value = new Date().toISOString().slice(0, 10);
@@ -936,6 +955,19 @@ document.addEventListener('DOMContentLoaded', async () => {
    * 9. payload: 送往 API 的交易資料物件
    */
   async function submitTradeForm(keepOpen = false) {
+    // [2026-11-10] feat: 禁用提交按鈕防止重複提交，在等待 API 回應期間用戶無法重複點擊
+    // [2026-11-10] feat: 同時改按鈕文本與加 opacity，讓使用者看到「執行中」狀態
+    if (btnSubmitTrade) {
+      btnSubmitTrade.disabled = true;
+      btnSubmitTrade.textContent = '執行中';
+      btnSubmitTrade.classList.add('opacity-50');
+    }
+    if (btnSubmitTradeContinue) {
+      btnSubmitTradeContinue.disabled = true;
+      btnSubmitTradeContinue.textContent = '正在';
+      btnSubmitTradeContinue.classList.add('opacity-50');
+    }
+
     // 變數用途說明：取得使用者在交易表單填寫的各項原始數值
     const trade_id = inputTradeId?.value?.trim();
     const stock_id = inputStockId?.value?.trim();
@@ -944,12 +976,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!stock_id || !trade_date || !trade_type) {
       alert('請完整填寫標的代碼、交易日期與交易型態！');
+      if (btnSubmitTrade) {
+        btnSubmitTrade.disabled = false;
+        btnSubmitTrade.textContent = '儲存並關閉';
+        btnSubmitTrade.classList.remove('opacity-50');
+      }
+      if (btnSubmitTradeContinue) {
+        btnSubmitTradeContinue.disabled = false;
+        btnSubmitTradeContinue.textContent = '儲存並繼續新增';
+        btnSubmitTradeContinue.classList.remove('opacity-50');
+      }
       return;
     }
 
     if (isNaN(new Date(trade_date).getTime())) {
       alert('請填寫正確有效的交易日期！');
       if (inputTradeDate) inputTradeDate.focus();
+      if (btnSubmitTrade) {
+        btnSubmitTrade.disabled = false;
+        btnSubmitTrade.textContent = '儲存並關閉';
+        btnSubmitTrade.classList.remove('opacity-50');
+      }
+      if (btnSubmitTradeContinue) {
+        btnSubmitTradeContinue.disabled = false;
+        btnSubmitTradeContinue.textContent = '儲存並繼續新增';
+        btnSubmitTradeContinue.classList.remove('opacity-50');
+      }
       return;
     }
 
@@ -983,11 +1035,31 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (netTotalNum <= 0) {
         alert('請填寫大於 0 的實收入帳金額！');
         if (inputNetTotal) inputNetTotal.focus();
+        if (btnSubmitTrade) {
+          btnSubmitTrade.disabled = false;
+          btnSubmitTrade.textContent = '儲存並關閉';
+          btnSubmitTrade.classList.remove('opacity-50');
+        }
+        if (btnSubmitTradeContinue) {
+          btnSubmitTradeContinue.disabled = false;
+          btnSubmitTradeContinue.textContent = '儲存並繼續新增';
+          btnSubmitTradeContinue.classList.remove('opacity-50');
+        }
         return;
       }
       if (netTotalNum > MAX_NET_TOTAL_LIMIT) {
         alert(`實收入帳金額過大，不可超過 ${MAX_NET_TOTAL_LIMIT.toLocaleString()}！`);
         if (inputNetTotal) inputNetTotal.focus();
+        if (btnSubmitTrade) {
+          btnSubmitTrade.disabled = false;
+          btnSubmitTrade.textContent = '儲存並關閉';
+          btnSubmitTrade.classList.remove('opacity-50');
+        }
+        if (btnSubmitTradeContinue) {
+          btnSubmitTradeContinue.disabled = false;
+          btnSubmitTradeContinue.textContent = '儲存並繼續新增';
+          btnSubmitTradeContinue.classList.remove('opacity-50');
+        }
         return;
       }
     } else {
@@ -997,11 +1069,31 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (isNaN(round) || round < 0) {
         alert('回合 (Round) 只能填寫大於或等於 0 的整數！');
         if (inputRound) inputRound.focus();
+        if (btnSubmitTrade) {
+          btnSubmitTrade.disabled = false;
+          btnSubmitTrade.textContent = '儲存並關閉';
+          btnSubmitTrade.classList.remove('opacity-50');
+        }
+        if (btnSubmitTradeContinue) {
+          btnSubmitTradeContinue.disabled = false;
+          btnSubmitTradeContinue.textContent = '儲存並繼續新增';
+          btnSubmitTradeContinue.classList.remove('opacity-50');
+        }
         return;
       }
       if (round > MAX_ROUND_LIMIT) {
         alert(`回合數不可超過 ${MAX_ROUND_LIMIT}！`);
         if (inputRound) inputRound.focus();
+        if (btnSubmitTrade) {
+          btnSubmitTrade.disabled = false;
+          btnSubmitTrade.textContent = '儲存並關閉';
+          btnSubmitTrade.classList.remove('opacity-50');
+        }
+        if (btnSubmitTradeContinue) {
+          btnSubmitTradeContinue.disabled = false;
+          btnSubmitTradeContinue.textContent = '儲存並繼續新增';
+          btnSubmitTradeContinue.classList.remove('opacity-50');
+        }
         return;
       }
 
@@ -1014,15 +1106,45 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (priceNum <= 0 || priceNum > MAX_PRICE_LIMIT) {
         alert(`單價必須大於 0 且不可超過 ${MAX_PRICE_LIMIT}！`);
         if (inputPrice) inputPrice.focus();
+        if (btnSubmitTrade) {
+          btnSubmitTrade.disabled = false;
+          btnSubmitTrade.textContent = '儲存並關閉';
+          btnSubmitTrade.classList.remove('opacity-50');
+        }
+        if (btnSubmitTradeContinue) {
+          btnSubmitTradeContinue.disabled = false;
+          btnSubmitTradeContinue.textContent = '儲存並繼續新增';
+          btnSubmitTradeContinue.classList.remove('opacity-50');
+        }
         return;
       }
       if (sharesNum <= 0 || sharesNum > MAX_SHARES_LIMIT) {
         alert(`股數必須大於 0 且不可超過 ${MAX_SHARES_LIMIT.toLocaleString()} 股！`);
         if (inputShares) inputShares.focus();
+        if (btnSubmitTrade) {
+          btnSubmitTrade.disabled = false;
+          btnSubmitTrade.textContent = '儲存並關閉';
+          btnSubmitTrade.classList.remove('opacity-50');
+        }
+        if (btnSubmitTradeContinue) {
+          btnSubmitTradeContinue.disabled = false;
+          btnSubmitTradeContinue.textContent = '儲存並繼續新增';
+          btnSubmitTradeContinue.classList.remove('opacity-50');
+        }
         return;
       }
       if (feeNum > MAX_FEE_LIMIT || taxNum > MAX_FEE_LIMIT) {
         alert(`手續費或交易稅金額過大，請確認是否輸入正確！`);
+        if (btnSubmitTrade) {
+          btnSubmitTrade.disabled = false;
+          btnSubmitTrade.textContent = '儲存並關閉';
+          btnSubmitTrade.classList.remove('opacity-50');
+        }
+        if (btnSubmitTradeContinue) {
+          btnSubmitTradeContinue.disabled = false;
+          btnSubmitTradeContinue.textContent = '儲存並繼續新增';
+          btnSubmitTradeContinue.classList.remove('opacity-50');
+        }
         return;
       }
     }
@@ -1104,6 +1226,32 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 變數用途說明：errorMessage 失敗提示文字字串
       const errorMessage = `✕ ${isEdit ? '更新' : '新增'}失敗: ${err.message}`;
       showModalToast(tradeToast, errorMessage, false, 2000);
+      
+      // [2026-11-10] feat: catch 中也恢復按鈕，確保失敗時按鈕不會卡住
+      if (btnSubmitTrade) {
+        btnSubmitTrade.disabled = false;
+        btnSubmitTrade.textContent = '儲存並關閉';
+        btnSubmitTrade.classList.remove('opacity-50');
+      }
+      if (btnSubmitTradeContinue) {
+        btnSubmitTradeContinue.disabled = false;
+        btnSubmitTradeContinue.textContent = '儲存並繼續新增';
+        btnSubmitTradeContinue.classList.remove('opacity-50');
+      }
+    } finally {
+      // [2026-11-10] feat: API 回應完畢後重新啟用提交按鈕，允許下一次提交
+      // [2026-11-10] feat: 同時復原按鈕文本與 opacity，恢復正常外觀
+      // 變數用途說明：finally 區塊確保無論成功或失敗都會恢復按鈕可點擊狀態
+      if (btnSubmitTrade) {
+        btnSubmitTrade.disabled = false;
+        btnSubmitTrade.textContent = '儲存並關閉';
+        btnSubmitTrade.classList.remove('opacity-50');
+      }
+      if (btnSubmitTradeContinue) {
+        btnSubmitTradeContinue.disabled = false;
+        btnSubmitTradeContinue.textContent = '儲存並繼續新增';
+        btnSubmitTradeContinue.classList.remove('opacity-50');
+      }
     }
   }
 
@@ -1152,21 +1300,44 @@ document.addEventListener('DOMContentLoaded', async () => {
    * 3. stock_name: 新增之標的名稱
    */
   async function submitStockCompForm(keepOpen = false) {
-    // 變數用途說明：stock_id 使用者輸入之新標的代碼；stock_name 使用者輸入之新標的名稱
-    const stock_id = inputNewStockId?.value?.trim();
-    const stock_name = inputNewStockName?.value?.trim();
-    
-    // [2026-11-05] feat: 取得顯示除權息新聞勾選狀態
-    // 變數用途說明：news_flag 儲存是否顯示除權息新聞的旗標字串 ('Y' 或 'N')
-    const news_flag = inputNewStockNewsFlag?.checked ? 'Y' : 'N';
-
-    // [2026-10-12] feat: 標的名稱改為選填
-    if (!stock_id) {
-      alert('請完整填寫標的代碼！');
-      return;
+    // [2026-11-10] feat: 禁用提交按鈕防止重複提交，在等待 API 回應期間用戶無法重複點擊
+    // [2026-11-10] feat: 同時改按鈕文本與加 opacity，讓使用者看到「執行中」狀態
+    if (btnSubmitStockComp) {
+      btnSubmitStockComp.disabled = true;
+      btnSubmitStockComp.textContent = '執行中';
+      btnSubmitStockComp.classList.add('opacity-50');
+    }
+    if (btnSubmitStockCompContinue) {
+      btnSubmitStockCompContinue.disabled = true;
+      btnSubmitStockCompContinue.textContent = '正在';
+      btnSubmitStockCompContinue.classList.add('opacity-50');
     }
 
     try {
+      // 變數用途說明：stock_id 使用者輸入之新標的代碼；stock_name 使用者輸入之新標的名稱
+      const stock_id = inputNewStockId?.value?.trim();
+      const stock_name = inputNewStockName?.value?.trim();
+      
+      // [2026-11-05] feat: 取得顯示除權息新聞勾選狀態
+      // 變數用途說明：news_flag 儲存是否顯示除權息新聞的旗標字串 ('Y' 或 'N')
+      const news_flag = inputNewStockNewsFlag?.checked ? 'Y' : 'N';
+
+      // [2026-10-12] feat: 標的名稱改為選填
+      if (!stock_id) {
+        alert('請完整填寫標的代碼！');
+        if (btnSubmitStockComp) {
+          btnSubmitStockComp.disabled = false;
+          btnSubmitStockComp.textContent = '儲存並關閉';
+          btnSubmitStockComp.classList.remove('opacity-50');
+        }
+        if (btnSubmitStockCompContinue) {
+          btnSubmitStockCompContinue.disabled = false;
+          btnSubmitStockCompContinue.textContent = '儲存並繼續新增';
+          btnSubmitStockCompContinue.classList.remove('opacity-50');
+        }
+        return;
+      }
+
       // [2026-10-08] feat: 改用 authFetch 帶 Clerk Token
       // [2026-10-20] refactor: 因應 stock_comp 欄位重構，將傳遞欄位 market_type 改為 market_id
       // (作廢) [2026-10-08] 原傳遞 payload 包含：market_type: currentMarket
@@ -1237,6 +1408,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 變數用途說明：networkErrorMessage 網路或伺服器未預期錯誤文字
       const networkErrorMessage = `✕ 新增失敗: ${err.message}`;
       showModalToast(stockToast, networkErrorMessage, false, 2000);
+    } finally {
+      // [2026-11-10] feat: API 回應完畢後重新啟用提交按鈕，允許下一次提交
+      // [2026-11-10] feat: 同時復原按鈕文本與 opacity，恢復正常外觀
+      // 變數用途說明：finally 區塊確保無論成功或失敗都會恢復按鈕可點擊狀態
+      if (btnSubmitStockComp) {
+        btnSubmitStockComp.disabled = false;
+        btnSubmitStockComp.textContent = '儲存並關閉';
+        btnSubmitStockComp.classList.remove('opacity-50');
+      }
+      if (btnSubmitStockCompContinue) {
+        btnSubmitStockCompContinue.disabled = false;
+        btnSubmitStockCompContinue.textContent = '儲存並繼續新增';
+        btnSubmitStockCompContinue.classList.remove('opacity-50');
+      }
     }
   }
 
