@@ -196,14 +196,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /**
    * [2026-10-20] 異動說明
-   * 目的：共用統一成功提示字詞處理函式
+   * 目的：共用統一成功提示字詞處理函式 (與 tradinglog.js 保持簽名一致)
    * 變數用途說明：
    * 1. toastEl: 目標 Toast DOM 元素
-   * 2. duration: 停留時間 (毫秒)
-   * 3. onComplete: 倒數完的回呼函式
-   * 4. message: 顯示的提示字串 (預設為 '✓ 新增成功')
+   * 2. isEdit: 是否為編輯模式 (編輯顯示「✓ 編輯成功」，新增顯示「✓ 新增成功")
+   * 3. duration: 停留時間 (毫秒)
+   * 4. onComplete: 倒數完的回呼函式
    */
-  const showSuccessToast = (toastEl, duration = 1500, onComplete = null, message = '✓ 新增成功') => {
+  const showSuccessToast = (toastEl, isEdit = false, duration = 1500, onComplete = null) => {
+    const message = isEdit ? '✓ 編輯成功' : '✓ 新增成功';
     showModalToast(toastEl, message, true, duration, onComplete);
   };
 
@@ -570,9 +571,13 @@ document.addEventListener('DOMContentLoaded', async () => {
    * 4. payload: 送交後端 PUT 請求之資料本體物件
    */
   async function submitTradeForm() {
+    // [2026-11-10] feat: 禁用提交按鈕防止重複提交，在等待 API 回應期間用戶無法重複點擊
+    if (btnSubmitTrade) btnSubmitTrade.disabled = true;
+
     const trade_id = inputTradeId?.value?.trim();
     if (!trade_id) {
       alert('缺少交易記錄 ID，無法進行編輯！');
+      if (btnSubmitTrade) btnSubmitTrade.disabled = false;
       return;
     }
 
@@ -580,6 +585,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const targetLog = globalRecentLogs.find((item) => String(item.trade_id) === String(trade_id));
     if (!targetLog) {
       alert('找不到該筆交易原始紀錄！');
+      if (btnSubmitTrade) btnSubmitTrade.disabled = false;
       return;
     }
 
@@ -615,11 +621,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       await loadDashboardData(currentActiveMarket);
 
       // 顯示編輯成功提示並於 0.9 秒後關閉彈窗
-      showSuccessToast(tradeToast, 900, () => {
+      showSuccessToast(tradeToast, true, 900, () => {
         toggleModal(modalTrade, false);
-      }, '✓ 編輯成功');
+      });
     } catch (err) {
       showModalToast(tradeToast, `✕ 更新失敗: ${err.message}`, false, 2000);
+    } finally {
+      if (btnSubmitTrade) btnSubmitTrade.disabled = false;
     }
   }
 
@@ -895,11 +903,34 @@ document.addEventListener('DOMContentLoaded', async () => {
    * 2. newMarket: 格式化後之市場代碼大寫字串
    */
   async function submitMarketForm(keepOpen = false) {
+    // [2026-11-10] feat: 禁用提交按鈕防止重複提交，在等待 API 回應期間用戶無法重複點擊
+    // [2026-11-10] feat: 同時改按鈕文本與加 opacity，讓使用者看到「執行中」狀態
+    if (btnSubmitMarket) {
+      btnSubmitMarket.disabled = true;
+      btnSubmitMarket.textContent = '執行中';
+      btnSubmitMarket.classList.add('opacity-50');
+    }
+    if (btnSubmitMarketContinue) {
+      btnSubmitMarketContinue.disabled = true;
+      btnSubmitMarketContinue.textContent = '正在';
+      btnSubmitMarketContinue.classList.add('opacity-50');
+    }
+
     const newMarket = inputNewMarketType?.value?.trim().toUpperCase();
 
     if (!newMarket) {
       showModalToast(marketToast, '✕ 請填寫市場代碼！', false, 2000);
       if (inputNewMarketType) inputNewMarketType.focus();
+      if (btnSubmitMarket) {
+        btnSubmitMarket.disabled = false;
+        btnSubmitMarket.textContent = '儲存並關閉';
+        btnSubmitMarket.classList.remove('opacity-50');
+      }
+      if (btnSubmitMarketContinue) {
+        btnSubmitMarketContinue.disabled = false;
+        btnSubmitMarketContinue.textContent = '儲存並繼續新增';
+        btnSubmitMarketContinue.classList.remove('opacity-50');
+      }
       return;
     }
 
@@ -928,9 +959,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           inputNewMarketType.value = '';
           inputNewMarketType.focus();
         }
-        showSuccessToast(marketToast, 1500);
+        showSuccessToast(marketToast, false, 1500);
       } else {
-        showSuccessToast(marketToast, 800, () => {
+        showSuccessToast(marketToast, false, 800, () => {
           toggleModal(modalMarket, false);
           if (inputNewMarketType) inputNewMarketType.value = '';
         });
@@ -968,6 +999,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     } catch (err) {
       showModalToast(marketToast, `✕ 新增失敗: ${err.message}`, false, 2000);
+      
+      // [2026-11-10] feat: catch 中也恢復按鈕，確保失敗時按鈕不會卡住
+      if (btnSubmitMarket) {
+        btnSubmitMarket.disabled = false;
+        btnSubmitMarket.textContent = '儲存並關閉';
+        btnSubmitMarket.classList.remove('opacity-50');
+      }
+      if (btnSubmitMarketContinue) {
+        btnSubmitMarketContinue.disabled = false;
+        btnSubmitMarketContinue.textContent = '儲存並繼續新增';
+        btnSubmitMarketContinue.classList.remove('opacity-50');
+      }
+    } finally {
+      // [2026-11-10] feat: API 回應完畢後重新啟用提交按鈕，允許下一次提交
+      // [2026-11-10] feat: 同時復原按鈕文本與移除 opacity，恢復正常外觀
+      // 變數用途說明：finally 區塊確保無論成功或失敗都會恢復按鈕可點擊狀態
+      if (btnSubmitMarket) {
+        btnSubmitMarket.disabled = false;
+        btnSubmitMarket.textContent = '儲存並關閉';
+        btnSubmitMarket.classList.remove('opacity-50');
+      }
+      if (btnSubmitMarketContinue) {
+        btnSubmitMarketContinue.disabled = false;
+        btnSubmitMarketContinue.textContent = '儲存並繼續新增';
+        btnSubmitMarketContinue.classList.remove('opacity-50');
+      }
     }
   }
 
