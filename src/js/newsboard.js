@@ -181,6 +181,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     marketSelect.addEventListener('change', (e) => {
       // 變數用途說明：chosenMarket 儲存使用者於下拉選單切換選取之市場代碼字串 ('TW' 或 'US')
       const chosenMarket = e.target.value;
+      
+      // [2026-11-12] feat: 同步市場別至 sessionStorage，確保換頁時保持一致 (與 dashboard.js 行為一致)
+      if (window.ClientAuth && typeof window.ClientAuth.setMarket === 'function') {
+        window.ClientAuth.setMarket(chosenMarket);
+      }
+      
       loadDividendNews(chosenMarket);
     });
   }
