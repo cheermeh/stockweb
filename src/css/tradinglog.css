@@ -37,6 +37,15 @@ select:disabled, input:disabled {
   border-color: #1e293b;
 }
 
+/* [2026-11-12] fix: HTML5 date input 強制白色文字 */
+input[type="date"] {
+  color: #ffffff !important;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.2);
+}
+
 /* ==========================================================================
    交易徽章與狀態配色 (專案進度工單風格，非證券下單樣式)
    ========================================================================== */
