@@ -66,11 +66,10 @@ module.exports = async function handler(req, res) {
       const marketNewsRows = [];
 
       // =========================================================================
-      // 分支 A: 台股市場 (TW) - 串接證交所 OpenAPI (已作廢：改為串接 MoneyDJ 除權除息表端點)
+      // 分支 A: 台股市場 (TW) - 串接 MoneyDJ 除權除息表端點
       // =========================================================================
       if (targetMarket === 'TW') {
-        // 4. 呼叫證交所 OpenAPI：上市股票除權除息預告表全集 (涵蓋個股與上市 ETF) (已作廢)
-        // 變數用途說明：moneydjApiUrl 儲存 MoneyDJ 除權除息表資料來源網址
+        // 4. 呼叫 MoneyDJ 除權除息表 API，取得最新除權息資料
         const moneydjApiUrl = 'https://kgiweb.moneydj.com/b2brwdCommon/jsondata/63/56/6c/twstockdata.xdjjson?x=afterhours-bulletin0001';
 
         // 變數用途說明：moneydjResponse 對 MoneyDJ 發送 HTTP GET 請求之回應物件
@@ -202,8 +201,8 @@ module.exports = async function handler(req, res) {
             });
           }
 
-          // 延遲 2 秒，避免觸發 Alpha Vantage 免費版 API 速率限制
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // 延遲 1 秒，避免觸發 Alpha Vantage 免費版 API 速率限制
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 
