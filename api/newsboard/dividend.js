@@ -66,10 +66,10 @@ module.exports = async function handler(req, res) {
       const marketNewsRows = [];
 
       // =========================================================================
-      // 分支 A: 台股市場 (TW) - 由MoneyDJ 除權除息表端點
+      // 分支 A: 台股市場 (TW) - 串接 MoneyDJ 除權除息表端點
       // =========================================================================
       if (targetMarket === 'TW') {
-        // 變數用途說明：moneydjApiUrl 儲存 MoneyDJ 除權除息表資料來源網址
+        // 4. 呼叫 MoneyDJ 除權除息表 API，取得最新除權息資料
         const moneydjApiUrl = 'https://kgiweb.moneydj.com/b2brwdCommon/jsondata/63/56/6c/twstockdata.xdjjson?x=afterhours-bulletin0001';
 
         // 變數用途說明：moneydjResponse 對 MoneyDJ 發送 HTTP GET 請求之回應物件
@@ -147,6 +147,7 @@ module.exports = async function handler(req, res) {
 
           // 變數用途說明：alphaUrl Alpha Vantage 取得歷史配息資料端點
           const alphaUrl = `https://www.alphavantage.co/query?function=DIVIDENDS&symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(alphaApiKey)}`;
+          // 變數用途說明：alphaResponse 發送至 Alpha Vantage 之 fetch 回應物件
           const alphaResponse = await fetch(alphaUrl);
 
           if (!alphaResponse.ok) {
@@ -154,23 +155,34 @@ module.exports = async function handler(req, res) {
             continue;
           }
 
+          // 變數用途說明：alphaResult 解析後的 Alpha Vantage 回傳 JSON 物件
           const alphaResult = await alphaResponse.json();
 
-          // [2026-11-08] feat: 攔截 Alpha Vantage 回傳 200 但實為次數超限或金鑰異常的狀況(待刪)
+          // [2026-11-08] feat: 攔截 Alpha Vantage 回傳 200 但實為次數超限或金鑰異常的狀況
           if (alphaResult['Information'] || alphaResult['Error Message']) {
             console.error(`[Alpha Vantage 異常]: 標的 ${symbol} 取值失敗，API 回傳:`, alphaResult);
             continue;
           }
-          
+
           // 變數用途說明：dividendList 儲存該標的從以前到現在的配息陣列 (欄位名為 data)
           const dividendList = Array.isArray(alphaResult.data) ? alphaResult.data : [];
 
           for (const event of dividendList) {
+            // [2026-11-20] fix: 變數用途說明：rawExDate 暫存原始除息日字串，用以過濾 Alpha Vantage 的 "None"
+            const rawExDate = event.ex_dividend_date ? String(event.ex_dividend_date).trim() : '';
             // 變數用途說明：exDateStr 取得除息日 (欄位名為 ex_dividend_date)
-            const exDateStr = event.ex_dividend_date ? String(event.ex_dividend_date).trim() : '';
+            const exDateStr = (rawExDate && rawExDate.toLowerCase() !== 'none') ? rawExDate : '';
 
-            // 嚴格比對：除權息日期必須存在且大於或等於今日
-            if (!exDateStr || exDateStr < todayDateStr) {
+            // [2026-11-20] fix: 變數用途說明：rawPayDate 暫存原始發放日字串，用以過濾 Alpha Vantage 的 "None"
+            const rawPayDate = event.payment_date ? String(event.payment_date).trim() : '';
+            // 變數用途說明：payDateStr 股利發放日 (欄位名為 payment_date)
+            const payDateStr = (rawPayDate && rawPayDate.toLowerCase() !== 'none') ? rawPayDate : '';
+            // [2026-11-20] feat: 變數用途說明：checkDateStr 比對基準日，有發放日則以發放日為準，無則以除息日為準
+            const checkDateStr = payDateStr || exDateStr;
+
+            // 嚴格比對：除權息日期必須存在且大於或等於今日 (作廢)
+            // [2026-11-20] feat: 改為比對發放日或除息日大於等於今日，避免除息後至發放日前漏抓資料
+            if (!exDateStr || checkDateStr < todayDateStr) {
               continue;
             }
 
@@ -178,9 +190,6 @@ module.exports = async function handler(req, res) {
             const cashAmount = event.amount !== undefined && event.amount !== null
               ? String(event.amount)
               : '待公告';
-
-            // 變數用途說明：payDateStr 股利發放日 (欄位名為 payment_date)
-            const payDateStr = event.payment_date ? String(event.payment_date).trim() : '';
 
             marketNewsRows.push({
               stock_id: symbol,
@@ -206,14 +215,14 @@ module.exports = async function handler(req, res) {
       await query(NEWSBOARD_QUERIES.INSERT_CACHE_MARKER, [targetMarket, todayDateStr]);
     }
 
-// 變數用途說明：cachedNewsResult 取回 stock_news 當日快取清單的查詢結果
+    // 變數用途說明：cachedNewsResult 取回 stock_news 當日快取清單的查詢結果
     const cachedNewsResult = await query(NEWSBOARD_QUERIES.GET_CACHED_NEWS_ROWS, [targetMarket, todayDateStr, userId]);
 
     // [2026-11-08] feat: 獨立查詢當日快取標記列，以取得最準確的資料庫更新時間
     // 變數用途說明：markerResult 儲存標記列的查詢結果
     const markerResult = await query(NEWSBOARD_QUERIES.GET_CACHE_MARKER_TIME, [targetMarket, todayDateStr]);
 
-    // [2026-11-08] feat: latestCrtdt 改由獨立查詢 markerResult 取得
+    // [2026-11-06] feat: latestCrtdt 取得當日快取資料庫寫入之建立時間 (ISO 格式，由前端轉換為使用者本地時區) (作廢：改由獨立查詢 markerResult 取得)
     const latestCrtdt = markerResult.rows[0]?.crtdt || null;
 
     // 變數用途說明：filteredList 儲存 SQL 已過濾完成之最終陣列，直接轉為前端回傳格式
