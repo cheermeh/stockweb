@@ -67,3 +67,7 @@
 
 # release note: V 5.7.0
 1. 修正美股時間與台灣時間差造成抓不到新聞
+
+# release note: V 6.0.0
+1. 匯出EXCEL
+2. 修改TRADINGLOG可以載入全部記錄

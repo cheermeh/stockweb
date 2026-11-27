@@ -74,6 +74,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnNextPage = document.getElementById('btn-next-page');
   const pageIndicator = document.getElementById('page-indicator');
   const countBadgeTop = document.getElementById('ledger-count');
+  // 變數用途說明：[2026-11-27] btnExportExcel 匯出目前查詢條件全部收支明細之按鈕
+  const btnExportExcel = document.getElementById('btn-export-excel');
 
   // 變數用途說明：selectPageSizeBottom 底部分頁筆數選單；btnPrevPageBottom 底部上一頁按鈕；btnNextPageBottom 底部下一頁按鈕；pageIndicatorBottom 底部頁碼提示文字；countBadgeBottom 底部總筆數標籤
   const selectPageSizeBottom = document.getElementById('select-page-size-bottom');
@@ -280,6 +282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function loadDashboardData(targetMarket, extraQueryString = '') {
     // 變數用途說明：serverStatus 頂部導覽列連線狀態顯示元素
     const serverStatus = document.getElementById('server-status');
+    if (btnExportExcel) btnExportExcel.disabled = true;
 
     try {
       if (serverStatus) serverStatus.textContent = '載入中...';
@@ -367,6 +370,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (err) {
       console.error('[Dashboard Error]:', err);
       if (serverStatus) serverStatus.textContent = '連線異常';
+    } finally {
+      if (btnExportExcel) btnExportExcel.disabled = globalRecentLogs.length === 0;
     }
   }
 
@@ -680,6 +685,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (btnPrevPageBottom) btnPrevPageBottom.disabled = prevDisabled;
     if (btnNextPage) btnNextPage.disabled = nextDisabled;
     if (btnNextPageBottom) btnNextPageBottom.disabled = nextDisabled;
+
+    // [2026-11-27] feat: 匯出按鈕在無資料時停用
+    if (btnExportExcel) {
+      btnExportExcel.disabled = totalCount === 0;
+    }
   }
 
   // =========================================================================
@@ -721,6 +731,86 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (selectPageSizeBottom) selectPageSizeBottom.onchange = (e) => changePageSize(e.target.value);
   if (btnPrevPageBottom) btnPrevPageBottom.onclick = goToPrevPage;
   if (btnNextPageBottom) btnNextPageBottom.onclick = goToNextPage;
+
+  if (btnExportExcel) {
+    btnExportExcel.onclick = () => {
+      if (globalRecentLogs.length === 0) return;
+
+      // 變數用途說明：[2026-11-27] headers 收支明細 Excel 欄位標題
+      const headers = ['序號', '交易日期', '標的', '交易類別', '進款 (Net+)', '出款 (Net-)', '備註說明', '最後異動時間'];
+      // 變數用途說明：[2026-11-27] rows 目前查詢條件完整收支明細資料列
+      const rows = globalRecentLogs.map((item, index) => {
+        // 變數用途說明：[2026-11-27] typeLabel 該筆交易類別中文名稱
+        const typeLabel = (TYPE_CONFIG[item.trade_type] || { label: item.trade_type || '其他' }).label;
+        // 變數用途說明：[2026-11-27] isIncome 判斷該筆交易金額應顯示於進款欄
+        const isIncome = ['INPUT', 'SELL', 'REVENUE', 'INTEREST'].includes(item.trade_type);
+        // 變數用途說明：[2026-11-27] netAmount 該筆交易收付淨額
+        const netAmount = Math.abs(Number(item.net_total || 0));
+        // 變數用途說明：[2026-11-27] displayStock 依畫面規則組成標的顯示文字
+        let displayStock = '-';
+        if (['INPUT', 'OUTPUT'].includes(item.trade_type)) {
+          displayStock = '交割帳戶';
+        } else {
+          // 變數用途說明：[2026-11-27] rawStockId 該筆股票代碼
+          const rawStockId = String(item.stock_id || '').trim();
+          // 變數用途說明：[2026-11-27] rawStockName 該筆股票名稱
+          const rawStockName = String(item.stock_name || '').trim();
+          if (rawStockId && rawStockName) {
+            displayStock = `${rawStockId}-${rawStockName}`;
+          } else if (rawStockId) {
+            displayStock = rawStockId;
+          }
+        }
+        // 變數用途說明：[2026-11-27] displayMtdt 畫面呈現的本地時間最後異動文字
+        const displayMtdt = window.ClientAuth && typeof window.ClientAuth.formatDateTime === 'function'
+          ? window.ClientAuth.formatDateTime(item.mtdt)
+          : (item.mtdt || '-');
+        // 變數用途說明：[2026-11-27] exportIncome 依畫面規則輸出遮罩或進款金額
+        const exportIncome = isIncome ? (isMasked ? '******' : netAmount) : '-';
+        // 變數用途說明：[2026-11-27] exportExpense 依畫面規則輸出遮罩或出款金額
+        const exportExpense = !isIncome ? (isMasked ? '******' : netAmount) : '-';
+
+        return [
+          index + 1,
+          item.trade_date ? item.trade_date.slice(0, 10) : '-',
+          displayStock,
+          typeLabel,
+          exportIncome,
+          exportExpense,
+          item.note || '',
+          displayMtdt
+        ];
+      });
+      // 變數用途說明：[2026-11-27] tradeDates 目前完整查詢結果的有效交易日期清單
+      const tradeDates = globalRecentLogs
+        .map(item => item.trade_date ? item.trade_date.slice(0, 10) : '')
+        .filter(Boolean)
+        .sort();
+      // 變數用途說明：[2026-11-27] dateRange Excel 顯示的實際交易日期區間
+      const dateRange = `${tradeDates[0]} 至 ${tradeDates[tradeDates.length - 1]}`;
+      // 變數用途說明：[2026-11-27] now 儲存匯出當下的本機時間
+      const now = new Date();
+      // 變數用途說明：[2026-11-27] timestamp 組成檔名所需的 YYYYMMDDHHMM
+      const timestamp = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0'),
+        String(now.getHours()).padStart(2, '0'),
+        String(now.getMinutes()).padStart(2, '0')
+      ].join('');
+
+      try {
+        window.ExcelExport.exportWorkbook({
+          filename: `STOCK_${currentActiveMarket}_${timestamp}.xlsx`,
+          dateRange,
+          headers,
+          rows
+        });
+      } catch (err) {
+        alert(`匯出失敗: ${err.message}`);
+      }
+    };
+  }
 
   // 變數用途說明：btnMaskToggle 隱藏/顯示金額之切換按鈕元素
   const btnMaskToggle = document.getElementById('btn-mask-toggle');

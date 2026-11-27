@@ -75,6 +75,8 @@ module.exports = async function handler(req, res) {
       const stockId = String(rawStockId).toUpperCase();
       // 變數用途說明：rawRound 前端傳入的回合數參數
       const rawRound = req.query.round;
+      // 變數用途說明：[2026-11-27] includeAllLogs 標記使用者是否主動要求載入全部交易明細
+      const includeAllLogs = String(req.query.all_logs || '') === '1';
 
       // 變數用途說明：allRoundsRes 該標的歷史所有回合資料庫查詢結果
       const allRoundsRes = await query(TRADING_QUERIES.GET_AVAILABLE_ROUNDS, [userId, stockId]);
@@ -133,6 +135,16 @@ module.exports = async function handler(req, res) {
         const avgCost = totalBoughtShares > 0 ? (totalBuyCost / totalBoughtShares).toFixed(2) : 0;
         // 變數用途說明：totalPnl 全歷史累計損益總額
         const totalPnl = Number(position.total_pnl || 0);
+        // 變數用途說明：[2026-11-27] allLogs 主動要求全部歷史時查得的交易明細
+        let allLogs = [];
+
+        if (includeAllLogs && availableRounds.length > 0) {
+          // 變數用途說明：[2026-11-27] allRoundNumbers 全部可用回合編號陣列
+          const allRoundNumbers = availableRounds.map(r => r.round);
+          // 變數用途說明：[2026-11-27] allLogsRes 全部回合交易明細查詢結果
+          const allLogsRes = await query(TRADING_QUERIES.GET_TRADE_LOGS_BY_ROUNDS, [userId, stockId, allRoundNumbers]);
+          allLogs = allLogsRes.rows;
+        }
 
         return res.status(200).json({
           success: true,
@@ -151,7 +163,7 @@ module.exports = async function handler(req, res) {
               avgCost: Number(avgCost),
               totalPnl
             },
-            logs: []
+            logs: allLogs
           }
         });
       }
