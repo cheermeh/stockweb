@@ -51,6 +51,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 變數用途說明：selectStock 頂部導覽列標的下拉選單元素；selectRound 頂部導覽列回合下拉選單元素
   const selectStock = document.getElementById('select-stock');
   const selectRound = document.getElementById('select-round');
+  // 變數用途說明：[2026-11-27] btnShowAllTrades 僅於全部歷史模式載入全部交易明細之按鈕
+  const btnShowAllTrades = document.getElementById('btn-show-all-trades');
 
   // 變數用途說明：modalTrade 交易明細彈窗外層容器；modalTitle 交易彈窗標題文字；btnSubmitTradeText 交易送出按鈕主文字
   const modalTrade = document.getElementById('modal-add-trade');
@@ -172,6 +174,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnPrevPages = document.querySelectorAll('.btn-prev-page');
   const btnNextPages = document.querySelectorAll('.btn-next-page');
   const pageIndicators = document.querySelectorAll('.page-indicator');
+  // 變數用途說明：[2026-11-27] btnExportExcel 匯出目前回合全部交易明細之按鈕
+  const btnExportExcel = document.getElementById('btn-export-excel');
 
   /**
    * [2026-10-09] 異動說明
@@ -184,6 +188,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentPage = 1;
   let pageSizeSetting = '10';
   let currentLogsCache = [];
+  // 變數用途說明：[2026-11-27] allLogsCache 儲存使用者主動載入的全部交易明細
+  let allLogsCache = [];
+  // 變數用途說明：[2026-11-27] allLogsCacheStock 標記全部交易快取所屬標的
+  let allLogsCacheStock = '';
+
+  // [2026-10-07] 異動說明：將 INTEREST 類別的中文顯示文字由「利息」改為「銀行利息」
+  // 變數用途說明：[2026-11-27] TYPE_MAP 對照交易型態的中文顯示文字與樣式
+  const TYPE_MAP = {
+    BUY: { label: '買進', class: 'badge-buy' },
+    SELL: { label: '賣出', class: 'badge-sell' },
+    REVENUE: { label: '股息', class: 'badge-dividend' },
+    INTEREST: { label: '銀行利息', class: 'badge-dividend' },
+    INPUT: { label: '入金', class: 'badge-input' },
+    OUTPUT: { label: '出金', class: 'badge-output' }
+  };
 
   // 變數用途說明：toggleModal 切換彈窗顯示與隱藏狀態之輔助函式
   const toggleModal = (modalEl, show) => {
@@ -505,9 +524,10 @@ document.addEventListener('DOMContentLoaded', async () => {
    * 目的：載入指定市場與標的交易資訊
    * 實作說明：在 URL 帶上 market 參數，讓後端正確過濾當前市場的標的
    */
-  async function loadTradingData(stockId, round) {
+  async function loadTradingData(stockId, round, includeAllLogs = false) {
     // [2026-10-30] 防呆機制：標註資料載入中
     isDataLoading = true;
+    if (btnExportExcel) btnExportExcel.disabled = true;
     try {
       // 變數用途說明：roundParam 經 URI 編碼後的指定回合查詢參數
       const roundParam = round !== '' && round !== null && round !== undefined ? encodeURIComponent(round) : '';
@@ -517,6 +537,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       params.set('market', currentMarket);
       if (stockId) params.set('stock_id', stockId);
       if (roundParam) params.set('round', roundParam);
+      if (includeAllLogs) params.set('all_logs', '1');
+
+      if (btnShowAllTrades) {
+        btnShowAllTrades.disabled = true;
+      }
 
       // [2026-10-08] feat: 改用 authFetch 帶 Clerk Token
       // 變數用途說明：res 發送至 trading/detail API 之 fetch 回應物件
@@ -581,41 +606,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       // (3) 渲染 5 大 KPI 指標卡片
-      // 變數用途說明：快取 5 大部位與財務統計指標之 DOM 元素
-      const elShares = document.getElementById('stat-shares');
-      const elAvgCost = document.getElementById('stat-avg-cost');
-      const elBuyCost = document.getElementById('stat-buy-cost');
-      const elRevenue = document.getElementById('stat-revenue');
-      const elPnl = document.getElementById('stat-pnl');
-
-      if (!stockId) {
-        if (elShares) elShares.textContent = '-- 股';
-        if (elAvgCost) elAvgCost.textContent = '--';
-        if (elBuyCost) elBuyCost.textContent = '--';
-        if (elRevenue) elRevenue.textContent = '--';
-        if (elPnl) {
-          elPnl.textContent = '--';
-          elPnl.className = 'text-xl font-bold mt-1 text-gray-400';
-        }
-      } else {
-        if (elShares) elShares.textContent = `${Number(summary.remainingShares || 0).toLocaleString()} 股`;
-        if (elAvgCost) elAvgCost.textContent = `${currencySymbol}${Number(summary.avgCost || 0).toLocaleString()}`;
-        if (elBuyCost) elBuyCost.textContent = `${currencySymbol}${Number(summary.totalBuyCost || 0).toLocaleString()}`;
-        if (elRevenue) {
-          // 變數用途說明：totalRev 累計已實現收入 (賣出金額 + 股息利息合計)
-          const totalRev = Number(summary.totalSellRevenue || 0) + Number(summary.totalDividends || 0);
-          elRevenue.textContent = `${currencySymbol}${totalRev.toLocaleString()}`;
-        }
-        if (elPnl) {
-          // 變數用途說明：totalPnl 總損益數值；isProfit 判斷是否為獲利 (正數)
-          const totalPnl = Number(summary.totalPnl ?? 0);
-          const isProfit = totalPnl >= 0;
-          elPnl.textContent = `${isProfit ? '+' : '-'}${currencySymbol}${Math.abs(totalPnl).toLocaleString()}`;
-          elPnl.className = `text-xl font-bold mt-1 ${isProfit ? 'text-profit' : 'text-loss'}`;
-        }
-      }
+      renderSummary(summary, stockId);
 
       // (4) [2026-10-09] feat: 暫存當前查詢的全部流水帳，重設當前頁碼為第 1 頁並執行分頁渲染
+      if (includeAllLogs) {
+        allLogsCache = Array.isArray(logs) ? logs : [];
+        allLogsCacheStock = stockId;
+      } else if (stockId !== allLogsCacheStock) {
+        allLogsCache = [];
+        allLogsCacheStock = '';
+      }
       currentLogsCache = Array.isArray(logs) ? logs : [];
       currentPage = 1;
       renderTable(stockId, round);
@@ -628,6 +628,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } finally {
       // [2026-10-30] 防呆機制解除：載入完成
       isDataLoading = false;
+      updateShowAllTradesButton();
 
       // [2026-10-30] feat: 復原新增按鈕樣式與狀態
       const btnOpenModalEl = document.getElementById('btn-open-modal');
@@ -641,7 +642,88 @@ document.addEventListener('DOMContentLoaded', async () => {
         pendingOpenModal = false;
         executeOpenAddTradeModal();
       }
+      if (btnExportExcel) btnExportExcel.disabled = currentLogsCache.length === 0;
     }
+  }
+
+  function renderSummary(summary, stockId) {
+    // 變數用途說明：快取 5 大部位與財務統計指標之 DOM 元素
+    const elShares = document.getElementById('stat-shares');
+    const elAvgCost = document.getElementById('stat-avg-cost');
+    const elBuyCost = document.getElementById('stat-buy-cost');
+    const elRevenue = document.getElementById('stat-revenue');
+    const elPnl = document.getElementById('stat-pnl');
+
+    if (!stockId) {
+      if (elShares) elShares.textContent = '-- 股';
+      if (elAvgCost) elAvgCost.textContent = '--';
+      if (elBuyCost) elBuyCost.textContent = '--';
+      if (elRevenue) elRevenue.textContent = '--';
+      if (elPnl) {
+        elPnl.textContent = '--';
+        elPnl.className = 'text-xl font-bold mt-1 text-gray-400';
+      }
+    } else {
+      if (elShares) elShares.textContent = `${Number(summary.remainingShares || 0).toLocaleString()} 股`;
+      if (elAvgCost) elAvgCost.textContent = `${currencySymbol}${Number(summary.avgCost || 0).toLocaleString()}`;
+      if (elBuyCost) elBuyCost.textContent = `${currencySymbol}${Number(summary.totalBuyCost || 0).toLocaleString()}`;
+      if (elRevenue) {
+        // 變數用途說明：totalRev 累計已實現收入 (賣出金額 + 股息利息合計)
+        const totalRev = Number(summary.totalSellRevenue || 0) + Number(summary.totalDividends || 0);
+        elRevenue.textContent = `${currencySymbol}${totalRev.toLocaleString()}`;
+      }
+      if (elPnl) {
+        // 變數用途說明：totalPnl 總損益數值；isProfit 判斷是否為獲利 (正數)
+        const totalPnl = Number(summary.totalPnl ?? 0);
+        const isProfit = totalPnl >= 0;
+        elPnl.textContent = `${isProfit ? '+' : '-'}${currencySymbol}${Math.abs(totalPnl).toLocaleString()}`;
+        elPnl.className = `text-xl font-bold mt-1 ${isProfit ? 'text-profit' : 'text-loss'}`;
+      }
+    }
+  }
+
+  function buildRoundSummary(logs) {
+    // 變數用途說明：[2026-11-27] totals 快取依全部明細前端計算出的回合統計
+    const totals = logs.reduce((result, log) => {
+      // 變數用途說明：[2026-11-27] shares 當筆交易股數
+      const shares = Number(log.shares || 0);
+      // 變數用途說明：[2026-11-27] netTotal 當筆交易收付淨額
+      const netTotal = Number(log.net_total || 0);
+      if (log.trade_type === 'BUY') {
+        result.remainingShares += shares;
+        result.totalBoughtShares += shares;
+        result.totalBuyCost += netTotal;
+        result.totalPnl -= netTotal;
+      } else if (log.trade_type === 'SELL') {
+        result.remainingShares -= shares;
+        result.totalSellRevenue += netTotal;
+        result.totalPnl += netTotal;
+      } else if (['REVENUE', 'INTEREST'].includes(log.trade_type)) {
+        result.totalDividends += netTotal;
+        result.totalPnl += netTotal;
+      }
+      return result;
+    }, {
+      remainingShares: 0,
+      totalBoughtShares: 0,
+      totalBuyCost: 0,
+      totalSellRevenue: 0,
+      totalDividends: 0,
+      totalPnl: 0
+    });
+    return {
+      ...totals,
+      avgCost: totals.totalBoughtShares > 0 ? Number((totals.totalBuyCost / totals.totalBoughtShares).toFixed(2)) : 0
+    };
+  }
+
+  function updateShowAllTradesButton() {
+    if (!btnShowAllTrades) return;
+    // 變數用途說明：[2026-11-27] hasAllLogsCache 判斷目前標的是否已有完整交易快取
+    const hasAllLogsCache = allLogsCacheStock === currentStock && currentStock !== '';
+    btnShowAllTrades.classList.toggle('hidden', !currentStock || currentRound !== '' || hasAllLogsCache);
+    btnShowAllTrades.disabled = isDataLoading;
+    btnShowAllTrades.textContent = '顯示全部明細';
   }
 
   /**
@@ -671,15 +753,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 檢查條件：未選擇回合
     if (round === '' || round === null || round === undefined) {
-      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">請選擇特定回合以檢視該回合交易流水帳明細</td></tr>';
-      updatePaginationControls(0, 1, 1);
-      return;
+      if (allLogsCacheStock !== stockId) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">請選擇特定回合，或點選上方「顯示全部交易」</td></tr>';
+        updatePaginationControls(0, 1, 1);
+        return;
+      }
     }
 
     // 檢查條件：該回合無任何明細紀錄
     const totalCount = currentLogsCache.length;
     if (totalCount === 0) {
-      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">該回合尚無任何交易流水記錄</td></tr>';
+      // 變數用途說明：[2026-11-27] emptyMessage 依全部歷史或個別回合顯示對應空資料提示
+      const emptyMessage = round === '' ? '目前沒有任何交易流水記錄' : '該回合尚無任何交易流水記錄';
+      tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-gray-500">${emptyMessage}</td></tr>`;
       updatePaginationControls(0, 1, 1);
       return;
     }
@@ -695,17 +781,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const startIndex = (currentPage - 1) * pageSizeNum;
     const currentRows = isAll ? currentLogsCache : currentLogsCache.slice(startIndex, startIndex + pageSizeNum);
-
-    // [2026-10-07] 異動說明：將 INTEREST 類別的中文顯示文字由「利息」改為「銀行利息」
-    // 變數用途說明：TYPE_MAP 對照各交易型態之中文標籤與 CSS Badge 樣式類別
-    const TYPE_MAP = {
-      BUY: { label: '買進', class: 'badge-buy' },
-      SELL: { label: '賣出', class: 'badge-sell' },
-      REVENUE: { label: '股息', class: 'badge-dividend' },
-      INTEREST: { label: '銀行利息', class: 'badge-dividend' },
-      INPUT: { label: '入金', class: 'badge-input' },
-      OUTPUT: { label: '出金', class: 'badge-output' }
-    };
 
     // 渲染資料列：第一欄為自動累加序號 (由 1 開始累算)
     tbody.innerHTML = currentRows.map((log, index) => {
@@ -762,6 +837,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     pageIndicators.forEach(el => {
       el.textContent = `第 ${current} / ${totalPages} 頁`;
     });
+
+    // [2026-11-27] feat: 匯出按鈕在無資料時停用
+    if (btnExportExcel) {
+      btnExportExcel.disabled = totalCount === 0;
+    }
     
     // 3. 同步更新所有「上一頁」按鈕狀態
     // 變數用途說明：disablePrev 布林值，判斷上一頁按鈕是否需要禁用
@@ -848,7 +928,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           // 變數用途說明：result 刪除請求回傳之 JSON 結果
           const result = await res.json();
           if (!result.success) throw new Error(result.message);
-          loadTradingData(currentStock, currentRound);
+          // 變數用途說明：[2026-11-27] shouldReloadAllLogs 判斷刪除後是否需重新載入完整快取
+          const shouldReloadAllLogs = currentRound === '' && allLogsCacheStock === currentStock;
+          allLogsCache = [];
+          allLogsCacheStock = '';
+          loadTradingData(currentStock, currentRound, shouldReloadAllLogs);
         } catch (err) {
           alert(`刪除失敗: ${err.message}`);
         }
@@ -900,10 +984,67 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
+  if (btnExportExcel) {
+    btnExportExcel.onclick = () => {
+      if (currentLogsCache.length === 0) return;
+
+      // 變數用途說明：[2026-11-27] headers 交易明細 Excel 欄位標題
+      const headers = ['序號', '交易日', '類別', '單價', '股數', '手續費', '交易稅', '收付淨額', '備註說明'];
+      // 變數用途說明：[2026-11-27] rows 目前回合完整交易明細資料列
+      const rows = currentLogsCache.map((log, index) => {
+        // 變數用途說明：[2026-11-27] typeLabel 該筆交易類別中文名稱
+        const typeLabel = (TYPE_MAP[log.trade_type] || { label: log.trade_type }).label;
+        // 變數用途說明：[2026-11-27] isIncome 判斷該筆收付淨額是否為正向金流
+        const isIncome = ['SELL', 'REVENUE', 'INTEREST'].includes(log.trade_type);
+        return [
+          index + 1,
+          log.trade_date ? log.trade_date.slice(0, 10) : '-',
+          `${typeLabel} (R${log.round})`,
+          Number(log.price || 0),
+          Number(log.shares || 0),
+          Number(log.fee || 0),
+          Number(log.tax || 0),
+          isIncome ? Math.abs(Number(log.net_total || 0)) : -Math.abs(Number(log.net_total || 0)),
+          log.note || ''
+        ];
+      });
+      // 變數用途說明：[2026-11-27] tradeDates 目前完整明細的有效交易日期清單
+      const tradeDates = currentLogsCache
+        .map(log => log.trade_date ? log.trade_date.slice(0, 10) : '')
+        .filter(Boolean)
+        .sort();
+      // 變數用途說明：[2026-11-27] dateRange Excel 顯示的實際交易日期區間
+      const dateRange = `${tradeDates[0]} 至 ${tradeDates[tradeDates.length - 1]}`;
+      // 變數用途說明：[2026-11-27] now 儲存匯出當下的本機時間
+      const now = new Date();
+      // 變數用途說明：[2026-11-27] timestamp 組成檔名所需的 YYYYMMDDHHMM
+      const timestamp = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0'),
+        String(now.getHours()).padStart(2, '0'),
+        String(now.getMinutes()).padStart(2, '0')
+      ].join('');
+
+      try {
+        window.ExcelExport.exportWorkbook({
+          filename: `${currentMarket}_${currentStock}_${timestamp}.xlsx`,
+          dateRange,
+          headers,
+          rows
+        });
+      } catch (err) {
+        alert(`匯出失敗: ${err.message}`);
+      }
+    };
+  }
+
   if (selectStock) {
     selectStock.onchange = (e) => {
       currentStock = e.target.value;
       currentRound = ''; // 保持停在全部歷史
+      allLogsCache = [];
+      allLogsCacheStock = '';
       syncUrl();
       loadTradingData(currentStock, currentRound);
     };
@@ -911,9 +1052,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (selectRound) {
     selectRound.onchange = (e) => {
-      currentRound = e.target.value;
+      // 變數用途說明：[2026-11-27] selectedRound 本次下拉選單實際選取的回合字串
+      const selectedRound = String(e.target.value ?? '');
+      currentRound = selectedRound;
       syncUrl();
-      loadTradingData(currentStock, currentRound);
+      if (allLogsCacheStock !== currentStock) {
+        loadTradingData(currentStock, currentRound);
+        return;
+      }
+      currentLogsCache = currentRound === ''
+        ? [...allLogsCache]
+        : allLogsCache.filter(log => String(log.round) === String(currentRound));
+      currentPage = 1;
+      renderSummary(buildRoundSummary(currentLogsCache), currentStock);
+      renderTable(currentStock, currentRound);
+      updateShowAllTradesButton();
+    };
+  }
+
+  if (btnShowAllTrades) {
+    btnShowAllTrades.onclick = () => {
+      if (!currentStock || currentRound !== '') return;
+      loadTradingData(currentStock, '', true);
     };
   }
 
@@ -1181,6 +1341,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       // [2026-10-30] 若開窗選定的標的與目前母頁不同，同步更新母頁狀態，並保持檢視當前回合
       currentStock = stock_id.toUpperCase();
       currentRound = String(round);
+      allLogsCache = [];
+      allLogsCacheStock = '';
       syncUrl();
       await loadTradingData(currentStock, currentRound);
 

@@ -94,7 +94,7 @@
   <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
     <!-- 六大 KPI 指標卡片區 -->
     <section>
-      <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4">帳戶財務指標彙總</h2>
+      <!--<h2 class="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4">帳戶財務指標彙總</h2>-->
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <!-- 卡片 1: 入金合計 -->
         <div class="p-4 rounded-xl bg-gray-800/50 border border-gray-700/50">
@@ -242,6 +242,11 @@
         <div class="flex items-center gap-3">
           <h2 class="font-semibold text-white">收支明細</h2>
           <span id="ledger-count" class="text-xs text-gray-400">共 0 筆</span>
+          <!-- [2026-11-27] feat: 匯出目前查詢條件全部收支明細 -->
+          <button type="button" id="btn-export-excel" disabled
+            class="px-3 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 text-xs disabled:opacity-40 disabled:cursor-not-allowed">
+            匯出 EXCEL
+          </button>
         </div>
 
         <!-- [2026-10-09] feat: 頂部分頁控制介面 (全部/10/20/50/100，預設 10) -->
@@ -484,7 +489,11 @@
   </div>
 
   <!-- 依序載入認證與資料渲染腳本 -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"
+    integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT"
+    crossorigin="anonymous"></script>
   <script src="./src/js/client-auth.js"></script>
+  <script src="./src/js/excel-export.js"></script>
   <script src="./src/js/dashboard.js"></script>
 </body>
 

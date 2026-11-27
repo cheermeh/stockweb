@@ -50,6 +50,11 @@
           class="bg-gray-800 border border-gray-700 font-semibold text-sm rounded px-2.5 py-1 text-white focus:outline-none focus:border-blue-500 disabled:text-gray-50 disabled:cursor-not-allowed">
           <option value="">-- 請先選擇標的 --</option>
         </select>
+        <!-- [2026-11-27] feat: 僅於全部歷史模式提供主動載入全部交易明細 -->
+        <button id="btn-show-all-trades" type="button"
+          class="hidden px-2.5 py-1 rounded border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-medium transition disabled:opacity-50 disabled:cursor-not-allowed">
+          顯示全部明細
+        </button>
       </div>
     </div>
 
@@ -104,6 +109,11 @@
           <h2 class="font-semibold text-white">歷史交易流水帳</h2>
           <!-- [2026-10-10] feat: 將 ID 改為 Class 共用 -->
           <span class="log-count text-xs text-gray-400">共 0 筆</span>
+          <!-- [2026-11-27] feat: 匯出目前回合全部交易明細 -->
+          <button type="button" id="btn-export-excel" disabled
+            class="px-3 py-1 rounded bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 text-xs disabled:opacity-40 disabled:cursor-not-allowed">
+            匯出 EXCEL
+          </button>
         </div>
 
         <!-- [2026-10-09] feat: 頂部分頁控制介面 -->
@@ -362,7 +372,11 @@
   </div>
 
   <!-- 依序載入驗證守衛與操作邏輯 -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"
+    integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT"
+    crossorigin="anonymous"></script>
   <script src="./src/js/client-auth.js"></script>
+  <script src="./src/js/excel-export.js"></script>
   <script src="./src/js/tradinglog.js"></script>
 </body>
 
